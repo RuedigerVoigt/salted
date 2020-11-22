@@ -28,7 +28,7 @@ class ReportGenerator:
         self.cursor = db_object.cursor
         self.show_redirects = show_redirects
         self.show_exceptions = show_exceptions
-        self.replace_path_by_url: dict = None
+        self.replace_path_by_url: Optional[dict] = None
 
     def __list_errors(self,
                       error_code: int) -> list:
@@ -46,9 +46,16 @@ class ReportGenerator:
                      path_to_rewrite: str) -> str:
         """In a given path, replace the path to the folder
            with the base URL."""
+        # Silence mypy index error, because this assures the values
+        # are available:
+        if not self.replace_path_by_url['path_to_be_replaced']:  # type: ignore
+            raise ValueError('Cannot replace in URL not knowing what.')
+        if not self.replace_path_by_url['replace_with_url']:  # type: ignore
+            raise ValueError('Cannot replace in URL not knowing with what.')
+        
         return path_to_rewrite.replace(
-            self.replace_path_by_url['path_to_be_replaced'],
-            self.replace_path_by_url['replace_with_url'],
+            self.replace_path_by_url['path_to_be_replaced'],  # type: ignore
+            self.replace_path_by_url['replace_with_url'],  # type: ignore
             1)
 
     def generate_error_list(self) -> Optional[list]:
@@ -142,7 +149,7 @@ class ReportGenerator:
 
         # The base URL is always given. Invalidate the parameter if no
         # replacement is provided.
-        if not replace_path_by_url['replace_with_url']:
+        if not replace_path_by_url['replace_with_url']:  # type: ignore[index]
             replace_path_by_url = None
         else:
             self.replace_path_by_url = replace_path_by_url
