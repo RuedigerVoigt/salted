@@ -79,9 +79,10 @@ class Salted:
                 recommendation = 32
         else:
             recommendation = int(self.num_workers)
-
+        # Set the logging message here to flush the cache. Cannot use
+        # flush() as it is unknow which or hwo many logging method are used.
         logging.info("%s unique hyperlinks to check. Using %s workers.",
-                     self.num_checks, self.num_workers)
+                     self.num_checks, recommendation)
         return recommendation
 
     async def __worker(self,
