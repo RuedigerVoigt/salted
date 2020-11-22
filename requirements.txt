@@ -1,0 +1,7 @@
+aiohttp>=3.7.2
+beautifulsoup4>=4.9.2
+cchardet
+jinja2
+lxml>4.6.1
+tqdm>=4.51.0
+userprovided>=0.8.0

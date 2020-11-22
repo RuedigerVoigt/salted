@@ -1,0 +1,52 @@
+#######################################
+############### RESULTS ###############
+#######################################
+
+Found {{ statistics.num_links }} which had {{ statistics.num_checked }} distinct targets.
+Checked those in {{ statistics.time_to_check }} seconds.
+This averages to {{ statistics.checks_per_second }} checks/second.
+
+{% if statistics.needed_full_request > 0 %}
+{{ statistics.needed_full_request }} times ({{ statistics.percentage_full_request }} %) a HEAD request was insufficient.
+{% endif %}
+
+{{ statistics.num_fine }} of those hyperlinks are fine.
+
+########## PERMANENT ERRORS ###########
+{% if not permanent %}
+No permanent errors found!
+{% else %}
+HTTP status code 403 = Forbidden
+HTTP status code 404 = Not Found
+HTTP status code 410 = Gone
+{% for result in permanent %}
+{{ result.path }} {{result.num_errors}}
+{% for url in result.defects %}
+* {{ url[2] }}: {{ url[1] }} {{ url[0] }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+########## PERMANENT REDIRECTS ##########
+{% if not redirects %}
+No permanent redirects found!
+{% else %}
+{% for result in redirects %}
+{{ result.path }} {{result.num_redirects}}
+{% for url in result.redirects %}
+* {{ url[1] }}: {{ url[0] }}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+############## EXCEPTIONS #############
+{% if not exceptions %}
+No exceptions during the crawl!
+{% else %}
+{% for result in exceptions %}
+{{ result.path }} {{result.num_exceptions}}
+{% for url in result.exceptions %}
+* {{ url[1] }}: {{ url[0] }}
+{% endfor %}
+{% endfor %}
+{% endif %}
