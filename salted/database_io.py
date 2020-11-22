@@ -103,13 +103,14 @@ class DatabaseIO:
                 self.cache_file_path,
                 isolation_level=None  # reenable autocommit
             )
-            disk_cache.execute('''
+            disk_cache_cursor = disk_cache.cursor()
+            disk_cache_cursor.execute('''
                 SELECT
                 normalizedUrl, lastValid
                 FROM validUrls
                 WHERE lastValid > (strftime('%s','now') - (? * 3600));''',
                 [self.dont_check_again_within_hours])
-            valid_urls = disk_cache.fetchall()
+            valid_urls = disk_cache_cursor.fetchall()
             disk_cache.close()
 
             if valid_urls:
