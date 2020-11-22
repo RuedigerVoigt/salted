@@ -47,6 +47,9 @@ class DatabaseIO:
            Raise ValueError if the path is a directory or if parent
            folders do not exists."""
 
+        if not self.cache_file_path:
+            raise RuntimeError('check_cache_file path called without path set')
+
         if self.cache_file_path.exists() and self.cache_file_path.is_file():
             return
 
@@ -191,8 +194,10 @@ class DatabaseIO:
         logging.debug('Created Views for analytics and output generating.')
 
     def save_found_links(self,
-                         links_found: Optional[list]):
+                         links_found: Optional[list]) -> None:
         """Save the links found into the memory database."""
+        if not links_found:
+            raise ValueError('No links to save them.')
         self.cursor.executemany('''INSERT INTO links
                                    (filePath, hostname, url,
                                    normalizedUrl, linktext)
@@ -271,9 +276,10 @@ class DatabaseIO:
         """Write the current in-memory database into a file.
            Overwrite any file in the given path."""
 
-        self.cache_file_path.unlink(missing_ok=True)
+        self.cache_file_path.unlink(missing_ok=True)  # type: ignore[union-attr]
 
-        new_cache_file = sqlite3.connect(self.cache_file_path)
-        with new_cache_file:
-            self.conn.backup(new_cache_file, name='main')
-        new_cache_file.close()
+        if self.cache_file_path:
+            new_cache_file = sqlite3.connect(self.cache_file_path)
+            with new_cache_file:
+                self.conn.backup(new_cache_file, name='main')
+            new_cache_file.close()

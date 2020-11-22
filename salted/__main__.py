@@ -102,7 +102,7 @@ class Salted:
             queue.put_nowait(entry[0])
 
         tasks = []
-        for i in range(self.num_workers):
+        for i in range(int(self.num_workers)):
             task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
             tasks.append(task)
         await queue.join()
