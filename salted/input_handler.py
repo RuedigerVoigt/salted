@@ -8,6 +8,7 @@ Source: https://github.com/RuedigerVoigt/salted
 (c) 2020: Released under the Apache License 2.0
 """
 
+from collections import Counter
 import logging
 import pathlib
 from typing import List
@@ -27,6 +28,7 @@ class InputHandler:
     def __init__(self,
                  db: database_io.DatabaseIO):
         self.db = db
+        self.cnt: Counter = Counter()
 
     @staticmethod
     def find_files_by_extensions(path_to_base_folder: pathlib.Path,
@@ -91,6 +93,7 @@ class InputHandler:
                                         href,
                                         normalized_url,
                                         linktext])
+                    self.cnt['links_found'] += 1
             self.db.save_found_links(links_found)
 
         return None
