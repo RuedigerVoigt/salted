@@ -8,14 +8,15 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="salted",
-    version="0.5.0",
+    version="0.5.1",
     author="Rüdiger Voigt",
     author_email="projects@ruediger-voigt.eu",
     description="Smart, Asynchronous Link Tester with Database backend",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/RuedigerVoigt/salted",
-    package_data={"exoskeleton": ["py.typed"]},
+    package_data={
+        "salted": ["py.typed", "templates/*.jinja"]},
     packages=setuptools.find_packages(),
     python_requires=">=3.8",
     install_requires=["aiodns",
