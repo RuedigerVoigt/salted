@@ -31,9 +31,9 @@ class Salted:
     version = '0.5.0'  # released: Nov 23, 2020
 
     def __init__(self,
+                 cache_file: Union[pathlib.Path, str],
                  workers: Union[int, str] = 'automatic',
                  timeout_sec: int = 5,
-                 cache_file: Union[pathlib.Path, str] = None,
                  dont_check_again_within_hours: int = 24,
                  raise_for_dead_links: bool = False) -> None:
 
