@@ -50,8 +50,7 @@ class Salted:
             cache_file)
         self.file_io = input_handler.InputHandler(
             self.db)
-        # Init network interactions later as no event loop exists yet!
-        self.network: Optional[network_interaction.NetworkInteraction] = None
+
         self.display_result = report_generator.ReportGenerator(
             self.db
         )
