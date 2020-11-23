@@ -24,7 +24,7 @@ class NetworkInteraction:
                  timeout_sec: int) -> None:
         self.db = db
         self.timeout_sec = timeout_sec
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
 
         self.cnt: Counter = Counter()
 
