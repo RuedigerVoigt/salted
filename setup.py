@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="salted",
-    version="0.5.1",
+    version="0.5.2",
     author="Rüdiger Voigt",
     author_email="projects@ruediger-voigt.eu",
     description="Smart, Asynchronous Link Tester with Database backend",
@@ -17,6 +17,7 @@ setuptools.setup(
     url="https://github.com/RuedigerVoigt/salted",
     package_data={
         "salted": ["py.typed", "templates/*.jinja"]},
+    include_package_data=True,
     packages=setuptools.find_packages(),
     python_requires=">=3.8",
     install_requires=["aiodns",
