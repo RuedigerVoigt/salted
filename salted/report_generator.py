@@ -11,7 +11,7 @@ import logging
 import pathlib
 from typing import Optional, Union
 
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, PackageLoader
 
 from salted import database_io
 
@@ -168,8 +168,7 @@ class ReportGenerator:
 
         if template['name'] in ('default.cli.jinja', 'default.md.jinja'):
             # built-in template
-            jinja_env = Environment(loader=FileSystemLoader(
-                searchpath=template['searchpath']))
+            jinja_env = Environment(loader=PackageLoader('salted', 'templates'))
             builtin_template = jinja_env.get_template(template['name'])
             rendered_report = builtin_template.render(
                 statistics=statistics,
