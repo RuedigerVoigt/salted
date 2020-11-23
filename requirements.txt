@@ -1,3 +1,4 @@
+aiodns
 aiohttp>=3.7.2
 beautifulsoup4>=4.9.2
 cchardet

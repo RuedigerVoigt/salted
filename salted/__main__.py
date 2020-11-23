@@ -28,7 +28,7 @@ class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
 
-    version = '0.5.0'  # released: Nov 22, 2020
+    version = '0.5.0'  # released: Nov 23, 2020
 
     def __init__(self,
                  workers: Union[int, str] = 'automatic',
@@ -172,6 +172,7 @@ class Salted:
 
         self.display_result.generate_report(
             statistics={
+                'num_links': self.file_io.cnt['links_found'],
                 'num_checked': self.num_checks,
                 'time_to_check': (round(runtime_check)),
                 'checks_per_second': (
