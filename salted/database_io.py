@@ -244,8 +244,8 @@ class DatabaseIO:
                             [url, exception_str])
 
     def del_links_that_can_be_skipped(self) -> int:
-        """If links from a non-expired cache have been read,
-           try to eliminate them in the list of URLs to check.
+        """If links from a non-expired cache have been read, try to eliminate
+           them in the list of URLs to check.
            Return the absolute number of (non-normalized) URLs to check."""
 
         self.cursor.execute('SELECT COUNT(*) FROM links;')
@@ -265,7 +265,6 @@ class DatabaseIO:
                    "hours.\n" +
                    f"{num_links_after} unique links have to be tested.")
             logging.info(msg)
-            print(msg)
         return num_links_after
 
     def count_errors(self) -> int:
