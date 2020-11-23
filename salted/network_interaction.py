@@ -28,6 +28,11 @@ class NetworkInteraction:
 
         self.cnt: Counter = Counter()
 
+    async def close_session(self):
+        """Close the session object once it is no longer needed"""
+        if self.session:
+            await self.session.close()
+
     async def head_request(self,
                            url: str) -> int:
         """The HTTP HEAD method requests the headers, but not the body of

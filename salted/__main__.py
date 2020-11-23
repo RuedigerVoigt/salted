@@ -38,6 +38,7 @@ class Salted:
                  raise_for_dead_links: bool = False) -> None:
 
         self.num_workers = workers
+        self.timeout = int(timeout_sec)
 
         userprovided.parameters.enforce_boolean(
             raise_for_dead_links,
@@ -49,9 +50,8 @@ class Salted:
             cache_file)
         self.file_io = input_handler.InputHandler(
             self.db)
-        self.network = network_interaction.NetworkInteraction(
-            self.db,
-            timeout_sec)
+        # Init network interactions later as no event loop exists yet!
+        self.network: Optional[network_interaction.NetworkInteraction] = None
         self.display_result = report_generator.ReportGenerator(
             self.db
         )
@@ -101,11 +101,26 @@ class Salted:
         for entry in urls_to_check:
             queue.put_nowait(entry[0])
 
+        # initialize here as there has to exist an event loop
+        self.network = network_interaction.NetworkInteraction(
+            self.db,
+            self.timeout)
+
         tasks = []
         for i in range(int(self.num_workers)):
             task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
             tasks.append(task)
         await queue.join()
+
+        # Cancel worker tasks.
+        for task in tasks:
+            task.cancel()
+
+        # Close aiohttp session
+        await self.network.close_session()
+
+        # Wait until all worker tasks are cancelled.
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_links(self,
                     path_to_base_folder: pathlib.Path,
@@ -148,8 +163,7 @@ class Salted:
 
         # ##### START ASYNCHRONOUS CODE #####
 
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(self.__distribute_work(urls_to_check))
+        asyncio.run(self.__distribute_work(urls_to_check))
 
         # ##### END ASYNCHRONOUS CODE #####
         self.db.generate_indices()
