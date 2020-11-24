@@ -21,7 +21,9 @@ Key advantages of this application compared to other linkcheckers are:
 1. All HTML files you want to check have to be in one directory. Subdirectories will be crawled.
 2. Open a Python shell:
 ```python
+import logging
 import salted
+logging.basicConfig(level=logging.INFO)
 
 # if there is no cache file, a new one will be created:
 linkcheck = salted.Salted(cache_file='./salted-cache.sqlite3')
@@ -29,8 +31,8 @@ linkcheck = salted.Salted(cache_file='./salted-cache.sqlite3')
 # Assuming there is a folder 'homepage' within your current working directory:
 linkcheck.check_links('./homepage/')
 ```
-That should look like this:
-
+That looks like this:
+![Using salted - animated example](documentation/salted-0.5.2.gif)
 
 ## Installation
 
