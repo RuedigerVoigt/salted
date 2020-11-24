@@ -34,7 +34,7 @@ No permanent redirects found!
 {% for result in redirects %}
 {{ result.path }} {{result.num_redirects}}
 {% for url in result.redirects %}
-* {{ url[1] }}: {{ url[0] }}
+* {{ url[2] }}: {{ url[1] }} {{ url[0] }}
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -46,7 +46,7 @@ No exceptions during the crawl!
 {% for result in exceptions %}
 {{ result.path }} {{result.num_exceptions}}
 {% for url in result.exceptions %}
-* {{ url[1] }}: {{ url[0] }}
+* {{ url[2] }}: {{ url[1] }} {{ url[0] }}
 {% endfor %}
 {% endfor %}
 {% endif %}

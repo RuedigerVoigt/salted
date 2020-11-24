@@ -99,7 +99,7 @@ class ReportGenerator:
         for file_path, num_redirects in pages_w_redirects:
             # The url as in the code, not the normalized version used to check.
             self.cursor.execute('''
-                SELECT url, httpCode
+                SELECT url, linktext, httpCode
                 FROM v_redirectsByFile
                 WHERE filePath = ?;''', [file_path])
             redirects = self.cursor.fetchall()
@@ -126,7 +126,7 @@ class ReportGenerator:
         for file_path, num_exceptions in pages_w_exceptions:
             # The url as in the code, not the normalized version used to check.
             self.cursor.execute('''
-                SELECT url, reason
+                SELECT url, linktext, reason
                 FROM v_exceptionsByFile
                 WHERE filePath = ?;''', [file_path])
             exceptions = self.cursor.fetchall()

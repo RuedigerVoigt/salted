@@ -25,7 +25,7 @@ No permanent errors found!
 {% for result in permanent %}
 **{{ result.path }}** ({{result.num_errors}})
 
-|code| link text and URL|
+|code| URL and link text |
 |--:|:------------------|
 {% for url in result.defects -%}
 |{{ url[2] }} | {{ url[0] }}|
@@ -42,11 +42,11 @@ No permanent redirects found!
 {% for result in redirects %}
 **{{ result.path }}** ({{result.num_redirects}})
 
-|code| link text and URL|
+|code| URL and link text |
 |--:|:------------------|
 {% for url in result.redirects -%}
-|{{ url[1] }} | {{ url[0] }}|
-| | {{ url[0] }} |
+|{{ url[2] }} | {{ url[0] }}|
+| | {{ url[1] }} |
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -58,11 +58,11 @@ No exceptions during the crawl!
 {% for result in exceptions %}
 **{{ result.path }}** ({{result.num_exceptions}})
 
-|exception| link text and URL|
+|exception| URL and link text |
 |------:|:------------------|
 {% for url in result.exceptions -%}
-|{{ url[1] }} | {{ url[0] }}|
-| | {{ url[0] }} |
+|{{ url[2] }} | {{ url[0] }}|
+| | {{ url[1] }} |
 {% endfor %}
 {% endfor %}
 {% endif %}
