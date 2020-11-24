@@ -52,7 +52,7 @@ class ReportGenerator:
             raise ValueError('Cannot replace in URL not knowing what.')
         if not self.replace_path_by_url['replace_with_url']:  # type: ignore
             raise ValueError('Cannot replace in URL not knowing with what.')
-        
+
         return path_to_rewrite.replace(
             self.replace_path_by_url['path_to_be_replaced'],  # type: ignore
             self.replace_path_by_url['replace_with_url'],  # type: ignore
@@ -192,7 +192,8 @@ class ReportGenerator:
         try:
             with open(write_to, 'w') as file:
                 file.write(rendered_report)
-            logging.info("Written report to file.")
+            logging.info("Wrote report to file: %s",
+                         pathlib.Path(write_to).resolve())
         except Exception:
             logging.exception('Exception while writing to file!',
                               exc_info=True)
