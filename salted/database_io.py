@@ -141,21 +141,21 @@ class DatabaseIO:
         # Separate function to execute after all links have been checked
         # and the respective tables are stable."""
         self.cursor.execute('''
-            CREATE VIEW v_errorCountByFile AS
+            CREATE VIEW IF NOT EXISTS v_errorCountByFile AS
             SELECT COUNT(*) AS numErrors, filePath
             FROM links
             WHERE normalizedUrl IN (
             SELECT normalizedUrl FROM errors
             ) GROUP BY filePath;''')
         self.cursor.execute('''
-            CREATE VIEW v_redirectCountByFile AS
+            CREATE VIEW IF NOT EXISTS v_redirectCountByFile AS
             SELECT COUNT(*) AS numRedirects, filePath
             FROM links
             WHERE normalizedUrl IN (
             SELECT normalizedUrl FROM permanentRedirects
             ) GROUP BY filePath;''')
         self.cursor.execute('''
-            CREATE VIEW v_exceptionCountByFile AS
+            CREATE VIEW IF NOT EXISTS v_exceptionCountByFile AS
             SELECT COUNT(*) AS numExceptions, filePath
             FROM links
             WHERE normalizedUrl IN (
@@ -163,7 +163,7 @@ class DatabaseIO:
             ) GROUP BY filePath;''')
 
         self.cursor.execute('''
-            CREATE VIEW v_errorsByFile AS
+            CREATE VIEW IF NOT EXISTS v_errorsByFile AS
             SELECT links.filePath,
             links.url,
             links.linktext,
@@ -173,7 +173,7 @@ class DatabaseIO:
             ON links.normalizedUrl = errors.normalizedUrl;''')
 
         self.cursor.execute('''
-            CREATE VIEW v_redirectsByFile AS
+            CREATE VIEW IF NOT EXISTS v_redirectsByFile AS
             SELECT links.filePath,
             links.url,
             links.linktext,
@@ -183,7 +183,7 @@ class DatabaseIO:
             ON links.normalizedUrl = permanentRedirects.normalizedUrl;''')
 
         self.cursor.execute('''
-            CREATE VIEW v_exceptionsByFile AS
+            CREATE VIEW IF NOT EXISTS v_exceptionsByFile AS
             SELECT links.filePath,
             links.url,
             links.linktext,
