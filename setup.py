@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="salted",
-    version="0.5.2",
+    version="0.5.3",
     author="Rüdiger Voigt",
     author_email="projects@ruediger-voigt.eu",
     description="Smart, Asynchronous Link Tester with Database backend",
@@ -33,7 +33,8 @@ setuptools.setup(
         "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
-        "Development Status :: 5 - Production/Stable",
+        #"Development Status :: 5 - Production/Stable",
+        "Development Status :: 4 - Beta",
         "Framework :: AsyncIO",
         "Intended Audience :: Developers",
         "Intended Audience :: System Administrators",

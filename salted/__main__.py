@@ -28,7 +28,7 @@ class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
 
-    version = '0.5.2'  # released: Nov 24, 2020
+    version = '0.5.3'  # released: Nov 24, 2020
 
     def __init__(self,
                  cache_file: Union[pathlib.Path, str],
@@ -122,7 +122,7 @@ class Salted:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_links(self,
-                    path_to_base_folder: pathlib.Path,
+                    path_to_base_folder: Union[str, pathlib.Path],
                     template_searchpath: str = 'salted/templates',
                     template_name: str = 'default.cli.jinja',
                     write_to: Union[str, pathlib.Path] = 'cli',
@@ -130,6 +130,14 @@ class Salted:
         """Check all links found in HTML files within the provided folder
            and its subfolders."""
         start_time = time.monotonic()
+
+        # Expand path as otherwise a relative path will not be rewritten
+        # in output:
+        path_to_base_folder = pathlib.Path(path_to_base_folder).resolve()
+
+        # Remove trailing slash in base URL if there is one:
+        if base_url:
+            base_url = base_url.rstrip('/')
 
         files_to_check = self.file_io.find_html_files(path_to_base_folder)
         if files_to_check:
@@ -190,7 +198,7 @@ class Salted:
                 'base_url': base_url},
             write_to=write_to,
             replace_path_by_url={
-                'path_to_be_replaced': path_to_base_folder,
+                'path_to_be_replaced': str(path_to_base_folder),
                 'replace_with_url': base_url
             })
 
