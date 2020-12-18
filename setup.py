@@ -25,7 +25,7 @@ setuptools.setup(
                       "beautifulsoup4>=4.8.2",
                       "cchardet",
                       "jinja2",
-                      "lxml>=4.6.1",
+                      "lxml>=4.6.2",
                       "tqdm>=4.51.0",
                       "userprovided>=0.8.0"],
     classifiers=[
