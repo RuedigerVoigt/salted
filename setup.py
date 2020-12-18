@@ -21,7 +21,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     python_requires=">=3.8",
     install_requires=["aiodns",
-                      "aiohttp>=3.7.2",
+                      "aiohttp>=3.7.3",
                       "beautifulsoup4>=4.8.2",
                       "cchardet",
                       "jinja2",
