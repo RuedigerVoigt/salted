@@ -26,7 +26,7 @@ class NetworkInteraction:
         self.db = db
         self.timeout_sec = timeout_sec
 
-        self.headers: str = dict()
+        self.headers: dict = dict()
         if user_agent:
             self.headers = {'User-Agent': user_agent}
 
