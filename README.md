@@ -92,6 +92,7 @@ There are some optional parameters:
 * `timeout_sec`: The number of seconds to wait for a server to answer the request. This is necessary as some servers do not answer and a single one of those would block the check. This defaults to 5 seconds. 
 * `dont_check_again_within_hours`: the cache lifetime in full hours. If a link was valid this number of hours ago, salted assumes it is still valid and will not check it again. This defaults to 24 hours.
 * `raise_for_dead_links`: if set to `True` salted will raise an exception in case it finds obviously dead links that yield a HTTP status code like 404 ('Not found) or 410 ('Gone'). That behavior is useful for a publication workflow. It will *not* raise an exception for links it could not check as some servers block requests.
+* `user_agent`: sets the 'User-Agent' field of the HTTP header. This defaults to 'salted' if not set.
 
 ### Running the check
 
@@ -125,3 +126,9 @@ Salted uses [Jinja2 templates](https://jinja.palletsprojects.com/en/2.11.x/).
 
 
 The last optional parameter is `base_url`. Assume all your HTML files will be hosted on `www.example.com`. Salted does not know that. So if it finds a defect link it will tell you it is in `/home/youruser/path_to_your_folder/index.html`. If you set `base_url` to `https://www.example.com/` it will instead tell you the defect link is in `https://www.example.com/index.html`.
+
+### Handling problematic servers
+
+Servers might block you if you send too many requests in a certain amount of time, then you should reduce the number of workers to slow salted down.
+
+However, some servers block bots in general fearing automated access might be with malicious intent. This often includes link checkers although having working links pointing to their pages helps their SEO. Salted also mainly uses HEAD requests which do not load the full webpage, but only the headers. (Full requests are used as backup, but even then only a part is read.) You might ask the page's owner to excempt a specific IP or user agent. If that is not feasible it might help to set the `user_agent` parameter to something a browser might send.

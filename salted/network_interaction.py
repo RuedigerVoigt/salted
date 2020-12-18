@@ -21,9 +21,15 @@ class NetworkInteraction:
 
     def __init__(self,
                  db: database_io.DatabaseIO,
-                 timeout_sec: int) -> None:
+                 timeout_sec: int,
+                 user_agent: str) -> None:
         self.db = db
         self.timeout_sec = timeout_sec
+
+        self.headers: str = dict()
+        if user_agent:
+            self.headers = {'User-Agent': user_agent}
+
         self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
 
         self.cnt: Counter = Counter()
@@ -39,6 +45,7 @@ class NetworkInteraction:
            a page. Requesting this way reduces load on the server and
            reduces network traffic."""
         async with self.session.get(url,
+                                    headers=self.headers,
                                     raise_for_status=False,
                                     timeout=self.timeout_sec) as response:
             return response.status
@@ -51,6 +58,7 @@ class NetworkInteraction:
             Therefore the read is limited."""
 
         async with self.session.get(url,
+                                    headers=self.headers,
                                     raise_for_status=False,
                                     timeout=self.timeout_sec) as response:
             await response.content.read(100)

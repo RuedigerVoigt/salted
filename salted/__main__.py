@@ -28,14 +28,15 @@ class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
 
-    version = '0.5.3'  # released: Nov 24, 2020
+    version = '0.5.4'  # released: Dec 18, 2020
 
     def __init__(self,
                  cache_file: Union[pathlib.Path, str],
                  workers: Union[int, str] = 'automatic',
                  timeout_sec: int = 5,
                  dont_check_again_within_hours: int = 24,
-                 raise_for_dead_links: bool = False) -> None:
+                 raise_for_dead_links: bool = False,
+                 user_agent: str = f"salted/{version}") -> None:
 
         self.num_workers = workers
         self.timeout = int(timeout_sec)
@@ -44,6 +45,8 @@ class Salted:
             raise_for_dead_links,
             'raise_for_dead_links')
         self.raise_for_dead_links = raise_for_dead_links
+
+        self.user_agent = user_agent
 
         self.db = database_io.DatabaseIO(
             dont_check_again_within_hours,
@@ -103,7 +106,8 @@ class Salted:
         # initialize here as there has to exist an event loop
         self.network = network_interaction.NetworkInteraction(
             self.db,
-            self.timeout)
+            self.timeout,
+            self.user_agent)
 
         tasks = []
         for i in range(int(self.num_workers)):
