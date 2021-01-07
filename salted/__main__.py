@@ -28,7 +28,7 @@ class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
 
-    version = '0.5.4'  # released: Dec 18, 2020
+    version = '0.6.0'  # released: Jan 07, 2021
 
     def __init__(self,
                  cache_file: Union[pathlib.Path, str],
@@ -143,9 +143,10 @@ class Salted:
         if base_url:
             base_url = base_url.rstrip('/')
 
-        files_to_check = self.file_io.find_html_files(path_to_base_folder)
+        files_to_check = self.file_io.find_files_by_extensions(
+            path_to_base_folder)
         if files_to_check:
-            self.file_io.scan_html_files_for_links(files_to_check)
+            self.file_io.scan_files_for_links(files_to_check)
             num_links_to_check = self.db.del_links_that_can_be_skipped()
             if num_links_to_check == 0:
                 msg = ("Nothing to do after skipping cached results." +
