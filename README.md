@@ -5,7 +5,7 @@
 ![pypi version](https://img.shields.io/pypi/v/salted)
 
 Broken hyperlinks are bad for user experience and may hurt SEO.
-Salted checks if hyperlinks in HTML files are valid.
+Salted checks if external links in HTML, Markdown, or TeX files are valid.
 Key advantages of this application compared to other linkcheckers are:
 * *It is smart.*
     * Salted uses a configurable cache. So if your check found some broken links and you fixed them, then the next run will only check the changed links.
@@ -20,7 +20,7 @@ Key advantages of this application compared to other linkcheckers are:
 
 ## Example
 
-1. All HTML files you want to check have to be in one directory. Subdirectories will be crawled.
+1. All files you want to check have to be in one directory. Subdirectories will be crawled.
 2. Open a Python shell:
 ```python
 import logging
@@ -35,6 +35,8 @@ linkcheck.check_links('./homepage/')
 ```
 Two runs in a row (i.e. one full check and one using the cache):
 ![Using salted - animated example](https://github.com/RuedigerVoigt/salted/raw/main/documentation/salted-0.5.2.gif)
+
+Salted automatically recognizes supported file formats by their extension (i.e. `htm`, `html`, `md`, and `tex`).
 
 ## Installation
 
@@ -71,13 +73,21 @@ logging.basicConfig(level=logging.INFO)
 # If there is no cache file, a new one will be created. You need to provide a path / name:
 linkcheck = salted.Salted(cache_file='./choose-a-name.sqlite3')
 
-# Salted assumes all your HTML files are in one folder or subfolders of that:
-linkcheck.check_links('./path_to_your_html_files/')
+# Salted assumes all your files are in one folder or subfolders of that:
+linkcheck.check_links('./path_to_your_files/')
 ```
 
 Salted uses the `logging` module instead of the `print()` command, because:
 * You may want to sent the output to a file or another destination.
 * By adapting the log level you can decide which information to see.
+
+### Supported File Formats
+
+*Salted does not yet check relative links in any file-format.*
+
+* **HTML** : Standard hyperlinks / anchors are checked. Salted does not yet check relative links or `src` attributes of pictures.
+* **Markdown** : The pandoc version as well as GitHub flavored markdown are supported.
+* **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
 
 ### Initializing
 

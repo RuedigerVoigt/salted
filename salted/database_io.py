@@ -198,7 +198,7 @@ class DatabaseIO:
                          links_found: Optional[list]) -> None:
         """Save the links found into the memory database."""
         if not links_found:
-            raise ValueError('No links to save them.')
+            logging.debug('No links in this file to save them.')
         self.cursor.executemany('''INSERT INTO links
                                    (filePath, hostname, url,
                                    normalizedUrl, linktext)
