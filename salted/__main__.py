@@ -51,12 +51,10 @@ class Salted:
         self.db = database_io.DatabaseIO(
             dont_check_again_within_hours,
             cache_file)
-        self.file_io = input_handler.InputHandler(
-            self.db)
+        self.file_io = input_handler.InputHandler(self.db)
 
         self.display_result = report_generator.ReportGenerator(
-            self.db
-        )
+            self.db)
 
         self.cnt: Counter = Counter()
         self.num_checks = 0

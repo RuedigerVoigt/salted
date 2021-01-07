@@ -136,6 +136,10 @@ class InputHandler:
             logging.warning('No files to check')
             return None
 
+        # Reset counter as check_links might be used multiple times and this
+        # should be per run:
+        self.cnt['links_found'] = 0
+
         print("Scanning files for links:")
         for file_path in tqdm(files_to_check):
             content = ''
