@@ -118,17 +118,14 @@ class InputHandler:
         matches = []
         # extract class \href{url}{text} links
         href_in_file = re.findall(self.pattern_latex_href, file_content)
-        print(len(href_in_file))
         for match in href_in_file:
             # The RegEx returns the optinal Element as first element.
             # (Empty, but still in the return if it is not in the string.)
             matches.append([match[1], match[2]])
         # extract \url{url} links
         url_in_file = re.findall(self.pattern_latex_url, file_content)
-        print(len(url_in_file))
         for url in url_in_file:
             matches.append([url, url])
-        print(matches)
         return matches
 
     def scan_files_for_links(self,

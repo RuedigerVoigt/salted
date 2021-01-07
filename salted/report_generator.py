@@ -25,7 +25,6 @@ class ReportGenerator:
                  show_redirects: bool = True,
                  show_exceptions: bool = True):
         self.db = db_object
-        self.cursor = db_object.cursor
         self.show_redirects = show_redirects
         self.show_exceptions = show_exceptions
         self.replace_path_by_url: Optional[dict] = None
@@ -34,10 +33,11 @@ class ReportGenerator:
                       error_code: int) -> list:
         """Return a list of normalized URLs that yield a specific
            error code (from the HTTP status codes)."""
-        self.cursor.execute('''SELECT normalizedUrl
+        cursor = self.db.get_cursor()
+        cursor.execute('''SELECT normalizedUrl
                                FROM errors
                                WHERE error = ?;''', [error_code])
-        urls_with_error = self.cursor.fetchall()
+        urls_with_error = cursor.fetchall()
         if urls_with_error:
             return urls_with_error
         return list()
@@ -62,21 +62,22 @@ class ReportGenerator:
         """If the crawl found hyperlinks that yield permanent errors, return
            a list of dictionaries containing the file path, the number of
            permanent errors in that file, and a list of the actual errors."""
+        cursor = self.db.get_cursor()
         result = list()
-        self.cursor.execute(
+        cursor.execute(
             '''SELECT filePath, numErrors
                FROM v_errorCountByFile
                ORDER BY numErrors DESC, filePath ASC;''')
-        pages_w_permanent_errors = self.cursor.fetchall()
+        pages_w_permanent_errors = cursor.fetchall()
         if not pages_w_permanent_errors:
             return None
         for file_path, num_errors in pages_w_permanent_errors:
             # The url as in the code, not the normalized version used to check.
-            self.cursor.execute('''
+            cursor.execute('''
                 SELECT url, linktext, httpCode
                 FROM v_errorsByFile
                 WHERE filePath = ?;''', [file_path])
-            defects = self.cursor.fetchall()
+            defects = cursor.fetchall()
             if self.replace_path_by_url:
                 file_path = self.rewrite_path(file_path)
             result.append({'path': file_path,
@@ -88,21 +89,22 @@ class ReportGenerator:
         """If the crawl found hyperlinks that yield permanent redirects, return
            a list of dictionaries containing the file path, the number of
            permanent redirects in that file, and a list of the redirects."""
+        cursor = self.db.get_cursor()
         result = list()
-        self.cursor.execute(
+        cursor.execute(
             '''SELECT filePath, numRedirects
                 FROM v_redirectCountByFile
                 ORDER BY numRedirects DESC, filePath ASC;''')
-        pages_w_redirects = self.cursor.fetchall()
+        pages_w_redirects = cursor.fetchall()
         if not pages_w_redirects:
             return None
         for file_path, num_redirects in pages_w_redirects:
             # The url as in the code, not the normalized version used to check.
-            self.cursor.execute('''
+            cursor.execute('''
                 SELECT url, linktext, httpCode
                 FROM v_redirectsByFile
                 WHERE filePath = ?;''', [file_path])
-            redirects = self.cursor.fetchall()
+            redirects = cursor.fetchall()
             if self.replace_path_by_url:
                 file_path = self.rewrite_path(file_path)
             result.append({'path': file_path,
@@ -115,21 +117,22 @@ class ReportGenerator:
            return a list of dictionaries containing the file path, the number
            of exception causing links in that file, and a list of the
            actual exceptions."""
+        cursor = self.db.get_cursor()
         result = list()
-        self.cursor.execute(
+        cursor.execute(
             '''SELECT filePath, numExceptions
                 FROM v_exceptionCountByFile
                 ORDER BY numExceptions DESC, filePath ASC;''')
-        pages_w_exceptions = self.cursor.fetchall()
+        pages_w_exceptions = cursor.fetchall()
         if not pages_w_exceptions:
             return None
         for file_path, num_exceptions in pages_w_exceptions:
             # The url as in the code, not the normalized version used to check.
-            self.cursor.execute('''
+            cursor.execute('''
                 SELECT url, linktext, reason
                 FROM v_exceptionsByFile
                 WHERE filePath = ?;''', [file_path])
-            exceptions = self.cursor.fetchall()
+            exceptions = cursor.fetchall()
             if self.replace_path_by_url:
                 file_path = self.rewrite_path(file_path)
             result.append({'path': file_path,
@@ -146,7 +149,7 @@ class ReportGenerator:
         """Generate the report for the user with a Jinja2 template.
            Either display it at the command line interface or write
            it to a file. """
-
+        cursor = self.db.get_cursor()
         # The base URL is always given. Invalidate the parameter if no
         # replacement is provided.
         if not replace_path_by_url['replace_with_url']:  # type: ignore[index]

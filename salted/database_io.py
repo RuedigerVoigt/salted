@@ -5,7 +5,7 @@
 Handle the database and cache for salted.
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020: Released under the Apache License 2.0
+(c) 2020-2021: Released under the Apache License 2.0
 """
 
 import logging
@@ -31,15 +31,44 @@ class DatabaseIO:
                           self.cache_file_path)
             self.check_cache_file_path()
 
-        # Create a sqlite database in memory
+        # Prepare to create a sqlite database in memory
+        # Not actually created here, because users might reuse the object
+        # for multiple checks on different document sets. Therefore the
+        # check_links() function in __main__.py will call init_in_memory_db
+        # and tear_down_in_memory_db().
         self.conn = sqlite3.connect(
             ':memory:',
             isolation_level=None  # reenable autocommit
             )
         self.cursor = self.conn.cursor()
 
+    def get_cursor(self) -> sqlite3.Cursor:
+        """Returns a valid cursor. is used by the report generator that
+           directly accesses the database outside this class.
+           If user reuse the object a new database is created and in that case
+           the old cursor is invalid."""
+        return self.cursor
+
+    def reinitialize_in_memory_db(self):
+        """If there is already an in memory instance, close it. Then create
+           and initialize a new in memory instance of the database by
+           creating its schema and loading the disk cache (if available)."""
+        logging.debug('Reinitialize in memory database.')
+        self.tear_down_in_memory_db()
+        self.conn = sqlite3.connect(
+            ':memory:',
+            isolation_level=None  # reenable autocommit
+            )
+        self.cursor = self.conn.cursor()
         self.create_schema()
         self.load_disk_cache()
+
+    def tear_down_in_memory_db(self):
+        """If there is an active in memory instance, close the connection.
+           All data not stored elsewhere will be lost."""
+        if self.conn:
+            logging.debug("tear down in memory instance")
+            self.conn.close()
 
     def check_cache_file_path(self) -> None:
         """Check if the given path is valid in order to fail if it is not
@@ -195,15 +224,15 @@ class DatabaseIO:
         logging.debug('Created Views for analytics and output generating.')
 
     def save_found_links(self,
-                         links_found: Optional[list]) -> None:
+                         links_found: list) -> None:
         """Save the links found into the memory database."""
         if not links_found:
             logging.debug('No links in this file to save them.')
-        self.cursor.executemany('''INSERT INTO links
-                                   (filePath, hostname, url,
-                                   normalizedUrl, linktext)
-                                   VALUES(?, ?, ?, ?, ?);''',
-                                links_found)
+        else:
+            self.cursor.executemany('''
+            INSERT INTO links
+            (filePath, hostname, url, normalizedUrl, linktext)
+            VALUES(?, ?, ?, ?, ?);''', links_found)
 
     def urls_to_check(self) -> Optional[list]:
         """Return a list of all distinct URLs to check."""

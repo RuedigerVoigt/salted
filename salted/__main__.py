@@ -131,13 +131,19 @@ class Salted:
                     template_name: str = 'default.cli.jinja',
                     write_to: Union[str, pathlib.Path] = 'cli',
                     base_url: Optional[str] = None) -> None:
-        """Check all links found in HTML files within the provided folder
+        """Check all links found in files within the provided folder
            and its subfolders."""
         start_time = time.monotonic()
+
+        # check_links might be reused with the same salted object. Therefore
+        # the database has to reinitialized to remove data like exceptions 
+        # et cetera from previous runs. however this loads the disk cache.
+        self.db.reinitialize_in_memory_db()
 
         # Expand path as otherwise a relative path will not be rewritten
         # in output:
         path_to_base_folder = pathlib.Path(path_to_base_folder).resolve()
+        logging.info('Base folder: %s', path_to_base_folder)
 
         # Remove trailing slash in base URL if there is one:
         if base_url:
@@ -154,7 +160,8 @@ class Salted:
                 logging.info(msg)
                 return
         else:
-            logging.warning("No HTML files in this folder or its subfolders")
+            logging.warning(
+                "No supported files in this folder or its subfolders.")
             return
 
         urls_to_check = self.db.urls_to_check()
@@ -181,6 +188,7 @@ class Salted:
         self.db.generate_indices()
         self.db.generate_db_views()
         self.pbar_links.close()
+
         runtime_check = time.monotonic() - start_time
 
         self.display_result.generate_report(
@@ -206,8 +214,8 @@ class Salted:
                 'path_to_be_replaced': str(path_to_base_folder),
                 'replace_with_url': base_url
             })
-
         if self.raise_for_dead_links:
             if self.db.count_errors() > 0:
                 raise Exception("Found dead URLs")
         self.db.overwrite_cache_file()
+        self.db.tear_down_in_memory_db()
