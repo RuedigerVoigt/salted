@@ -28,7 +28,7 @@ class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
 
-    version = '0.6.0'  # released: Jan 07, 2021
+    version = '0.6.0'  # released: Jan 08, 2021
 
     def __init__(self,
                  cache_file: Union[pathlib.Path, str],
