@@ -55,6 +55,8 @@ class InputHandler:
         """Find all files with specific file type suffixes in the base folder
            and its subfolders. If no file suffix is specified, this will look
            for all file formats supported by salted."""
+        # Pylint  warns about the set as default, but thats wanted here:
+        # pylint: disable=W0102
         files_to_check = []
         path_to_check = pathlib.Path(path_to_base_folder)
         all_files = path_to_check.glob('**/*')
@@ -88,8 +90,8 @@ class InputHandler:
         suffixes = {".tex"}
         return self.find_files_by_extensions(path_to_base_folder, suffixes)
 
-    def extract_links_from_html(self,
-                                file_content: str) -> List:
+    @staticmethod
+    def extract_links_from_html(file_content: str) -> List:
         """Extract all links from a HTML file."""
         matches = []
         soup = BeautifulSoup(file_content, 'html.parser')
