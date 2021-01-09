@@ -3,14 +3,22 @@
 
 """
 Automatic Tests for salted
+
+To run these tests:
+coverage run --source salted -m pytest tests.py
+To generate a report afterwards.
+coverage html
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2021: Released under the Apache License 2.0
 """
 
+import pathlib
 import re
-import salted
+import tempfile
 
+import salted
+import pyfakefs
 import pytest
 import pytest_mock
 
@@ -149,3 +157,23 @@ def test_extract_links_from_tex():
     assert extracted_links[3][0] == 'https://www.example.com/2'
     assert extracted_links[3][1] == 'https://www.example.com/2'
 
+
+# fs is a fixture provided by pyfakefs
+def test_file_discovery(fs):
+    fs.create_file('/fake/latex.tex')
+    fs.create_file('/fake/markdown.md')
+    fs.create_file('/fake/hypertext.html')
+    fs.create_file('/fake/short.html')
+    fs.create_file('/fake/unknown.txt')
+    fs.create_file('/fake/fake/foo.tex')
+    fs.create_file('/fake/fake/foo.md')
+    fs.create_file('/fake/fake/noextension')
+    fs.create_file('/fake/fake/foo.htmlandmore')
+    supported_files = myTest.file_io.find_files_by_extensions('/fake')
+    assert len(supported_files) == 6
+    html_files = myTest.file_io.find_html_files('/fake')
+    assert len(html_files) == 2
+    md_files = myTest.file_io.find_markdown_files('/fake')
+    assert len(md_files) == 2
+    tex_files = myTest.file_io.find_tex_files('/fake')
+    assert len(tex_files) == 2
