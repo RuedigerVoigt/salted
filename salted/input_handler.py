@@ -31,18 +31,21 @@ class InputHandler:
         self.db = db
         self.cnt: Counter = Counter()
 
+        # Specification: https://www.ctan.org/pkg/hyperref
         self.pattern_latex_url = re.compile(
             r"\\url\{(?P<url>[^{]*?)\}",
             flags=re.MULTILINE | re.IGNORECASE)
-
         self.pattern_latex_href = re.compile(
             r"\\href(\[.*\]){0,1}\{(?P<url>[^}]*)\}\{(?P<linktext>[^}]*?)\}",
             flags=re.MULTILINE | re.IGNORECASE)
 
+        # Specs:
+        # https://pandoc.org/MANUAL.html
+        # https://daringfireball.net/projects/markdown/syntax
+        # https://github.github.com/gfm/
         self.pattern_md_link = re.compile(
             r"\[(?P<linktext>[^\[]*)\]\((?P<url>[^\)]*?)[\s\)]+",
             flags=re.MULTILINE | re.IGNORECASE)
-
         self.pattern_md_link_pointy = re.compile(
             r"<(?P<url>[^>]*?)>",
             flags=re.MULTILINE | re.IGNORECASE)
