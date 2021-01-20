@@ -10,11 +10,13 @@ Source: https://github.com/RuedigerVoigt/salted
 
 import asyncio
 from collections import Counter
+from datetime import date
 import logging
 import pathlib
 import time
 from typing import Optional, Union
 
+import compatibility
 from tqdm.asyncio import tqdm  # type: ignore
 import userprovided
 
@@ -28,7 +30,7 @@ class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
 
-    version = '0.6.0'  # released: Jan 08, 2021
+    VERSION = '0.6.0'
 
     def __init__(self,
                  cache_file: Union[pathlib.Path, str],
@@ -36,7 +38,20 @@ class Salted:
                  timeout_sec: int = 5,
                  dont_check_again_within_hours: int = 24,
                  raise_for_dead_links: bool = False,
-                 user_agent: str = f"salted/{version}") -> None:
+                 user_agent: str = f"salted/{VERSION}") -> None:
+
+        compatibility.Check(
+            package_name='salted',
+            package_version=self.VERSION,
+            release_date=date(2021, 1, 21),
+            python_version_support={
+                'min_version': '3.8',
+                'incompatible_versions': ['3.7'],
+                'max_tested_version': '3.9'},
+            nag_over_update={
+                    'nag_days_after_release': 30,
+                    'nag_in_hundred': 100},
+            language_messages='en')
 
         self.num_workers = workers
         self.timeout = int(timeout_sec)
@@ -80,7 +95,7 @@ class Salted:
         else:
             recommendation = int(self.num_workers)
         # Set the logging message here to flush the cache. Cannot use
-        # flush() as it is unknow which or hwo many logging method are used.
+        # flush() as it is unknow which or how many logging methods are used.
         logging.info("%s unique hyperlinks to check. Using %s workers.",
                      self.num_checks, recommendation)
         return recommendation
@@ -134,7 +149,7 @@ class Salted:
         start_time = time.monotonic()
 
         # check_links might be reused with the same salted object. Therefore
-        # the database has to reinitialized to remove data like exceptions 
+        # the database has to reinitialized to remove data like exceptions
         # et cetera from previous runs. however this loads the disk cache.
         self.db.reinitialize_in_memory_db()
 
