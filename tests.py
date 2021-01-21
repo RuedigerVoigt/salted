@@ -17,13 +17,17 @@ import pathlib
 import re
 import tempfile
 
-import salted
+
 import pyfakefs
 import pytest
 import pytest_mock
 
+import salted
+from salted import parser
 
 myTest = salted.Salted(cache_file='./salted-test-cache.sqlite3')
+
+my_parser = parser.Parser()
 
 # print(myTest.__dict__.keys())
 
@@ -33,8 +37,8 @@ def test_latex_regex():
        Tested for itself and not in aggregate within another function to
        get a more precise error in case some test fails."""
     # get the regex patterns used in production
-    p_latex_url = myTest.file_io.pattern_latex_url
-    p_latex_href = myTest.file_io.pattern_latex_href
+    p_latex_url = my_parser.pattern_latex_url
+    p_latex_href = my_parser.pattern_latex_href
     # basic examples to test with the \url command
     latex_url = r"\url{https://www.example.com/index.php?id=foo}"
     # Test if greedy or non-greedy match:
@@ -68,7 +72,7 @@ def test_markdown_regex():
        Tested for itself and not in aggregate within another function to
        get a more precise error in case some test fails."""
     # get the regex pattern used in production
-    p_md_link = myTest.file_io.pattern_md_link
+    p_md_link = my_parser.pattern_md_link
     # basic examples standard inline
     md_link_plain = '[visible text](https://www.example.com)'
     md_link_w_title = '[visible text](https://www.example.com/index.html?foo=1 "Title")'
@@ -84,7 +88,7 @@ def test_markdown_regex():
     assert matched['url'] == 'https://www.example.com/'
     assert matched['linktext'] == 'visible text'
     # get the regex pattern used in production
-    p_md_link_pointy = myTest.file_io.pattern_md_link_pointy
+    p_md_link_pointy = my_parser.pattern_md_link_pointy
     # example pointy brackets shorthand
     md_pandoc_pointy_brackets = '<https://www.example.com>'
     # test pointy bracket version
@@ -102,8 +106,8 @@ def test_extract_links_from_html():
     <a     href="https://2.example.com">another</a>!</p>
     </body>
     </html>"""
-    extracted_links = myTest.file_io.extract_links_from_html(
-                        file_content=html_example)
+    extracted_links = my_parser.extract_links_from_html(
+        file_content=html_example)
     assert len(extracted_links) == 2
     # First sub-element should be URL, second the link text.
     assert extracted_links[0][0] == 'https://www.example.com/'
@@ -119,8 +123,8 @@ def test_extract_links_from_markdown():
     [inline-style link](https://www.google.com) bla
     [link with title](http://www.example.com/index.php?id=foo "Title for this link")
     """
-    extracted_links = myTest.file_io.extract_links_from_markdown(
-                        file_content=md_example)
+    extracted_links = my_parser.extract_links_from_markdown(
+        file_content=md_example)
     assert len(extracted_links) == 3
     # ! The function does first extract links in standard format, then the
     #   special case pointy brakets! Order is different than in the text.
@@ -138,11 +142,11 @@ def test_extract_links_from_tex():
     latex_example = r"""
     \section{Example}
     bla bla\footnote{\url{https://www.example.com/1}} bla
-    \href{https://latex.example.com/}{linktext} bla 
+    \href{https://latex.example.com/}{linktext} bla
     bla\url{https://www.example.com/2}bla
     bla\href[doesnotmatter]{https://with-optional.example.com}{with optional}bla
     """
-    extracted_links = myTest.file_io.extract_links_from_tex(
+    extracted_links = my_parser.extract_links_from_tex(
                         file_content=latex_example)
     assert len(extracted_links) == 4
     # ! The function does first extract \href links, then the \url
@@ -156,6 +160,12 @@ def test_extract_links_from_tex():
     assert extracted_links[2][1] == 'https://www.example.com/1'
     assert extracted_links[3][0] == 'https://www.example.com/2'
     assert extracted_links[3][1] == 'https://www.example.com/2'
+
+
+def test_extract_mails_from_mailto():
+    # TO DO
+    # 'mailto:foo@example.com'
+    pass
 
 
 # fs is a fixture provided by pyfakefs
