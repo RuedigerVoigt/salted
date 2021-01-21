@@ -91,16 +91,16 @@ class InputHandler:
             with open(file_path, 'r') as code:
                 content = code.read()
             if file_path.suffix in {".htm", ".html"}:
-                extracted = self.extract_links_from_html(content)
+                extracted = self.parser.extract_links_from_html(content)
             elif file_path.suffix in {".md"}:
-                extracted = self.extract_links_from_markdown(content)
+                extracted = self.parser.extract_links_from_markdown(content)
             elif file_path.suffix in {".tex"}:
-                extracted = self.extract_links_from_tex(content)
+                extracted = self.parser.extract_links_from_tex(content)
             else:
                 raise RuntimeError('Invalid extension. Should never happen.')
 
-            links_found = []
-            mailto_found = []
+            links_found: list = []
+            mailto_found: list = []
             for link in extracted:
                 url = link[0]
                 linktext = link[1]
@@ -122,7 +122,7 @@ class InputHandler:
                     mail_addresses = self.parser.extract_mails_from_mailto(url)
                     for address in mail_addresses:
                         if userprovided.mail.is_email(address):
-                            host = mail_address.split('@')[1]
+                            host = address.split('@')[1]
                             # TO DO: ...
                         else:
                             # Invalid email
