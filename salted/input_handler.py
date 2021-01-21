@@ -133,6 +133,14 @@ class InputHandler:
             matches.append([url, url])
         return matches
 
+    @staticmethod
+    def extract_mails_from_mailto(mailto_link):
+        """A single mailto link can contain *multiple* mail addresses.
+           Extract them and return them as a list."""
+        mailto_link = mailto_link[7:]  # cut off the mailto: part
+        # TO DO
+        pass
+
     def scan_files_for_links(self,
                              files_to_check: List[pathlib.Path]) -> None:
         """Scan each file within a list of paths for hyperlinks and write
@@ -160,6 +168,7 @@ class InputHandler:
                 raise RuntimeError('Invalid extension. Should never happen.')
 
             links_found = []
+            mailto_found = []
             for link in extracted:
                 url = link[0]
                 linktext = link[1]
@@ -177,11 +186,28 @@ class InputHandler:
                                         normalized_url,
                                         linktext])
                     self.cnt['links_found'] += 1
+                elif url.startswith('mailto:'):
+                    mail_addresses = self.extract_mails_from_mailto(url)
+                    for address in mail_addresses:
+                        if userprovided.mail.is_email(address):
+                            host = mail_address.split('@')[1]
+                            # TO DO: ...
+                        else:
+                            # Invalid email
+                            # TO DO: ...
+                            pass
+                else:
+                    # cannot check this kind of link
+                    # TO DO: at least count
+                    pass
+
 
             # Push the found links once for each file instead for all files
             # at once. The latter would kill performance for large document
             # collections.
             if links_found:
                 self.db.save_found_links(links_found)
+            if mailto_found:
+                pass
 
         return None
