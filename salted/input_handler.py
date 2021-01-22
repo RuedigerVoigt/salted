@@ -11,7 +11,7 @@ Source: https://github.com/RuedigerVoigt/salted
 from collections import Counter
 import logging
 import pathlib
-from typing import List
+from typing import List, Optional
 import urllib.parse
 
 import userprovided
@@ -73,6 +73,31 @@ class InputHandler:
             path_to_base_folder,
             {".tex"})
 
+    def read_file_content(self,
+                          path_to_file: pathlib.Path) -> Optional[str]:
+        "Return the file content or log an error if file cannot be accessed."
+        content: Optional[str] = None
+        try:
+            with open(path_to_file, 'r') as code:
+                content = code.read()
+        except FileNotFoundError:
+            self.db.log_file_access_error(
+                str(path_to_file), 'file not found')
+        except PermissionError:
+            self.db.log_file_access_error(
+                str(path_to_file), 'permission error')
+        except TimeoutError:
+            self.db.log_file_access_error(
+                str(path_to_file), 'system timeout')
+        except BlockingIOError:
+            self.db.log_file_access_error(
+                str(path_to_file), 'blocking IO')
+        except Exception as unexpected:  # pylint: disable=W0703
+            self.db.log_file_access_error(
+                str(path_to_file), str(unexpected))
+        finally:  # pylint: disable=W0150
+            return content
+
     def scan_files_for_links(self,
                              files_to_check: List[pathlib.Path]) -> None:
         """Scan each file within a list of paths for hyperlinks and write
@@ -87,9 +112,11 @@ class InputHandler:
 
         print("Scanning files for links:")
         for file_path in tqdm(files_to_check):
-            content = ''
-            with open(file_path, 'r') as code:
-                content = code.read()
+            content = self.read_file_content(file_path)
+            if not content:
+                # If for any reason this file could not be read, try the next.
+                continue
+
             if file_path.suffix in {".htm", ".html"}:
                 extracted = self.parser.extract_links_from_html(content)
             elif file_path.suffix in {".md"}:
@@ -120,6 +147,8 @@ class InputHandler:
                     self.cnt['links_found'] += 1
                 elif url.startswith('mailto:'):
                     mail_addresses = self.parser.extract_mails_from_mailto(url)
+                    if not mail_addresses:
+                        continue
                     for address in mail_addresses:
                         if userprovided.mail.is_email(address):
                             host = address.split('@')[1]
@@ -132,7 +161,6 @@ class InputHandler:
                     # cannot check this kind of link
                     # TO DO: at least count
                     pass
-
 
             # Push the found links once for each file instead for all files
             # at once. The latter would kill performance for large document

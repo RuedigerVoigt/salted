@@ -58,6 +58,22 @@ class ReportGenerator:
             self.replace_path_by_url['replace_with_url'],  # type: ignore
             1)
 
+    def generate_access_error_list(self) -> Optional[list]:
+        """If there were errors reading the files (FileNotFoundError, ...)
+           return a list of dictionaries containing the file path
+           and the reason."""
+        cursor = self.db.get_cursor()
+        cursor.execute(
+            '''SELECT filePath, problem
+               FROM fileAccessErrors;''')
+        access_errors = cursor.fetchall()
+        if not access_errors:
+            return None
+        result = list()
+        for file_path, problem in access_errors:
+            result.append({'path': file_path, 'problem': problem})
+        return result
+
     def generate_error_list(self) -> Optional[list]:
         """If the crawl found hyperlinks that yield permanent errors, return
            a list of dictionaries containing the file path, the number of
@@ -157,6 +173,8 @@ class ReportGenerator:
         else:
             self.replace_path_by_url = replace_path_by_url
 
+        access_errors = self.generate_access_error_list()
+
         permanent_errors = self.generate_error_list()
 
         permanent_redirects: Optional[list] = None
@@ -175,6 +193,7 @@ class ReportGenerator:
             builtin_template = jinja_env.get_template(template['name'])
             rendered_report = builtin_template.render(
                 statistics=statistics,
+                access_errors=access_errors,
                 permanent=permanent_errors,
                 redirects=permanent_redirects,
                 exceptions=crawl_exceptions)
@@ -185,6 +204,7 @@ class ReportGenerator:
             user_template = jinja_env.get_template(template['name'])
             rendered_report = user_template.render(
                 statistics=statistics,
+                access_errors=access_errors,
                 permanent=permanent_errors,
                 redirects=permanent_redirects,
                 exceptions=crawl_exceptions)

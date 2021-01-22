@@ -12,6 +12,14 @@ This averages to {{ statistics.checks_per_second }} checks/second.
 
 {{ statistics.num_fine }} of those hyperlinks are fine.
 
+{% if access_errors %}
+# FILE ACCESS ERRORS
+
+{% for error in access_errors %}
+* {{ error.path }} ({{ error.problem }})
+{% endfor %}
+{% endif %}
+
 # PERMANENT ERRORS
 {% if not permanent %}
 No permanent errors found!

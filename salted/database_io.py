@@ -106,6 +106,11 @@ class DatabaseIO:
             normalizedUrl text,
             error integer);''')
         self.cursor.execute('''
+            CREATE TABLE fileAccessErrors (
+                filePath text,
+                problem text
+                );''')
+        self.cursor.execute('''
             CREATE TABLE permanentRedirects (
                 normalizedUrl text,
                 error integer);''')
@@ -271,6 +276,14 @@ class DatabaseIO:
            a specific URL."""
         self.cursor.execute('''INSERT INTO exceptions VALUES (?, ?);''',
                             [url, exception_str])
+
+    def log_file_access_error(self,
+                              file_path: str,
+                              reason: str) -> None:
+        "Log the reason if a file cannot be read."
+        self.cursor.execute(
+            'INSERT INTO fileAccessErrors VALUES (?, ?);',
+            [file_path, reason])
 
     def del_links_that_can_be_skipped(self) -> int:
         """If links from a non-expired cache have been read, try to eliminate
