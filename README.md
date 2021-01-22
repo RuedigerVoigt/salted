@@ -3,6 +3,7 @@
 ![Supported Python Versions](https://img.shields.io/pypi/pyversions/salted)
 ![Last commit](https://img.shields.io/github/last-commit/RuedigerVoigt/salted)
 ![pypi version](https://img.shields.io/pypi/v/salted)
+[![Downloads](https://pepy.tech/badge/salted)](https://pepy.tech/project/salted)
 
 Broken hyperlinks are bad for user experience and may hurt SEO.
 Salted checks if external links in HTML, Markdown, or TeX files are valid.
