@@ -1,0 +1,7 @@
+[run]
+branch = True
+cover_pylib = False
+source = salted
+
+[html]
+title = Coverage Report for the salted Python Package
