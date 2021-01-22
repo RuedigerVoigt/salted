@@ -10,7 +10,7 @@ Source: https://github.com/RuedigerVoigt/salted
 
 import asyncio
 from collections import Counter
-from datetime import date
+import datetime
 import logging
 import pathlib
 import time
@@ -43,7 +43,7 @@ class Salted:
         compatibility.Check(
             package_name='salted',
             package_version=self.VERSION,
-            release_date=date(2021, 1, 21),
+            release_date=datetime.date(2021, 1, 22),
             python_version_support={
                 'min_version': '3.8',
                 'incompatible_versions': ['3.7'],
@@ -206,6 +206,7 @@ class Salted:
 
         self.display_result.generate_report(
             statistics={
+                'timestamp': '{:%Y-%b-%d %H:%Mh}'.format(datetime.datetime.now()),
                 'num_links': self.file_io.cnt['links_found'],
                 'num_checked': self.num_checks,
                 'time_to_check': (round(runtime_check)),

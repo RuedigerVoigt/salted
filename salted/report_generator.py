@@ -165,7 +165,6 @@ class ReportGenerator:
         """Generate the report for the user with a Jinja2 template.
            Either display it at the command line interface or write
            it to a file. """
-        cursor = self.db.get_cursor()
         # The base URL is always given. Invalidate the parameter if no
         # replacement is provided.
         if not replace_path_by_url['replace_with_url']:  # type: ignore[index]
