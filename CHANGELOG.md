@@ -1,8 +1,9 @@
 # Changelog for salted
 
-## Upcoming beta (January 2021)
+## Version 0.6.1 beta (January 22, 2021)
 
-* Log file access errors (like missing permissions) and list them in the output.
+* Log file access errors (like missing permissions) and list them in reports.
+* Add time stamp to reports.
 * New dependency: [`compatibility`](https://github.com/RuedigerVoigt/compatibility) (`>=0.8.0`) is added. This warns you if you use `salted` with an untested or unsupported version of Python. As a sister project of `salted` development is coordinated.
 
 ## Version 0.6.0 beta (January 08, 2021)

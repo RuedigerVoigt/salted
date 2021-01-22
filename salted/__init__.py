@@ -12,5 +12,5 @@ Released under the Apache License 2.0
 from salted.__main__ import Salted
 
 NAME = "salted"
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 __author__ = "Rüdiger Voigt"

@@ -30,7 +30,7 @@ class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
 
-    VERSION = '0.6.0'
+    VERSION = '0.6.1'
 
     def __init__(self,
                  cache_file: Union[pathlib.Path, str],
