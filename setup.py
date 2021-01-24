@@ -27,6 +27,7 @@ setuptools.setup(
                       "compatibility>=0.8.0",
                       "jinja2>=2.11.2",
                       "lxml>=4.6.2",
+                      "pybtext>=0.24.0",
                       "tqdm>=4.54.1",
                       "userprovided>=0.8.0"],
     classifiers=[

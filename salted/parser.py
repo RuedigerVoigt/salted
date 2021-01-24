@@ -12,6 +12,9 @@ import re
 from typing import List
 
 from bs4 import BeautifulSoup  # type: ignore
+from pybtex.database import parse_string # type: ignore
+# a future version of pybtex might get type hints, see:
+# https://bitbucket.org/pybtex-devs/pybtex/issues/141/type-annotations
 
 
 class Parser():
@@ -39,7 +42,7 @@ class Parser():
             flags=re.MULTILINE | re.IGNORECASE)
 
     @staticmethod
-    def extract_links_from_html(file_content: str) -> List:
+    def extract_links_from_html(file_content: str) -> list:
         """Extract all links from a HTML file."""
         matches = []
         soup = BeautifulSoup(file_content, 'html.parser')
@@ -48,7 +51,7 @@ class Parser():
         return matches
 
     def extract_links_from_markdown(self,
-                                    file_content: str) -> List:
+                                    file_content: str) -> list:
         """Extract all links from a Markdown file.
         Returns a list of lists: [[url, linktext], [url, linktext]]"""
         matches = []
@@ -62,7 +65,7 @@ class Parser():
         return matches
 
     def extract_links_from_tex(self,
-                               file_content: str) -> List:
+                               file_content: str) -> list:
         """Extract all links from a .tex file.
         Returns a list of lists: [[url, linktext], [url, linktext]]"""
         matches = []
@@ -76,6 +79,32 @@ class Parser():
         url_in_file = re.findall(self.pattern_latex_url, file_content)
         for url in url_in_file:
             matches.append([url, url])
+        return matches
+
+    def extract_links_from_bib(self,
+                               file_content: str) -> list:
+        """Extract all links from a .bib file.
+           Returns a list of lists: [[url, text], [url, text]] - with text
+           being the key-value of the entry and the respective field."""
+        matches = []
+        bib_data = parse_string(file_content, bib_format='bibtex')
+        for entry in bib_data.entries:
+            # Neither the URL, nor the DOI field is required by BiBTeX.
+            # pybtex throws a KeyError if the field does not exist.
+            try:
+                url = bib_data.entries[entry].fields['Url']
+                matches.append([url, f"Key: {entry}, Field: Url"])
+            except KeyError:
+                pass
+
+            try:
+                doi = bib_data.entries[entry].fields['Doi']
+                # TO DO: separate list for DOI as they will be 
+                # checked via the REST-API
+            except KeyError:
+                pass
+
+        print('BibTeX support is NOT yet fully implemented!')
         return matches
 
     @staticmethod

@@ -179,8 +179,9 @@ def test_file_discovery(fs):
     fs.create_file('/fake/fake/foo.md')
     fs.create_file('/fake/fake/noextension')
     fs.create_file('/fake/fake/foo.htmlandmore')
+    fs.create_file('/fake/fake/fake/foo.bib')
     supported_files = myTest.file_io.find_files_by_extensions('/fake')
-    assert len(supported_files) == 6
+    assert len(supported_files) == 7
     html_files = myTest.file_io.find_html_files('/fake')
     assert len(html_files) == 2
     md_files = myTest.file_io.find_markdown_files('/fake')

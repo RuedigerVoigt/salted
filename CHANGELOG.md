@@ -1,5 +1,9 @@
 # Changelog for salted
 
+## Upcoming
+
+* Added the [`pybtext`](https://pypi.org/project/pybtex/) as a dependency to parse BibTeX files.
+
 ## Version 0.6.1 beta (January 22, 2021)
 
 * Log file access errors (like missing permissions) and list them in reports.

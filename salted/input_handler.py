@@ -33,7 +33,7 @@ class InputHandler:
     @staticmethod
     def find_files_by_extensions(
             path_to_base_folder: pathlib.Path,
-            suffixes: set = {".htm", ".html", '.md', '.tex'}
+            suffixes: set = {".htm", ".html", '.md', '.tex', '.bib'}
                                  ) -> List[pathlib.Path]:
         """Find all files with specific file type suffixes in the base folder
            and its subfolders. If no file suffix is specified, this will look
@@ -123,8 +123,12 @@ class InputHandler:
                 extracted = self.parser.extract_links_from_markdown(content)
             elif file_path.suffix in {".tex"}:
                 extracted = self.parser.extract_links_from_tex(content)
+            elif file_path.suffix in {".bib"}:
+                extracted = self.parser.extract_links_from_bib(content)
             else:
                 raise RuntimeError('Invalid extension. Should never happen.')
+            if not extracted:
+                continue
 
             links_found: list = []
             mailto_found: list = []
