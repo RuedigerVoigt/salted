@@ -94,34 +94,43 @@ class DatabaseIO:
 
     def create_schema(self) -> None:
         """Create the SQLite database schema. """
+        # Table 'queue': URLs and DOIs to be tested
         self.cursor.execute('''
-            CREATE TABLE links (
+            CREATE TABLE queue (
             filePath text,
+            doi text,
             hostname text,
             url text,
             normalizedUrl text,
             linktext text);''')
+        # Table 'errors': invalid hyperlinks
         self.cursor.execute('''
             CREATE TABLE errors (
             normalizedUrl text,
             error integer);''')
+        # Table 'fileAccessErrors': paths of files that could not be read
         self.cursor.execute('''
             CREATE TABLE fileAccessErrors (
                 filePath text,
                 problem text
                 );''')
+        # Table 'permanentRedirects': permanent redirects that were encountered
         self.cursor.execute('''
             CREATE TABLE permanentRedirects (
                 normalizedUrl text,
                 error integer);''')
+        # Table 'exceptions': exception sthat occured by crawling
+        # like network timeouts, et cetera
         self.cursor.execute('''
             CREATE TABLE exceptions (
             normalizedUrl text,
             reason text);''')
+        # table 'validUrls': cache for URls
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS validUrls (
             normalizedUrl text,
             lastValid integer);''')
+        # table 'validDois': cache for DOI
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS validDois (
             doi text,
@@ -183,7 +192,7 @@ class DatabaseIO:
             ON validUrls (lastValid);''')
         self.cursor.execute('''
             CREATE INDEX IF NOT EXISTS index_normalized_url
-            ON links (normalizedUrl);''')
+            ON queue (normalizedUrl);''')
 
     def generate_db_views(self) -> None:
         """ Generate Views for Analytics and Output Generating."""
@@ -192,54 +201,54 @@ class DatabaseIO:
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_errorCountByFile AS
             SELECT COUNT(*) AS numErrors, filePath
-            FROM links
+            FROM queue
             WHERE normalizedUrl IN (
             SELECT normalizedUrl FROM errors
             ) GROUP BY filePath;''')
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_redirectCountByFile AS
             SELECT COUNT(*) AS numRedirects, filePath
-            FROM links
+            FROM queue
             WHERE normalizedUrl IN (
             SELECT normalizedUrl FROM permanentRedirects
             ) GROUP BY filePath;''')
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_exceptionCountByFile AS
             SELECT COUNT(*) AS numExceptions, filePath
-            FROM links
+            FROM queue
             WHERE normalizedUrl IN (
             SELECT normalizedUrl FROM exceptions
             ) GROUP BY filePath;''')
 
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_errorsByFile AS
-            SELECT links.filePath,
-            links.url,
-            links.linktext,
+            SELECT queue.filePath,
+            queue.url,
+            queue.linktext,
             errors.error AS httpCode
-            FROM links
+            FROM queue
             INNER JOIN errors
-            ON links.normalizedUrl = errors.normalizedUrl;''')
+            ON queue.normalizedUrl = errors.normalizedUrl;''')
 
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_redirectsByFile AS
-            SELECT links.filePath,
-            links.url,
-            links.linktext,
+            SELECT queue.filePath,
+            queue.url,
+            queue.linktext,
             permanentRedirects.error AS httpCode
-            FROM links
+            FROM queue
             INNER JOIN permanentRedirects
-            ON links.normalizedUrl = permanentRedirects.normalizedUrl;''')
+            ON queue.normalizedUrl = permanentRedirects.normalizedUrl;''')
 
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_exceptionsByFile AS
-            SELECT links.filePath,
-            links.url,
-            links.linktext,
+            SELECT queue.filePath,
+            queue.url,
+            queue.linktext,
             exceptions.reason
-            FROM links
+            FROM queue
             INNER JOIN exceptions
-            ON links.normalizedUrl = exceptions.normalizedUrl;''')
+            ON queue.normalizedUrl = exceptions.normalizedUrl;''')
 
         logging.debug('Created Views for analytics and output generating.')
 
@@ -250,13 +259,13 @@ class DatabaseIO:
             logging.debug('No links in this file to save them.')
         else:
             self.cursor.executemany('''
-            INSERT INTO links
+            INSERT INTO queue
             (filePath, hostname, url, normalizedUrl, linktext)
             VALUES(?, ?, ?, ?, ?);''', links_found)
 
     def urls_to_check(self) -> Optional[list]:
         """Return a list of all distinct URLs to check."""
-        self.cursor.execute('SELECT DISTINCT normalizedUrl FROM links;')
+        self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
         return self.cursor.fetchall()
 
     def log_url_is_fine(self,
@@ -305,14 +314,14 @@ class DatabaseIO:
            them in the list of URLs to check.
            Return the absolute number of (non-normalized) URLs to check."""
 
-        self.cursor.execute('SELECT COUNT(*) FROM links;')
+        self.cursor.execute('SELECT COUNT(*) FROM queue;')
         num_links_before = self.cursor.fetchone()[0]
 
-        self.cursor.execute('''DELETE FROM links
+        self.cursor.execute('''DELETE FROM queue
                             WHERE normalizedUrl IN (
                             SELECT normalizedUrl FROM validUrls);''')
 
-        self.cursor.execute('SELECT COUNT(*) FROM links;')
+        self.cursor.execute('SELECT COUNT(*) FROM queue;')
         num_links_after = self.cursor.fetchone()[0]
 
         if num_links_before > num_links_after:
