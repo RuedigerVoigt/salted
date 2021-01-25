@@ -122,6 +122,10 @@ class DatabaseIO:
             CREATE TABLE IF NOT EXISTS validUrls (
             normalizedUrl text,
             lastValid integer);''')
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS validDois (
+            doi text,
+            lastSeen integer);''')
 
         logging.debug("Created database schema.")
 
@@ -131,6 +135,9 @@ class DatabaseIO:
 
         if not self.cache_file_path:
             return
+
+        valid_urls = list()
+        valid_dois = list()
 
         try:
             disk_cache = sqlite3.connect(
@@ -145,17 +152,25 @@ class DatabaseIO:
                 WHERE lastValid > (strftime('%s','now') - (? * 3600));''',
                 [self.dont_check_again_within_hours])
             valid_urls = disk_cache_cursor.fetchall()
-            disk_cache.close()
 
-            if valid_urls:
-                self.cursor.executemany('''
-                    INSERT INTO validUrls
-                    (normalizedUrl, lastValid)
-                    VALUES (?, ?);''', valid_urls)
+            disk_cache_cursor.execute('SELECT doi, lastSeen FROM validDois;')
+            valid_dois = disk_cache_cursor.fetchall()
 
         except Exception:
             logging.debug('No cache file or could not read it.', exc_info=True)
-            pass
+        finally:
+            disk_cache.close()
+
+        if valid_urls:
+            self.cursor.executemany('''
+                INSERT INTO validUrls
+                (normalizedUrl, lastValid)
+                VALUES (?, ?);''', valid_urls)
+
+        if valid_dois:
+            self.cursor.executemany(
+                'INSERT INTO validDois (doi, lastSeen) VALUES (?, ?);',
+                valid_dois)
 
     def generate_indices(self) -> None:
         """Add indices to the in memory database. This is not done on creation
