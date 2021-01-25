@@ -98,6 +98,61 @@ class InputHandler:
         finally:  # pylint: disable=W0150
             return content
 
+    def handle_found_urls(self,
+                          file_path: pathlib.Path,
+                          url_list: list):
+
+        links_found: list = []
+        mailto_found: list = []
+
+        for link in url_list:
+            url = link[0]
+            linktext = link[1]
+            if url.startswith('http'):
+                # It may be that multiple links point to the same resource.
+                # Normalizing them means they only need to be tested once.
+                # The non-normalized version is stored anyway, because if
+                # the link is broken, that version is used to show the
+                # user the broken links on a specific page.
+                normalized_url = userprovided.url.normalize_url(url)
+                parsed_url = urllib.parse.urlparse(url)
+                links_found.append([str(file_path),
+                                    parsed_url.hostname,
+                                    url,
+                                    normalized_url,
+                                    linktext])
+                self.cnt['links_found'] += 1
+            elif url.startswith('mailto:'):
+                mail_addresses = self.parser.extract_mails_from_mailto(url)
+                if not mail_addresses:
+                    continue
+                for address in mail_addresses:
+                    if userprovided.mail.is_email(address):
+                        host = address.split('@')[1]
+                        # TO DO: ...
+                    else:
+                        # Invalid email
+                        # TO DO: ...
+                        pass
+            else:
+                # cannot check this kind of link
+                # TO DO: at least count
+                pass
+
+        # Push the found links once for each file instead for all files
+        # at once. The latter would kill performance for large document
+        # collections.
+        if links_found:
+            self.db.save_found_links(links_found)
+        if mailto_found:
+            pass
+
+    def handle_found_doi(self,
+                         file_path: pathlib.Path,
+                         doi_list: list):
+        # TO DO: Implement
+        pass
+
     def scan_files_for_links(self,
                              files_to_check: List[pathlib.Path]) -> None:
         """Scan each file within a list of paths for hyperlinks and write
@@ -117,61 +172,23 @@ class InputHandler:
                 # If for any reason this file could not be read, try the next.
                 continue
 
+            # only one function returns two values
+            doi_list: Optional[list] = None
+
             if file_path.suffix in {".htm", ".html"}:
-                extracted = self.parser.extract_links_from_html(content)
+                url_list = self.parser.extract_links_from_html(content)
             elif file_path.suffix in {".md"}:
-                extracted = self.parser.extract_links_from_markdown(content)
+                url_list = self.parser.extract_links_from_markdown(content)
             elif file_path.suffix in {".tex"}:
-                extracted = self.parser.extract_links_from_tex(content)
+                url_list = self.parser.extract_links_from_tex(content)
             elif file_path.suffix in {".bib"}:
-                extracted = self.parser.extract_links_from_bib(content)
+                url_list, doi_list = self.parser.extract_links_from_bib(content)
             else:
                 raise RuntimeError('Invalid extension. Should never happen.')
-            if not extracted:
-                continue
 
-            links_found: list = []
-            mailto_found: list = []
-            for link in extracted:
-                url = link[0]
-                linktext = link[1]
-                if url.startswith('http'):
-                    # It may be that multiple links point to the same resource.
-                    # Normalizing them means they only need to be tested once.
-                    # The non-normalized version is stored anyway, because if
-                    # the link is broken, that version is used to show the
-                    # user the broken links on a specific page.
-                    normalized_url = userprovided.url.normalize_url(url)
-                    parsed_url = urllib.parse.urlparse(url)
-                    links_found.append([str(file_path),
-                                        parsed_url.hostname,
-                                        url,
-                                        normalized_url,
-                                        linktext])
-                    self.cnt['links_found'] += 1
-                elif url.startswith('mailto:'):
-                    mail_addresses = self.parser.extract_mails_from_mailto(url)
-                    if not mail_addresses:
-                        continue
-                    for address in mail_addresses:
-                        if userprovided.mail.is_email(address):
-                            host = address.split('@')[1]
-                            # TO DO: ...
-                        else:
-                            # Invalid email
-                            # TO DO: ...
-                            pass
-                else:
-                    # cannot check this kind of link
-                    # TO DO: at least count
-                    pass
-
-            # Push the found links once for each file instead for all files
-            # at once. The latter would kill performance for large document
-            # collections.
-            if links_found:
-                self.db.save_found_links(links_found)
-            if mailto_found:
-                pass
+            if url_list:
+                self.handle_found_urls(file_path, url_list)
+            if doi_list:
+                self.handle_found_doi(file_path, doi_list)
 
         return None

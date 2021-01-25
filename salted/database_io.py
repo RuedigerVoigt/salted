@@ -193,6 +193,9 @@ class DatabaseIO:
         self.cursor.execute('''
             CREATE INDEX IF NOT EXISTS index_normalized_url
             ON queue (normalizedUrl);''')
+        self.cursor.execute('''
+            CREATE UNIQUE INDEX IF NOT EXISTS index_valid_doi
+            ON validDois (doi);''')
 
     def generate_db_views(self) -> None:
         """ Generate Views for Analytics and Output Generating."""

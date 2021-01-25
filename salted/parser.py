@@ -83,29 +83,31 @@ class Parser():
 
     def extract_links_from_bib(self,
                                file_content: str) -> list:
-        """Extract all links from a .bib file.
-           Returns a list of lists: [[url, text], [url, text]] - with text
-           being the key-value of the entry and the respective field."""
-        matches = []
+        """Extract all URLs and DOIs from a .bib file.
+           Returns a list of two lists:
+           * The first one in the format [[url, text], [url, text]] - with text
+             being the key-value of the bibtex-entry and the respective field.
+           * The second one in the format [[doi, text], [doi, text]] - text
+             being the key-value of the bibtex-entry and the field."""
+        url_list = []
+        doi_list = []
         bib_data = parse_string(file_content, bib_format='bibtex')
         for entry in bib_data.entries:
             # Neither the URL, nor the DOI field is required by BiBTeX.
             # pybtex throws a KeyError if the field does not exist.
             try:
                 url = bib_data.entries[entry].fields['Url']
-                matches.append([url, f"Key: {entry}, Field: Url"])
+                url_list.append([url, f"Key: {entry}, Field: Url"])
             except KeyError:
                 pass
 
             try:
                 doi = bib_data.entries[entry].fields['Doi']
-                # TO DO: separate list for DOI as they will be 
-                # checked via the REST-API
+                doi_list.append([doi.strip(), f"Key: {entry}, Field: DOI"])                
             except KeyError:
                 pass
 
-        print('BibTeX support is NOT yet fully implemented!')
-        return matches
+        return [url_list, doi_list]
 
     @staticmethod
     def extract_mails_from_mailto(mailto_link):
