@@ -16,8 +16,10 @@ Key advantages of this application compared to other linkcheckers are:
     * Salted is much faster and can check dozens of links *per second* (depending on your connection).
 * *Salted can be used stand-alone or in a CI pipeline.*
      * The result can be written to standard out / the command line or to a file.
-     * The result can be styled using Jinja2 templates. Two default templates (for the command line and for Markdown) are available. You can use your own templates. 
-     * It can raise an exception if it found broken links.
+     * It can raise an exception in case it found broken links.
+* *The result can be styled using Jinja2 templates.*
+     * Two default templates (for the command line and for Markdown) are available.
+     * You can use your own templates. 
 
 ## Example
 
