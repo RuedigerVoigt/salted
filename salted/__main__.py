@@ -99,8 +99,10 @@ class Salted:
         files_to_check = self.file_io.find_files_by_extensions(
             path_to_base_folder)
         if files_to_check:
-            self.file_io.scan_files_for_links(files_to_check)
+            self.file_io.scan_files(files_to_check)
+            self.db.generate_indices()
             self.db.del_links_that_can_be_skipped()
+            self.db.del_dois_that_can_be_skipped()
         else:
             logging.warning(
                 "No supported files in this folder or its subfolders.")
@@ -120,7 +122,6 @@ class Salted:
 
         # ##### END CHECKS #####
 
-        self.db.generate_indices()
         self.db.generate_db_views()
 
         runtime_check = time.monotonic() - start_time
@@ -134,10 +135,7 @@ class Salted:
                 'checks_per_second': (
                     round(urls.num_checks / runtime_check, 2)),
                 'num_fine': urls.cnt['fine'],
-                'needed_full_request': urls.cnt['neededFullRequest'],
-                'percentage_full_request': (
-                    round(urls.cnt['neededFullRequest'] /
-                          urls.num_checks * 100, 2))
+                'needed_full_request': urls.cnt['neededFullRequest']
                           },
             template={
                 'searchpath': template_searchpath,
