@@ -39,7 +39,7 @@ class DoiCheck:
 
         self.pbar_doi: tqdm = None
 
-        self.valid_doi_list = list()
+        self.valid_doi_list: list = list()
 
     async def __create_session(self):
         self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
@@ -57,7 +57,7 @@ class DoiCheck:
         # The HTTP HEAD method requests the headers, but not the page's body.
         # Requesting this way reduces load on the server and network traffic.
         query_url = self.API_BASE_URL + doi
-        async with self.session.get(
+        async with self.session.get(  # type: ignore
             query_url,
             headers=self.headers,
             raise_for_status=False,
@@ -69,21 +69,24 @@ class DoiCheck:
     async def __worker(self,
                        name: str,
                        queue: asyncio.Queue) -> None:
-        doi = await queue.get()
-        api_response = await self.__api_send_head_request(doi)
-        if api_response['status'] == 200:
-            self.valid_doi_list.append(doi)
-        elif api_response['status'] == '404':
-            print('DOI does not exist!')
-        else:
-            print('Unexpected API response!')
-        # TO DO: remove with rate limiter
-        await asyncio.sleep(0.25)
-        # TO DO
-        # api_response['max_queries']
-        # api_response['timewindow']
-        self.pbar_doi.update(1)
-        queue.task_done()
+        # DO NOT REMOVE 'while True'. Without that the queue is stopped
+        # after the first iteration.
+        while True:
+            doi = await queue.get()
+            api_response = await self.__api_send_head_request(doi)
+            if api_response['status'] == 200:
+                self.valid_doi_list.append(doi)
+            elif api_response['status'] == '404':
+                print('DOI does not exist!')
+            else:
+                print('Unexpected API response!')
+            # TO DO: remove with rate limiter
+            await asyncio.sleep(0.25)
+            # TO DO
+            # api_response['max_queries']
+            # api_response['timewindow']
+            self.pbar_doi.update(1)
+            queue.task_done()
 
     async def __distribute_work(self,
                                 doi_list: list) -> None:
