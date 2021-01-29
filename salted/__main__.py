@@ -21,7 +21,7 @@ import userprovided
 from salted import database_io
 from salted import doi_check
 from salted import input_handler
-from salted import network_interaction
+from salted import url_check
 from salted import report_generator
 
 
@@ -108,7 +108,7 @@ class Salted:
 
         # ##### START CHECKS #####
 
-        url_check = network_interaction.NetworkInteraction(
+        url_check = url_check.NetworkInteraction(
             self.user_agent,
             self.db,
             self.num_workers,
