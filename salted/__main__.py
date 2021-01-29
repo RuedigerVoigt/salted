@@ -21,6 +21,7 @@ from tqdm.asyncio import tqdm  # type: ignore
 import userprovided
 
 from salted import database_io
+from salted import doi_check
 from salted import input_handler
 from salted import network_interaction
 from salted import report_generator
@@ -111,17 +112,15 @@ class Salted:
 
     async def __distribute_work(self,
                                 urls_to_check: list) -> None:
-        """Start a queue and spawn workers to work in parallel."""
+        "Start a queue and spawn workers to work in parallel."
         queue: asyncio.Queue = asyncio.Queue()
         for entry in urls_to_check:
             queue.put_nowait(entry[0])
-
         # initialize here as there has to exist an event loop
         self.network = network_interaction.NetworkInteraction(
             self.db,
             self.timeout,
             self.user_agent)
-
         tasks = []
         for i in range(int(self.num_workers)):
             task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
@@ -150,7 +149,7 @@ class Salted:
 
         # check_links might be reused with the same salted object. Therefore
         # the database has to reinitialized to remove data like exceptions
-        # et cetera from previous runs. however this loads the disk cache.
+        # et cetera from previous runs. However this loads the disk cache.
         self.db.reinitialize_in_memory_db()
 
         # Expand path as otherwise a relative path will not be rewritten
@@ -196,6 +195,9 @@ class Salted:
         # ##### START ASYNCHRONOUS CODE #####
 
         asyncio.run(self.__distribute_work(urls_to_check))
+
+        doi = doi_check.DoiCheck(self.db)
+        doi.check_dois()
 
         # ##### END ASYNCHRONOUS CODE #####
         self.db.generate_indices()
