@@ -19,7 +19,7 @@ from tqdm.asyncio import tqdm  # type: ignore
 from salted import database_io
 
 
-class NetworkInteraction:
+class UrlCheck:
     """Interacts with the network to check URLs."""
 
     def __init__(self,

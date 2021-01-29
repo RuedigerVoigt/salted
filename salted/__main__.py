@@ -108,12 +108,12 @@ class Salted:
 
         # ##### START CHECKS #####
 
-        url_check = url_check.NetworkInteraction(
+        urls = url_check.UrlCheck(
             self.user_agent,
             self.db,
             self.num_workers,
             self.timeout)
-        url_check.check_urls()
+        urls.check_urls()
 
         doi = doi_check.DoiCheck(self.db)
         doi.check_dois()
@@ -129,15 +129,15 @@ class Salted:
             statistics={
                 'timestamp': '{:%Y-%b-%d %H:%Mh}'.format(datetime.datetime.now()),
                 'num_links': self.file_io.cnt['links_found'],
-                'num_checked': url_check.num_checks,
+                'num_checked': urls.num_checks,
                 'time_to_check': (round(runtime_check)),
                 'checks_per_second': (
-                    round(url_check.num_checks / runtime_check, 2)),
-                'num_fine': url_check.cnt['fine'],
-                'needed_full_request': url_check.cnt['neededFullRequest'],
+                    round(urls.num_checks / runtime_check, 2)),
+                'num_fine': urls.cnt['fine'],
+                'needed_full_request': urls.cnt['neededFullRequest'],
                 'percentage_full_request': (
-                    round(url_check.cnt['neededFullRequest'] /
-                          url_check.num_checks * 100, 2))
+                    round(urls.cnt['neededFullRequest'] /
+                          urls.num_checks * 100, 2))
                           },
             template={
                 'searchpath': template_searchpath,
