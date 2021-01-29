@@ -3,6 +3,8 @@
 
 """
 Handle the database and cache for salted.
+Other classes do NOT use the database cursor, but call functions
+within this class.
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2021: Released under the Apache License 2.0
@@ -94,7 +96,7 @@ class DatabaseIO:
 
     def create_schema(self) -> None:
         """Create the SQLite database schema. """
-        # Table 'queue': URLs and DOIs to be tested
+        # Table 'queue': URLs to be tested
         self.cursor.execute('''
             CREATE TABLE queue (
             filePath text,
@@ -103,6 +105,12 @@ class DatabaseIO:
             url text,
             normalizedUrl text,
             linktext text);''')
+        # Table 'queue_doi': DOIs to be tested
+        self.cursor.execute('''
+            CREATE TABLE queue_doi (
+            filePath text,
+            doi text,
+            description text);''')
         # Table 'errors': invalid hyperlinks
         self.cursor.execute('''
             CREATE TABLE errors (
@@ -266,6 +274,18 @@ class DatabaseIO:
             (filePath, hostname, url, normalizedUrl, linktext)
             VALUES(?, ?, ?, ?, ?);''', links_found)
 
+    def save_found_dois(self,
+                        dois_found: list) -> None:
+        "Save a list of DOIs into the in memory database."
+        if not dois_found:
+            logging.debug('No DOI in this file to save them.')
+            return None
+        self.cursor.executemany('''
+        INSERT INTO queue_doi
+        (filePath, doi, description)
+        VALUES (?, ?, ?);''', dois_found)
+        return None
+
     def urls_to_check(self) -> Optional[list]:
         """Return a list of all distinct URLs to check."""
         self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
@@ -279,6 +299,14 @@ class DatabaseIO:
             INSERT INTO validUrls
             (normalizedUrl, lastValid)
             VALUES (?, strftime('%s','now'));''', [url])
+
+    def save_valid_dois(self, valid_dois: list) -> None:
+        """Permanently store a list of valid DOIs in the cache.
+           Contrary to URLs, DOIs are made to be persistent - so no need
+           to recheck them once they have been validated."""
+        self.cursor.executemany('''
+        INSERT OR IGNORE INTO validDois (doi) VALUES (?);''', valid_dois)
+
 
     def log_error(self,
                   url: str,
@@ -335,6 +363,20 @@ class DatabaseIO:
                    f"{num_links_after} unique links have to be tested.")
             logging.info(msg)
         return num_links_after
+
+    def del_dois_that_can_be_skipped(self) -> None:
+        self.cursor.execute('SELECT COUNT(*) FROM queue_doi;')
+        num_dois_before = self.cursor.fetchone()[0]
+
+        self.cursor.execute('''DELETE FROM queue_doi
+                            WHERE doi IN (
+                            SELECT doi FROM validDois);''')
+        self.cursor.execute('SELECT COUNT(*) FROM queue_doi;')
+        num_dois_after = self.cursor.fetchone()[0]
+
+        if num_dois_before > num_dois_after:
+            logging.info("Skipped tests for %s DOIs: already validated!",
+                         (num_dois_before - num_dois_after))
 
     def count_errors(self) -> int:
         """Return the number of errors. """

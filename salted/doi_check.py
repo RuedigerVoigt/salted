@@ -120,10 +120,11 @@ class DoiCheck:
         dois_to_check = ['10.1016/j.jebo.2014.12.018', '10.1017/S0020818309990191']
         return dois_to_check
 
-    def __store_valid_doi(self) -> None:
+    def __store_valid_dois(self) -> None:
         "Store valid DOIs in the database"
-        # TO DO
-        return
+        # executemany needs a list of tuples:
+        self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
+        return None
 
     def check_dois(self) -> None:
         dois_to_check = self.__get_dois_to_check()
@@ -135,5 +136,4 @@ class DoiCheck:
         self.pbar_doi = tqdm(total=num_doi)
 
         asyncio.run(self.__distribute_work(dois_to_check))
-
-        print(self.valid_doi_list)
+        self.__store_valid_dois()

@@ -147,16 +147,37 @@ class InputHandler:
         if mailto_found:
             pass
 
-    def handle_found_doi(self,
-                         file_path: pathlib.Path,
-                         doi_list: list):
-        # TO DO: Implement
-        pass
+    def handle_found_dois(self,
+                          file_path: pathlib.Path,
+                          doi_list: list):
+        """Change the DOI list into the needed format and send it piecewise
+           to the database."""
+        if not doi_list:
+            return None
+        # The parser generated a list in the format [[doi, text], [doi, text]]
+        #  - text being the key-value of the bibtex-entry and the field in
+        # which the DOI was found.
+        dois_found = list()
+        for entry in doi_list:
+            dois_found.append([str(file_path), entry[0], entry[1]])
+        # In case of a bibliography taht can be a very long list.
+        # So feed it to sqlite in little pieces
+        first = 0
+        step = 50
+        last = first + step
+        if len(dois_found) < step:
+            self.db.save_found_dois(dois_found)
+        else:
+            while last <= (len(dois_found) - 1):
+                self.db.save_found_dois(dois_found[first:last])
+                first += step
+                last += step
+        return None
 
-    def scan_files_for_links(self,
-                             files_to_check: List[pathlib.Path]) -> None:
-        """Scan each file within a list of paths for hyperlinks and write
-           those to the SQLite database. """
+    def scan_files(self,
+                   files_to_check: List[pathlib.Path]) -> None:
+        """Scan each file within a list of paths for hyperlinks and DOIs.
+           Write those to the SQLite database. """
         if not files_to_check:
             logging.warning('No files to check')
             return None
@@ -189,6 +210,6 @@ class InputHandler:
             if url_list:
                 self.handle_found_urls(file_path, url_list)
             if doi_list:
-                self.handle_found_doi(file_path, doi_list)
+                self.handle_found_dois(file_path, doi_list)
 
         return None

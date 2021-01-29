@@ -35,7 +35,7 @@ class UrlCheck:
         self.db = db
         self.timeout = int(timeout_sec)
 
-        self.num_workers = workers
+        self.num_workers: Union[int, str] = workers
 
         self.cnt: Counter = Counter()
 
