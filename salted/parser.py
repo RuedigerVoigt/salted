@@ -9,7 +9,6 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 import re
-from typing import List
 
 from bs4 import BeautifulSoup  # type: ignore
 from pybtex.database import parse_string # type: ignore
@@ -81,8 +80,8 @@ class Parser():
             matches.append([url, url])
         return matches
 
-    def extract_links_from_bib(self,
-                               file_content: str) -> list:
+    @staticmethod
+    def extract_links_from_bib(file_content: str) -> list:
         """Extract all URLs and DOIs from a .bib file.
            Returns a list of two lists:
            * The first one in the format [[url, text], [url, text]] - with text
@@ -103,7 +102,7 @@ class Parser():
 
             try:
                 doi = bib_data.entries[entry].fields['Doi']
-                doi_list.append([doi.strip(), f"Key: {entry}, Field: DOI"])                
+                doi_list.append([doi.strip(), f"Key: {entry}, Field: DOI"])
             except KeyError:
                 pass
 
