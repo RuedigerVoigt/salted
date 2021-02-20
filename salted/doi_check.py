@@ -9,45 +9,71 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 import asyncio
 import logging
+from typing import Final, Optional
 
 import aiohttp
 from tqdm.asyncio import tqdm  # type: ignore
+
+from salted import database_io
 
 
 class DoiCheck:
     """Interact with the API to check DOIs."""
 
-    API_BASE_URL = 'https://api.crossref.org/works/'
-    NUM_API_WORKERS = 4 # TO DO: rate limiter!
+    API_BASE_URL: Final[str] = 'https://api.crossref.org/works/'
+    NUM_API_WORKERS: Final[int] = 5
 
     def __init__(self,
-                 db_io) -> None:
+                 db_io: database_io.DatabaseIO) -> None:
 
         self.db = db_io
 
         # Do NOT conceal the user agent for API requests.
-        # There is no UA block and this makes it easier to report problems.
-        self.headers = {'User-Agent': 'salted / 0.7'}
+        # The providers of the API explicitly ask that bots identify themselves
+        # with an user agent, a project URL and a mailto address.
+        # Requests of polite bots get directed to a separate pool of machines.
+        # See: https://github.com/CrossRef/rest-api-doc
+        self.headers = {'User-Agent': (
+            "salted/0.7 " +
+            "(https://github.com/RuedigerVoigt/salted; " +
+            "mailto:projects@ruediger-voigt.eu)")}
 
-        self.session = None
+        self.session: Optional[aiohttp.ClientSession] = None
         self.timeout_sec = 3
-
-        # Very reasonable defaults for the rate limit (10% of the default
-        # values of the API) until HTTP headers give the actual limit:
-        self.max_queries = 5
-        self.timewindow = 1
 
         self.pbar_doi: tqdm = None
 
         self.valid_doi_list: list = list()
 
-    async def __create_session(self):
+    async def __create_session(self) -> None:
         self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
 
-    async def __close_session(self):
+    async def __close_session(self) -> None:
         "Close the session object once it is no longer needed."
         if self.session:
             await self.session.close()
+
+    async def __calculate_wait(self,
+                               max_queries: int,
+                               seconds: int
+                               ) -> float:
+        """Calculate how long a worker process has to sleep in order not
+        to violate the rate limit. Always taking into account the newest
+        values provided by the server. Aimed at 10% below the limit - which
+        is fast given that standard for that API is 50 requests/second. """
+        if not isinstance(max_queries, int) or max_queries < 1:
+            raise ValueError('Parameter "max_queries" must be an integer > 0.')
+        if not isinstance(seconds, int) or max_queries < 1:
+            raise ValueError('Parameter "seconds" must be an integer > 0.')
+
+        # Keep it at 90% to always be below the limit.
+        # Input is a positive int != 0 and round rounds up, so the smallest
+        # amount htis can take is 1:
+        max_queries = round(max_queries * 0.9)
+        # In a specified number of seconds, there is maximum number of queries.
+        # As the work is distributed over multiple workers, the wait time has
+        # to be multiplied by their number:
+        return float((seconds / max_queries) * self.NUM_API_WORKERS)
 
     async def __api_send_head_request(self,
                                       doi: str) -> dict:
@@ -58,13 +84,17 @@ class DoiCheck:
         # Requesting this way reduces load on the server and network traffic.
         query_url = self.API_BASE_URL + doi
         async with self.session.get(  # type: ignore
-            query_url,
-            headers=self.headers,
-            raise_for_status=False,
-            timeout=self.timeout_sec) as response:
-                return {'status': response.status,
-                        'max_queries': response.headers['X-Rate-Limit-Limit'],
-                        'timewindow': response.headers['X-Rate-Limit-Interval']}
+                query_url,
+                headers=self.headers,
+                raise_for_status=False,
+                timeout=self.timeout_sec) as response:
+            # format is 'numeric s'
+            timewindow = response.headers['X-Rate-Limit-Interval']
+            timewindow = timewindow.rstrip('s').strip()
+            return {
+                'max_queries':  response.headers['X-Rate-Limit-Limit'],
+                'seconds':  timewindow,
+                'status': response.status}
 
     async def __worker(self,
                        name: str,
@@ -80,11 +110,10 @@ class DoiCheck:
                 print('DOI does not exist!')
             else:
                 print('Unexpected API response!')
-            # TO DO: remove with rate limiter
-            await asyncio.sleep(0.25)
-            # TO DO
-            # api_response['max_queries']
-            # api_response['timewindow']
+            time_to_sleep = self.__calculate_wait(
+                api_response['max_queries'],
+                api_response['seconds'])
+            await asyncio.sleep(time_to_sleep)  # type: ignore
             self.pbar_doi.update(1)
             queue.task_done()
 
@@ -113,7 +142,7 @@ class DoiCheck:
         # Wait until all worker tasks are cancelled.
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    def __get_dois_to_check(self):
+    def __get_dois_to_check(self) -> list:
         "Check the database if there are any DOI to validate."
         # TO DO
         # FOR TESTS
