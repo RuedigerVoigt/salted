@@ -53,33 +53,38 @@ class DoiCheck:
         if self.session:
             await self.session.close()
 
-    async def __calculate_wait(self,
-                               max_queries: int,
-                               seconds: int
-                               ) -> float:
-        """Calculate how long a worker process has to sleep in order not
-        to violate the rate limit. Always taking into account the newest
-        values provided by the server. Aimed at 10% below the limit - which
-        is fast given that standard for that API is 50 requests/second. """
-        if not isinstance(max_queries, int) or max_queries < 1:
-            raise ValueError('Parameter "max_queries" must be an integer > 0.')
-        if not isinstance(seconds, int) or max_queries < 1:
-            raise ValueError('Parameter "seconds" must be an integer > 0.')
+    async def __rate_limit_wait(self,
+                                max_queries: int,
+                                seconds: int
+                                ) -> None:
+        """Sleep long enough to keep the number of API requests within
+        the rate limit. Always taking into account the newest values provided
+        by the server."""
 
-        # Keep it at 90% to always be below the limit.
+        if max_queries < 1:
+            raise ValueError('Parameter "max_queries" must be an integer > 0.')
+        if max_queries < 1:
+            raise ValueError('Parameter "seconds" must be an integer > 0.')
+        # Keep it at 90% to always be below the limit. This is still fast,
+        # given that standard for that API is 50 requests/second.
         # Input is a positive int != 0 and round rounds up, so the smallest
-        # amount htis can take is 1:
+        # amount this can take is 1:
         max_queries = round(max_queries * 0.9)
         # In a specified number of seconds, there is maximum number of queries.
         # As the work is distributed over multiple workers, the wait time has
         # to be multiplied by their number:
-        return float((seconds / max_queries) * self.NUM_API_WORKERS)
+        time_to_sleep = float((seconds / max_queries) * self.NUM_API_WORKERS)
+        logging.debug(f"wait time per worker for {max_queries} queries /" +
+                      f" {seconds} s: {time_to_sleep}")
+        await asyncio.sleep(time_to_sleep)
+        return None
 
     async def __api_send_head_request(self,
                                       doi: str) -> dict:
         """Send a HTTP Head request to the server and return the status code
            (tells us if the DOI exists or not) plus information about the rate
            limit."""
+        logging.debug(f"Sending head request to Crossref API: check {doi}")
         # The HTTP HEAD method requests the headers, but not the page's body.
         # Requesting this way reduces load on the server and network traffic.
         query_url = self.API_BASE_URL + doi
@@ -99,21 +104,23 @@ class DoiCheck:
     async def __worker(self,
                        name: str,
                        queue: asyncio.Queue) -> None:
+        """Worker: wait for the result of the API request and then wait long
+           enough to stay within the rate limit."""
         # DO NOT REMOVE 'while True'. Without that the queue is stopped
         # after the first iteration.
         while True:
             doi = await queue.get()
             api_response = await self.__api_send_head_request(doi)
             if api_response['status'] == 200:
+                logging.debug(f"DOI {doi} is valid")
                 self.valid_doi_list.append(doi)
-            elif api_response['status'] == '404':
+            elif api_response['status'] == 404:
                 print('DOI does not exist!')
             else:
-                print('Unexpected API response!')
-            time_to_sleep = self.__calculate_wait(
-                api_response['max_queries'],
-                api_response['seconds'])
-            await asyncio.sleep(time_to_sleep)  # type: ignore
+                print(f"Unexpected API response: {api_response['status']}")
+            await self.__rate_limit_wait(
+                int(api_response['max_queries']),
+                int(api_response['seconds']))
             self.pbar_doi.update(1)
             queue.task_done()
 
@@ -146,7 +153,7 @@ class DoiCheck:
         "Check the database if there are any DOI to validate."
         # TO DO
         # FOR TESTS
-        dois_to_check = ['10.1016/j.jebo.2014.12.018', '10.1017/S0020818309990191']
+        dois_to_check = ['10.1016/j.jebo.2014.12.018', '10.1017/S0020818309990191', '1']
         return dois_to_check
 
     def __store_valid_dois(self) -> None:
