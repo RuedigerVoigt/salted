@@ -45,10 +45,10 @@ class UrlCheck:
 
         self.session: aiohttp.ClientSession = None  # type: ignore
 
-    async def __create_session(self):
+    async def __create_session(self) -> None:
         self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
 
-    async def __close_session(self):
+    async def __close_session(self) -> None:
         """Close the session object once it is no longer needed"""
         if self.session:
             await self.session.close()
@@ -188,7 +188,7 @@ class UrlCheck:
         # Wait until all worker tasks are cancelled.
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    def check_urls(self):
+    def check_urls(self) -> None:
         "Process all URLs that are not assumed as valid in the cache."
         urls_to_check = self.db.urls_to_check()
         if not urls_to_check:

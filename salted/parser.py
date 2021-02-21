@@ -19,7 +19,7 @@ from pybtex.database import parse_string # type: ignore
 class Parser():
     "Methods to extract hyperlinks and mail addresses from different formats."
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         # Specification: https://www.ctan.org/pkg/hyperref
         self.pattern_latex_url = re.compile(
@@ -109,7 +109,7 @@ class Parser():
         return [url_list, doi_list]
 
     @staticmethod
-    def extract_mails_from_mailto(mailto_link):
+    def extract_mails_from_mailto(mailto_link: str) -> None:
         """A single mailto link can contain *multiple* mail addresses.
            Extract them and return them as a list."""
         mailto_link = mailto_link[7:]  # cut off the mailto: part

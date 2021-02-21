@@ -28,6 +28,9 @@ from salted import report_generator
 class Salted:
     """Main class. Creates the other Objects, starts workers,
        collects results and starts the report of results. """
+    # pylint: disable=too-few-public-methods
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-instance-attributes
 
     VERSION = '0.6.1'
 

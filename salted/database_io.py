@@ -51,7 +51,7 @@ class DatabaseIO:
            the old cursor is invalid."""
         return self.cursor
 
-    def reinitialize_in_memory_db(self):
+    def reinitialize_in_memory_db(self) -> None:
         """If there is already an in memory instance, close it. Then create
            and initialize a new in memory instance of the database by
            creating its schema and loading the disk cache (if available)."""
@@ -65,7 +65,7 @@ class DatabaseIO:
         self.create_schema()
         self.load_disk_cache()
 
-    def tear_down_in_memory_db(self):
+    def tear_down_in_memory_db(self) -> None:
         """If there is an active in memory instance, close the connection.
            All data not stored elsewhere will be lost."""
         if self.conn:
@@ -151,12 +151,13 @@ class DatabaseIO:
            load them into the in-memory instance of sqlite."""
 
         if not self.cache_file_path:
+            logging.info('No cache file provided')
             return
-
         valid_urls = list()
         valid_dois = list()
 
         try:
+            logging.debug('Trying to load disk cache')
             disk_cache = sqlite3.connect(
                 self.cache_file_path,
                 isolation_level=None  # reenable autocommit
@@ -195,6 +196,7 @@ class DatabaseIO:
         # While adding links to the database the index is not needed,
         # but would be updated with every insert. It is faster to create it
         # once the table has it contents.
+        logging.debug('Generating indices')
         self.cursor.execute('''
             CREATE INDEX IF NOT EXISTS index_timestamp
             ON validUrls (lastValid);''')
@@ -209,6 +211,7 @@ class DatabaseIO:
         """ Generate Views for Analytics and Output Generating."""
         # Separate function to execute after all links have been checked
         # and the respective tables are stable."""
+        logging.debug('Generating database views')
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_errorCountByFile AS
             SELECT COUNT(*) AS numErrors, filePath

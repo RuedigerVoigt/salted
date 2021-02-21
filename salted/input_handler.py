@@ -100,7 +100,7 @@ class InputHandler:
 
     def handle_found_urls(self,
                           file_path: pathlib.Path,
-                          url_list: list):
+                          url_list: list) -> None:
 
         links_found: list = []
         mailto_found: list = []
@@ -149,7 +149,7 @@ class InputHandler:
 
     def handle_found_dois(self,
                           file_path: pathlib.Path,
-                          doi_list: list):
+                          doi_list: list) -> None:
         """Change the DOI list into the needed format and send it piecewise
            to the database."""
         if not doi_list:

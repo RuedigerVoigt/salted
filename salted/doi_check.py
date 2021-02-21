@@ -84,7 +84,7 @@ class DoiCheck:
         """Send a HTTP Head request to the server and return the status code
            (tells us if the DOI exists or not) plus information about the rate
            limit."""
-        logging.debug(f"Sending head request to Crossref API: check {doi}")
+        logging.debug("Sending head request to Crossref API: check %s", doi)
         # The HTTP HEAD method requests the headers, but not the page's body.
         # Requesting this way reduces load on the server and network traffic.
         query_url = self.API_BASE_URL + doi
@@ -160,7 +160,6 @@ class DoiCheck:
         "Store valid DOIs in the database"
         # executemany needs a list of tuples:
         self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
-        return None
 
     def check_dois(self) -> None:
         dois_to_check = self.__get_dois_to_check()
