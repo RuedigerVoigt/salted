@@ -10,7 +10,8 @@ Released under the Apache License 2.0
 """
 
 from salted.__main__ import Salted
+from salted import _version
 
 NAME = "salted"
-__version__ = "0.6.1"
+__version__ = _version.__version__
 __author__ = "Rüdiger Voigt"

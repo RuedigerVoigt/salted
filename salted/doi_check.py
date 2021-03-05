@@ -15,6 +15,7 @@ import aiohttp
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
+from salted import _version
 
 
 class DoiCheck:
@@ -34,7 +35,7 @@ class DoiCheck:
         # Requests of polite bots get directed to a separate pool of machines.
         # See: https://github.com/CrossRef/rest-api-doc
         self.headers = {'User-Agent': (
-            "salted/0.7 " +
+            f"salted/{_version.__version__} " +
             "(https://github.com/RuedigerVoigt/salted; " +
             "mailto:projects@ruediger-voigt.eu)")}
 

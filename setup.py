@@ -3,12 +3,14 @@
 
 import setuptools
 
+from salted import _version
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name="salted",
-    version="0.6.1",
+    version=f"{_version.__version__}",
     author="Rüdiger Voigt",
     author_email="projects@ruediger-voigt.eu",
     description="Smart, Asynchronous Link Tester with Database backend",

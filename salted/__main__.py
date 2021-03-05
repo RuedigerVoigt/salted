@@ -18,6 +18,7 @@ from typing import Optional, Union
 import compatibility
 import userprovided
 
+from salted import _version as version
 from salted import database_io
 from salted import doi_check
 from salted import input_handler
@@ -32,7 +33,7 @@ class Salted:
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-instance-attributes
 
-    VERSION = '0.6.1'
+    VERSION = version.__version__
 
     def __init__(self,
                  cache_file: Union[pathlib.Path, str],
