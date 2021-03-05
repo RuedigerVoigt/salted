@@ -150,20 +150,14 @@ class DoiCheck:
         # Wait until all worker tasks are cancelled.
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    def __get_dois_to_check(self) -> list:
-        "Check the database if there are any DOI to validate."
-        # TO DO
-        # FOR TESTS
-        dois_to_check = ['10.1016/j.jebo.2014.12.018', '10.1017/S0020818309990191', '1']
-        return dois_to_check
-
     def __store_valid_dois(self) -> None:
         "Store valid DOIs in the database"
         # executemany needs a list of tuples:
-        self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
+        if self.valid_doi_list:
+            self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
 
     def check_dois(self) -> None:
-        dois_to_check = self.__get_dois_to_check()
+        dois_to_check = self.db.get_dois_to_check()
         if not dois_to_check:
             logging.debug('No DOIs to check.')
             return

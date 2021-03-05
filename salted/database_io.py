@@ -294,6 +294,16 @@ class DatabaseIO:
         self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
         return self.cursor.fetchall()
 
+    def get_dois_to_check(self) -> Optional[list]:
+        """Return all DOI that are not validated yet or None
+           if DOI queue is empty."""
+        # Maybe replace it with a generator but for several thousnad DOIs
+        # this way should be no problem!
+        self.cursor.execute('SELECT DISTINCT doi FROM queue_doi;')
+        query_result = self.cursor.fetchall()
+        doi_list = [doi[0] for doi in query_result]
+        return doi_list if doi_list else None
+
     def log_url_is_fine(self,
                         url: str) -> None:
         """If a request to an URL returns a HTTP status code that indicates a
@@ -307,9 +317,9 @@ class DatabaseIO:
         """Permanently store a list of valid DOIs in the cache.
            Contrary to URLs, DOIs are made to be persistent - so no need
            to recheck them once they have been validated."""
+        # TO DO: batches!!
         self.cursor.executemany('''
         INSERT OR IGNORE INTO validDois (doi) VALUES (?);''', valid_dois)
-
 
     def log_error(self,
                   url: str,
