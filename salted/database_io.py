@@ -7,7 +7,8 @@ Other classes do NOT use the database cursor, but call functions
 within this class.
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020-2021: Released under the Apache License 2.0
+(c) 2020-2021 Rüdiger Voigt
+Released under the Apache License 2.0
 """
 
 import logging
@@ -320,6 +321,11 @@ class DatabaseIO:
         # TO DO: batches!!
         self.cursor.executemany('''
         INSERT OR IGNORE INTO validDois (doi) VALUES (?);''', valid_dois)
+
+    def log_invalid_dois(self,
+                         invalid_dois: list) -> None:
+        # TO DO
+        pass
 
     def log_error(self,
                   url: str,

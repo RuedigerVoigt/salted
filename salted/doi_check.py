@@ -5,7 +5,8 @@
 Check DOI via the API
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020-2021: Released under the Apache License 2.0
+(c) 2020-2021 Rüdiger Voigt
+Released under the Apache License 2.0
 """
 import asyncio
 import logging
@@ -45,6 +46,7 @@ class DoiCheck:
         self.pbar_doi: tqdm = None
 
         self.valid_doi_list: list = list()
+        self.invalid_doi_list: list = list()
 
     async def __create_session(self) -> None:
         self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
@@ -116,7 +118,8 @@ class DoiCheck:
                 logging.debug(f"DOI {doi} is valid")
                 self.valid_doi_list.append(doi)
             elif api_response['status'] == 404:
-                print('DOI does not exist!')
+                logging.debug(f"DOI {doi} does not exist!")
+                self.invalid_doi_list.append(doi)
             else:
                 print(f"Unexpected API response: {api_response['status']}")
             await self.__rate_limit_wait(
@@ -150,13 +153,8 @@ class DoiCheck:
         # Wait until all worker tasks are cancelled.
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    def __store_valid_dois(self) -> None:
-        "Store valid DOIs in the database"
-        # executemany needs a list of tuples:
-        if self.valid_doi_list:
-            self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
-
     def check_dois(self) -> None:
+        "Check the DOI in the queue and show a progress bar."
         dois_to_check = self.db.get_dois_to_check()
         if not dois_to_check:
             logging.debug('No DOIs to check.')
@@ -166,4 +164,8 @@ class DoiCheck:
         self.pbar_doi = tqdm(total=num_doi)
 
         asyncio.run(self.__distribute_work(dois_to_check))
-        self.__store_valid_dois()
+        # executemany needs a list of tuples:
+        if self.valid_doi_list:
+            self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
+        if self.invalid_doi_list:
+            self.db.log_invalid_dois([(doi, ) for doi in self.invalid_doi_list])
