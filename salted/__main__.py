@@ -76,32 +76,31 @@ class Salted:
 
         self.cnt: Counter = Counter()
 
-    def check_links(self,
-                    path_to_base_folder: Union[str, pathlib.Path],
-                    template_searchpath: str = 'salted/templates',
-                    template_name: str = 'default.cli.jinja',
-                    write_to: Union[str, pathlib.Path] = 'cli',
-                    base_url: Optional[str] = None) -> None:
-        """Check all links found in files within the provided folder
-           and its subfolders."""
+    def check(self,
+              path: Union[str, pathlib.Path],
+              template_searchpath: str = 'salted/templates',
+              template_name: str = 'default.cli.jinja',
+              write_to: Union[str, pathlib.Path] = 'cli',
+              base_url: Optional[str] = None) -> None:
+        """Check all links and DOis found in a specific file or in all supported
+           files within the provided folder and its subfolders."""
         start_time = time.monotonic()
 
-        # check_links might be reused with the same salted object. Therefore
+        # check might be reused with the same salted object. Therefore
         # the database has to reinitialized to remove data like exceptions
         # et cetera from previous runs. However this loads the disk cache.
         self.db.reinitialize_in_memory_db()
 
         # Expand path as otherwise a relative path will not be rewritten
         # in output:
-        path_to_base_folder = pathlib.Path(path_to_base_folder).resolve()
-        logging.info('Base folder: %s', path_to_base_folder)
+        path = pathlib.Path(path).resolve()
+        logging.info('Base folder: %s', path)
 
         # Remove trailing slash in base URL if there is one:
         if base_url:
             base_url = base_url.rstrip('/')
 
-        files_to_check = self.file_io.find_files_by_extensions(
-            path_to_base_folder)
+        files_to_check = self.file_io.find_files_by_extensions(path)
         if files_to_check:
             self.file_io.scan_files(files_to_check)
             self.db.generate_indices()
@@ -144,11 +143,11 @@ class Salted:
             template={
                 'searchpath': template_searchpath,
                 'name': template_name,
-                'foldername_to_replace': str(path_to_base_folder),
+                'foldername_to_replace': str(path),
                 'base_url': base_url},
             write_to=write_to,
             replace_path_by_url={
-                'path_to_be_replaced': str(path_to_base_folder),
+                'path_to_be_replaced': str(path),
                 'replace_with_url': base_url
             })
         if self.raise_for_dead_links:
