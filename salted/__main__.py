@@ -94,22 +94,35 @@ class Salted:
         # Expand path as otherwise a relative path will not be rewritten
         # in output:
         path = pathlib.Path(path).resolve()
-        logging.info('Base folder: %s', path)
+
+        if not path.exists():
+            msg = f"File or folder to check ({path}) does not exist."
+            logging.exception(msg)
+            raise FileNotFoundError(msg)
+
+        files_to_check = list()
+        if path.is_dir():
+            logging.info('Base folder: %s', path)
+            files_to_check = self.file_io.find_files_by_extensions(path)
+            if files_to_check:
+                self.file_io.scan_files(files_to_check)
+                self.db.generate_indices()
+                self.db.del_links_that_can_be_skipped()
+                self.db.del_dois_that_can_be_skipped()
+            else:
+                logging.warning(
+                    "No supported files in this folder or its subfolders.")
+                return
+        elif path.is_file() and self.file_io.is_supported_format(path):
+            files_to_check.append(path)
+        else:
+            msg = f"File format of {path} not supported"
+            logging.exception(msg)
+            raise ValueError(msg)
 
         # Remove trailing slash in base URL if there is one:
         if base_url:
             base_url = base_url.rstrip('/')
-
-        files_to_check = self.file_io.find_files_by_extensions(path)
-        if files_to_check:
-            self.file_io.scan_files(files_to_check)
-            self.db.generate_indices()
-            self.db.del_links_that_can_be_skipped()
-            self.db.del_dois_that_can_be_skipped()
-        else:
-            logging.warning(
-                "No supported files in this folder or its subfolders.")
-            return
 
         # ##### START CHECKS #####
 

@@ -11,7 +11,7 @@ Source: https://github.com/RuedigerVoigt/salted
 from collections import Counter
 import logging
 import pathlib
-from typing import List, Optional
+from typing import Final, List, Optional
 import urllib.parse
 
 import userprovided
@@ -24,22 +24,30 @@ from salted import parser
 class InputHandler:
     """Methods to find files and the hyperlinks inside them."""
 
+    SUPPORTED_SUFFIX: Final[set] = {".htm", ".html", '.md', '.tex', '.bib'}
+
     def __init__(self,
                  db: database_io.DatabaseIO):
         self.db = db
         self.cnt: Counter = Counter()
         self.parser = parser.Parser()
 
-    @staticmethod
+    def is_supported_format(self,
+                            filepath: pathlib.Path) -> bool:
+        "Checks - using the filename suffix - if the file format is supported."
+        return True if filepath.suffix in self.SUPPORTED_SUFFIX else False
+
     def find_files_by_extensions(
+            self,
             path_to_base_folder: pathlib.Path,
-            suffixes: set = {".htm", ".html", '.md', '.tex', '.bib'}
-                                 ) -> List[pathlib.Path]:
+            suffixes: Optional[set] = None) -> List[pathlib.Path]:
         """Find all files with specific file type suffixes in the base folder
            and its subfolders. If no file suffix is specified, this will look
            for all file formats supported by salted."""
-        # Pylint  warns about the set as default, but that is wanted here:
-        # pylint: disable=W0102
+        # self undefined at time of definition. Therefore fallback here:
+        if not suffixes:
+            suffixes = self.SUPPORTED_SUFFIX
+
         files_to_check = []
         path_to_check = pathlib.Path(path_to_base_folder)
         all_files = path_to_check.glob('**/*')

@@ -34,7 +34,7 @@ logging.basicConfig(level=logging.INFO)
 linkcheck = salted.Salted(cache_file='./salted-cache.sqlite3')
 
 # Assuming there is a folder 'homepage' within your current working directory:
-linkcheck.check_links('./homepage/')
+linkcheck.check('./homepage/')
 ```
 Two runs in a row (i.e. one full check and one using the cache):
 ![Using salted - animated example](https://github.com/RuedigerVoigt/salted/raw/main/documentation/salted-0.5.2.gif)
@@ -77,7 +77,7 @@ logging.basicConfig(level=logging.INFO)
 linkcheck = salted.Salted(cache_file='./choose-a-name.sqlite3')
 
 # Salted assumes all your files are in one folder or subfolders of that:
-linkcheck.check_links('./path_to_your_files/')
+linkcheck.check('./path_to_your_files/')
 ```
 
 Salted uses the `logging` module instead of the `print()` command, because:
@@ -114,10 +114,10 @@ Once you initialized salted you can use the object to call the `check_links' fun
 As above:
 ```python
 # linkcheck is the object we just initialized
-linkcheck.check_links('./path_to_your_html_files/')
+linkcheck.check('./path_to_your_files/')
 ```
 
-The only necessary parameter is the path to the folder which contains your HTML files. This is enough for salted to find all files within that and its subfolders whose filename ends on `.htm` or `.html`.
+The only necessary parameter is the path to a specific file or folder which contains your files. This is enough for salted to find all files within that and its subfolders whose filename ends on `.htm` or `.html`.
 
 This starts the check. By default the results will be displayed on the command line interface you are using.
 
