@@ -402,6 +402,18 @@ class DatabaseIO:
         self.cursor.execute('SELECT COUNT(*) FROM errors;')
         return self.cursor.fetchone()[0]
 
+    def list_errors(self,
+                    error_code: int) -> list:
+        """Return a list of normalized URLs that yield a specific
+           error code (from the HTTP status codes)."""
+        self.cursor.execute('''SELECT normalizedUrl
+                          FROM errors
+                          WHERE error = ?;''', [error_code])
+        urls_with_error = self.cursor.fetchall()
+        if urls_with_error:
+            return urls_with_error
+        return list()
+
     def overwrite_cache_file(self) -> None:
         """Write the current in-memory database into a file.
            Overwrite any file in the given path."""

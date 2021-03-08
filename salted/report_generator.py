@@ -5,7 +5,8 @@
 Report generator for salted
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020: Released under the Apache License 2.0
+(c) 2020-2021 Rüdiger Voigt
+Released under the Apache License 2.0
 """
 import logging
 import pathlib
@@ -28,19 +29,6 @@ class ReportGenerator:
         self.show_redirects = show_redirects
         self.show_exceptions = show_exceptions
         self.replace_path_by_url: Optional[dict] = None
-
-    def __list_errors(self,
-                      error_code: int) -> list:
-        """Return a list of normalized URLs that yield a specific
-           error code (from the HTTP status codes)."""
-        cursor = self.db.get_cursor()
-        cursor.execute('''SELECT normalizedUrl
-                               FROM errors
-                               WHERE error = ?;''', [error_code])
-        urls_with_error = cursor.fetchall()
-        if urls_with_error:
-            return urls_with_error
-        return list()
 
     def rewrite_path(self,
                      path_to_rewrite: str) -> str:

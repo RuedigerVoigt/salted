@@ -75,7 +75,7 @@ class UrlCheck:
         # Set the logging message here to flush the cache. Cannot use
         # flush() as it is unknow which or how many logging methods are used.
         logging.debug("Using %s workers to check %s hyperlinks.",
-                     recommendation, self.num_checks)
+                      recommendation, self.num_checks)
         return recommendation
 
     async def head_request(self,
