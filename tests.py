@@ -16,6 +16,7 @@ Source: https://github.com/RuedigerVoigt/salted
 import pathlib
 import re
 import tempfile
+import unittest.mock
 
 
 import pyfakefs
@@ -23,13 +24,46 @@ import pytest
 import pytest_mock
 
 import salted
+from salted import database_io
+from salted import doi_check
+from salted import input_handler
 from salted import parser
+from salted import url_check
+from salted import report_generator
 
 myTest = salted.Salted(cache_file='./salted-test-cache.sqlite3')
+# print(myTest.__dict__.keys())
 
 my_parser = parser.Parser()
 
-# print(myTest.__dict__.keys())
+
+html_example = r"""
+<html>
+<body>
+<h1>Example</h1>
+<p><a href="https://www.example.com/">some text</a> bla bla
+<a     href="https://2.example.com">another</a>!</p>
+</body>
+</html>"""
+
+md_example = r"""
+bla bla <https://www.example.com> bla bla
+[inline-style link](https://www.google.com) bla
+[link with title](http://www.example.com/index.php?id=foo "Title for this link")
+"""
+
+bibtex_example = r"""
+% Encoding: UTF-8
+
+@Article{Doe2021,
+author  = {Jon Doe},
+journal = {Journal of valid references},
+title   = {Some Title},
+year    = {2021},
+doi     = {invalidDOI},
+url     = {https://www.example.com/},
+}
+"""
 
 
 def test_latex_regex():
@@ -98,14 +132,7 @@ def test_markdown_regex():
 
 def test_extract_links_from_html():
     """Test the function that extracts links from HTML."""
-    html_example = """
-    <html>
-    <body>
-    <h1>Example</h1>
-    <p><a href="https://www.example.com/">some text</a> bla bla
-    <a     href="https://2.example.com">another</a>!</p>
-    </body>
-    </html>"""
+
     extracted_links = my_parser.extract_links_from_html(
         file_content=html_example)
     assert len(extracted_links) == 2
@@ -118,11 +145,7 @@ def test_extract_links_from_html():
 
 def test_extract_links_from_markdown():
     """Test the function that extracts links from Markdown."""
-    md_example = """
-    bla bla <https://www.example.com> bla bla
-    [inline-style link](https://www.google.com) bla
-    [link with title](http://www.example.com/index.php?id=foo "Title for this link")
-    """
+
     extracted_links = my_parser.extract_links_from_markdown(
         file_content=md_example)
     assert len(extracted_links) == 3
@@ -162,6 +185,16 @@ def test_extract_links_from_tex():
     assert extracted_links[3][1] == 'https://www.example.com/2'
 
 
+def test_extract_links_from_bibtex():
+    """Test the functions that extracts links from BibTeX .bib files."""
+
+    extracted = my_parser.extract_links_from_bib(file_content=bibtex_example)
+    # extracted is a list of lists of list: url_list, doi_list
+    # reason: there has to be information about the key and field
+    assert extracted[0][0][0] == 'https://www.example.com/'
+    assert extracted[1][0][0] == 'invalidDOI'
+
+
 def test_extract_mails_from_mailto():
     # TO DO
     # 'mailto:foo@example.com'
@@ -188,3 +221,37 @@ def test_file_discovery(fs):
     assert len(md_files) == 2
     tex_files = myTest.file_io.find_tex_files('/fake')
     assert len(tex_files) == 2
+
+
+def test_create_object():
+    my_check = salted.Salted(cache_file='./salted-cache-TEST.sqlite3')
+    with pytest.raises(FileNotFoundError):
+        my_check.check(path='non_existent.tex')
+
+
+def test_actual_run_html(tmp_path):
+    d = tmp_path / "htmltest"
+    d.mkdir()
+    p = d / "test.html"
+    p.write_text(html_example)
+    my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
+    my_check.check(path = (d / "test.html"))
+
+
+def test_actual_run_markdown(tmp_path):
+    d = tmp_path / "markdowntest"
+    d.mkdir()
+    p = d / "test.md"
+    p.write_text(md_example)
+    my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
+    my_check.check(path = (d / "test.md"))
+
+
+def test_actual_run_bibtex(tmp_path):
+    # side-effect: does actually call the API
+    d = tmp_path / "bibtextest"
+    d.mkdir()
+    p = d / "test.bib"
+    p.write_text(bibtex_example)
+    my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
+    my_check.check(path = (d / "test.bib"))
