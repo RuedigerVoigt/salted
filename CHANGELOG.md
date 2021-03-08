@@ -1,14 +1,14 @@
 # Changelog for salted
 
-## Upcoming
+## Upcoming 0.7.0 beta (March 08, 2021)
 
+* Update dependencies. (The `aiohttp` library had a security update which should not affect `salted`.)
 * It is now possible to check a specific file instead of all supported files within a folder.
 * **The function `check_links()` has been renamed to `check`  and the parameter `path_to_base_folder` is now simply named `path`.**
 * **Salted now checks BibTeX files!**
    *  The `url` and the `doi` field are checked.
    * Added the [`pybtext`](https://pypi.org/project/pybtex/) as a dependency to parse BibTeX files.
 * Valid DOI are cached indefinitely because the very reason for using a DOI is that it never changes, while URLs do.
-
 * Markdown reports now contain links instead of bare URLs to make them clickable. 
 
 ## Version 0.6.1 beta (January 22, 2021)
