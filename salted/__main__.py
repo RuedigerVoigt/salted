@@ -5,7 +5,7 @@
 Smart, Asynchronous Link Tester with Database backend (SALTED)
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020: Released under the Apache License 2.0
+(c) 2020-2021: Released under the Apache License 2.0
 """
 
 from collections import Counter
@@ -46,7 +46,7 @@ class Salted:
         compatibility.Check(
             package_name='salted',
             package_version=self.VERSION,
-            release_date=datetime.date(2021, 1, 22),
+            release_date=datetime.date(2021, 3, 8),
             python_version_support={
                 'min_version': '3.8',
                 'incompatible_versions': ['3.7'],

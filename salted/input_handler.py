@@ -5,7 +5,8 @@
 Input Handler for salted
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020-2021: Released under the Apache License 2.0
+(c) 2020-2021: Rüdiger Voigt
+Released under the Apache License 2.0
 """
 
 from collections import Counter
