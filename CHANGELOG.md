@@ -2,6 +2,7 @@
 
 ## Upcoming 0.7.0 beta
 
+* Automatic tests now also run with `Python 3.10 beta 3`.
 * Update version of multiple dependencies.
 * It is now possible to check a specific file instead of all supported files within a folder.
 * **The function `check_links()` has been renamed to `check`  and the parameter `path_to_base_folder` is now simply named `path`.**
