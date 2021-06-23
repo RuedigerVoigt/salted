@@ -144,6 +144,13 @@ class Salted:
 
         runtime_check = time.monotonic() - start_time
 
+        # Although time.monotonic() works with fractional seconds,
+        # runtime_check is falsely 0 with unit tests on Windows
+        # (neither Linux, nor MacOS).
+        # To avoid division by zero later on:
+        runtime_check = 1 if runtime_check == 0 else runtime_check
+        # TO DO: check why this happens on Windows
+
         self.display_result.generate_report(
             statistics={
                 'timestamp': '{:%Y-%b-%d %H:%Mh}'.format(datetime.datetime.now()),
