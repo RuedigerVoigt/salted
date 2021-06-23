@@ -52,6 +52,14 @@ bla bla <https://www.example.com> bla bla
 [link with title](http://www.example.com/index.php?id=foo "Title for this link")
 """
 
+latex_example = r"""
+\section{Example}
+bla bla\footnote{\url{https://www.example.com/1}} bla
+\href{https://latex.example.com/}{linktext} bla
+bla\url{https://www.example.com/2}bla
+bla\href[doesnotmatter]{https://with-optional.example.com}{with optional}bla
+"""
+
 bibtex_example = r"""
 % Encoding: UTF-8
 
@@ -132,7 +140,6 @@ def test_markdown_regex():
 
 def test_extract_links_from_html():
     """Test the function that extracts links from HTML."""
-
     extracted_links = my_parser.extract_links_from_html(
         file_content=html_example)
     assert len(extracted_links) == 2
@@ -145,7 +152,6 @@ def test_extract_links_from_html():
 
 def test_extract_links_from_markdown():
     """Test the function that extracts links from Markdown."""
-
     extracted_links = my_parser.extract_links_from_markdown(
         file_content=md_example)
     assert len(extracted_links) == 3
@@ -162,13 +168,6 @@ def test_extract_links_from_markdown():
 
 def test_extract_links_from_tex():
     """Test the functions that extracts links from LaTeX .tex files."""
-    latex_example = r"""
-    \section{Example}
-    bla bla\footnote{\url{https://www.example.com/1}} bla
-    \href{https://latex.example.com/}{linktext} bla
-    bla\url{https://www.example.com/2}bla
-    bla\href[doesnotmatter]{https://with-optional.example.com}{with optional}bla
-    """
     extracted_links = my_parser.extract_links_from_tex(
                         file_content=latex_example)
     assert len(extracted_links) == 4
@@ -187,7 +186,6 @@ def test_extract_links_from_tex():
 
 def test_extract_links_from_bibtex():
     """Test the functions that extracts links from BibTeX .bib files."""
-
     extracted = my_parser.extract_links_from_bib(file_content=bibtex_example)
     # extracted is a list of lists of list: url_list, doi_list
     # reason: there has to be information about the key and field
@@ -235,7 +233,7 @@ def test_actual_run_html(tmp_path):
     p = d / "test.html"
     p.write_text(html_example)
     my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
-    my_check.check(path = (d / "test.html"))
+    my_check.check(path=(d / "test.html"))
 
 
 def test_actual_run_markdown(tmp_path):
@@ -244,7 +242,7 @@ def test_actual_run_markdown(tmp_path):
     p = d / "test.md"
     p.write_text(md_example)
     my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
-    my_check.check(path = (d / "test.md"))
+    my_check.check(path=(d / "test.md"))
 
 
 def test_actual_run_bibtex(tmp_path):
@@ -254,4 +252,4 @@ def test_actual_run_bibtex(tmp_path):
     p = d / "test.bib"
     p.write_text(bibtex_example)
     my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
-    my_check.check(path = (d / "test.bib"))
+    my_check.check(path=(d / "test.bib"))

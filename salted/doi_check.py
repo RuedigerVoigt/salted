@@ -21,6 +21,7 @@ from salted import _version
 
 class DoiCheck:
     """Interact with the API to check DOIs."""
+    # pylint: disable=too-few-public-methods
 
     API_BASE_URL: Final[str] = 'https://api.crossref.org/works/'
     NUM_API_WORKERS: Final[int] = 5
@@ -115,10 +116,10 @@ class DoiCheck:
             doi = await queue.get()
             api_response = await self.__api_send_head_request(doi)
             if api_response['status'] == 200:
-                logging.debug(f"DOI {doi} is valid")
+                logging.debug("DOI %s is valid", doi)
                 self.valid_doi_list.append(doi)
             elif api_response['status'] == 404:
-                logging.debug(f"DOI {doi} does not exist!")
+                logging.debug("DOI %s does not exist!", doi)
                 self.invalid_doi_list.append(doi)
             else:
                 print(f"Unexpected API response: {api_response['status']}")

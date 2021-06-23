@@ -36,7 +36,7 @@ class InputHandler:
     def is_supported_format(self,
                             filepath: pathlib.Path) -> bool:
         "Checks - using the filename suffix - if the file format is supported."
-        return True if filepath.suffix in self.SUPPORTED_SUFFIX else False
+        return bool(filepath.suffix in self.SUPPORTED_SUFFIX)
 
     def find_files_by_extensions(
             self,
