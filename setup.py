@@ -26,7 +26,7 @@ setuptools.setup(
                       "aiohttp>=3.7.4",
                       "beautifulsoup4>=4.9.3",
                       "cchardet>=2.1.7",
-                      "compatibility>=0.9.0",
+                      "compatibility>=1.0.0",
                       "jinja2>=3.0.1",
                       "lxml>=4.6.3",
                       "pybtex>=0.24.0",

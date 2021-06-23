@@ -54,7 +54,9 @@ class Salted:
             nag_over_update={
                     'nag_days_after_release': 30,
                     'nag_in_hundred': 100},
-            language_messages='en')
+            language_messages='en',
+            system_support={'full': {'Linux', 'MacOS', 'Windows'}}
+            )
 
         self.num_workers = workers
         self.timeout = int(timeout_sec)
