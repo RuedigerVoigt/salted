@@ -30,7 +30,7 @@ setuptools.setup(
                       "jinja2>=3.0.1",
                       "lxml>=4.6.3",
                       "pybtex>=0.24.0",
-                      "tqdm>=4.61.1",
+                      "tqdm>=4.61.2",
                       "userprovided>=0.9.1"],
     classifiers=[
         "Programming Language :: Python :: 3",
