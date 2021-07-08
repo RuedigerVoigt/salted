@@ -9,6 +9,7 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 from collections import Counter
+import configparser
 import datetime
 import logging
 import pathlib
@@ -16,7 +17,6 @@ import time
 from typing import Optional, Union
 
 import compatibility
-import userprovided
 
 from salted import _version as version
 from salted import cache_reader
@@ -36,14 +36,11 @@ class Salted:
     # pylint: disable=too-many-instance-attributes
 
     VERSION = version.__version__
+    CONFIG_NAME = 'salted-linkcheck.ini'
 
     def __init__(self,
-                 cache_file: Union[pathlib.Path, str],
-                 workers: Union[int, str] = 'automatic',
-                 timeout_sec: int = 5,
-                 dont_check_again_within_hours: int = 24,
-                 raise_for_dead_links: bool = False,
-                 user_agent: str = f"salted/{VERSION}") -> None:
+                 cache_file: Union[pathlib.Path, str]
+                 ) -> None:
 
         compatibility.Check(
             package_name='salted',
@@ -61,18 +58,24 @@ class Salted:
             )
 
         self.cache_file = cache_file
-        self.num_workers = workers
-        self.timeout = int(timeout_sec)
-        self.dont_check_again_within_hours = dont_check_again_within_hours
 
-        userprovided.parameters.enforce_boolean(
-            raise_for_dead_links,
-            'raise_for_dead_links')
-        self.raise_for_dead_links = raise_for_dead_links
-
-        self.user_agent = user_agent
+        # Application defaults:
+        self.num_workers: Union[int, str] = 'automatic'
+        self.timeout: int = 5
+        self.dont_check_again_within_hours: int = 24
+        self.raise_for_dead_links = False
+        self.user_agent = f"salted/{self.VERSION}"
+        # If there is a configfile, overwrite defaults with those settings
+        self.parse_configfile()
+        # If there are CLi parameters, they overwrite defaults and configile
 
         self.cnt: Counter = Counter()
+
+    def parse_configfile(self):
+        """If there is a configfile read it and overwrite defaults if new
+           value is set for them."""
+        cfg = configparser.ConfigParser()
+        cfg.read(self.CONFIG_NAME)
 
     def check(self,
               path: Union[str, pathlib.Path],
