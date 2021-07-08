@@ -71,7 +71,7 @@ class Salted:
 
         self.cnt: Counter = Counter()
 
-    def parse_configfile(self):
+    def parse_configfile(self) -> None:
         """If there is a configfile read it and overwrite defaults if new
            value is set for them.
            If a specific parameter is not set, fall back to the application
