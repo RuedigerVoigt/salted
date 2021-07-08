@@ -20,7 +20,7 @@ from salted import database_io
 
 
 class UrlCheck:
-    """Interacts with the network to check URLs."""
+    "Interacts with the network to check URLs."
 
     def __init__(self,
                  user_agent: str,
@@ -49,7 +49,7 @@ class UrlCheck:
         self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
 
     async def __close_session(self) -> None:
-        """Close the session object once it is no longer needed"""
+        "Close the session object once it is no longer needed"
         if self.session:
             await self.session.close()
 
@@ -193,7 +193,7 @@ class UrlCheck:
         urls_to_check = self.db.urls_to_check()
         if not urls_to_check:
             msg = ("No URLs to check after skipping cached results." +
-                    "All hyperlinks are considered valid.")
+                   "All hyperlinks are considered valid.")
             logging.info(msg)
             return
         self.num_checks = len(urls_to_check)

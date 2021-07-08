@@ -14,7 +14,7 @@ from typing import Optional, Union
 
 from jinja2 import Environment, FileSystemLoader, PackageLoader
 
-from salted import database_io
+from salted import memory_instance
 
 
 class ReportGenerator:
@@ -22,10 +22,10 @@ class ReportGenerator:
        Reports can be styled using Jinja2 templates."""
 
     def __init__(self,
-                 db_object: database_io.DatabaseIO,
+                 mem_instance: memory_instance.MemoryInstance,
                  show_redirects: bool = True,
                  show_exceptions: bool = True):
-        self.db = db_object
+        self.db = mem_instance
         self.show_redirects = show_redirects
         self.show_exceptions = show_exceptions
         self.replace_path_by_url: Optional[dict] = None

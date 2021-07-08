@@ -23,6 +23,7 @@ from salted import cache_reader
 from salted import database_io
 from salted import doi_check
 from salted import input_handler
+from salted import memory_instance
 from salted import url_check
 from salted import report_generator
 
@@ -71,13 +72,6 @@ class Salted:
 
         self.user_agent = user_agent
 
-        self.db = database_io.DatabaseIO(cache_file)
-
-        self.file_io = input_handler.InputHandler(self.db)
-
-        self.display_result = report_generator.ReportGenerator(
-            self.db)
-
         self.cnt: Counter = Counter()
 
     def check(self,
@@ -91,15 +85,17 @@ class Salted:
         start_time = time.monotonic()
 
         # check might be reused with the same salted object. Therefore
-        # the database has to reinitialized to remove data like exceptions
-        # et cetera from previous runs. However this loads the disk cache.
-        self.db.reinitialize_in_memory_db()
+        # the in memory database has to initialized here instead of on
+        # a higher level.
+        mem_instance = memory_instance.MemoryInstance()
+        db = database_io.DatabaseIO(mem_instance, self.cache_file)
 
-        # load the disk cache
-        cache_reader.CacheReader(
-            self.db,
+        cache_handler = cache_reader.CacheReader(
+            mem_instance,
             self.dont_check_again_within_hours,
             self.cache_file)
+
+        cache_handler.load_disk_cache()
 
         # Expand path as otherwise a relative path will not be rewritten
         # in output:
@@ -110,20 +106,21 @@ class Salted:
             logging.exception(msg)
             raise FileNotFoundError(msg)
 
+        file_io = input_handler.InputHandler(db)
         files_to_check = list()
         if path.is_dir():
             logging.info('Base folder: %s', path)
-            files_to_check = self.file_io.find_files_by_extensions(path)
+            files_to_check = file_io.find_files_by_extensions(path)
             if files_to_check:
-                self.file_io.scan_files(files_to_check)
-                self.db.generate_indices()
-                self.db.del_links_that_can_be_skipped()
-                self.db.del_dois_that_can_be_skipped()
+                file_io.scan_files(files_to_check)
+                mem_instance.generate_indices()
+                db.del_links_that_can_be_skipped()
+                db.del_dois_that_can_be_skipped()
             else:
                 logging.warning(
                     "No supported files in this folder or its subfolders.")
                 return
-        elif path.is_file() and self.file_io.is_supported_format(path):
+        elif path.is_file() and file_io.is_supported_format(path):
             files_to_check.append(path)
         else:
             msg = f"File format of {path} not supported"
@@ -138,17 +135,17 @@ class Salted:
 
         urls = url_check.UrlCheck(
             self.user_agent,
-            self.db,
+            db,
             self.num_workers,
             self.timeout)
         urls.check_urls()
 
-        doi = doi_check.DoiCheck(self.db)
+        doi = doi_check.DoiCheck(db)
         doi.check_dois()
 
         # ##### END CHECKS #####
 
-        self.db.generate_db_views()
+        mem_instance.generate_db_views()
 
         runtime_check = time.monotonic() - start_time
 
@@ -159,10 +156,12 @@ class Salted:
         runtime_check = 1 if runtime_check == 0 else runtime_check
         # TO DO: check why this happens on Windows
 
-        self.display_result.generate_report(
+        display_result = report_generator.ReportGenerator(mem_instance)
+
+        display_result.generate_report(
             statistics={
                 'timestamp': '{:%Y-%b-%d %H:%Mh}'.format(datetime.datetime.now()),
-                'num_links': self.file_io.cnt['links_found'],
+                'num_links': file_io.cnt['links_found'],
                 'num_checked': urls.num_checks,
                 'time_to_check': (round(runtime_check)),
                 'checks_per_second': (
@@ -181,7 +180,7 @@ class Salted:
                 'replace_with_url': base_url
             })
         if self.raise_for_dead_links:
-            if self.db.count_errors() > 0:
+            if db.count_errors() > 0:
                 raise Exception("Found dead URLs")
-        self.db.overwrite_cache_file()
-        self.db.tear_down_in_memory_db()
+        cache_handler.overwrite_cache_file()
+        mem_instance.tear_down_in_memory_db()

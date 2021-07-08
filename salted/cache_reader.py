@@ -12,31 +12,33 @@ Released under the Apache License 2.0
 import logging
 import pathlib
 import sqlite3
-from typing import Union
+from typing import Optional, Union
 
-from salted import database_io
+from salted import memory_instance
 
 
 class CacheReader:
     """Handle the cache file"""
 
     def __init__(self,
-                 db_object: database_io.DatabaseIO,
+                 mem_instance: memory_instance.MemoryInstance,
                  dont_check_again_within_hours: int,
                  cache_file: Union[pathlib.Path, str] = None) -> None:
+
+        self.cache_file_path: Optional[pathlib.Path] = None
 
         if not cache_file:
             logging.debug('No path to cache file provided.')
             return
 
-        self.cursor = db_object.get_cursor()
+        self.mem_instance = mem_instance
+        self.cursor = mem_instance.get_cursor()
 
         self.dont_check_again_within_hours = dont_check_again_within_hours
 
         self.cache_file_path = pathlib.Path(cache_file).resolve()
         logging.debug('Absolute path to cache file: %s', self.cache_file_path)
         self.__check_cache_file_path()
-        self.__load_disk_cache()
 
     def __check_cache_file_path(self) -> None:
         """Check if the given path is valid in order to fail if it is not
@@ -60,9 +62,12 @@ class CacheReader:
             raise ValueError('Parameter cache_file is a directory, ' +
                              'but must include file name!')
 
-    def __load_disk_cache(self) -> None:
+    def load_disk_cache(self) -> None:
         """If there is a cache file open it, read the valid URLs and
            load them into the in-memory instance of sqlite."""
+
+        if not self.cache_file_path:
+            return
 
         valid_urls = list()
         valid_dois = list()
@@ -100,3 +105,15 @@ class CacheReader:
             self.cursor.executemany(
                 'INSERT INTO validDois (doi, lastSeen) VALUES (?, ?);',
                 valid_dois)
+
+    def overwrite_cache_file(self) -> None:
+        """Write the current in-memory database into a file.
+           Overwrite any file in the given path."""
+
+        self.cache_file_path.unlink(missing_ok=True)  # type: ignore[union-attr]
+
+        if self.cache_file_path:
+            new_cache_file = sqlite3.connect(self.cache_file_path)
+            with new_cache_file:
+                self.mem_instance.conn.backup(new_cache_file, name='main')
+            new_cache_file.close()

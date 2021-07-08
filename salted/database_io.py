@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Handle the database and cache for salted.
-Other classes do NOT use the database cursor, but call functions
-within this class.
+Log the crawler's results to sqlite.
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2021 Rüdiger Voigt
@@ -13,189 +11,25 @@ Released under the Apache License 2.0
 
 import logging
 import pathlib
-import sqlite3
 from typing import Optional, Union
+
+from salted import memory_instance
 
 
 class DatabaseIO:
-    """Create the database schema (tables, views, ...), handle the cache file
-       and log the crawler's results to sqlite. """
+    "Log the crawler's results to sqlite."
 
     def __init__(self,
+                 mem_instance: memory_instance.MemoryInstance,
                  cache_file: Union[pathlib.Path, str] = None):
+        self.cursor = mem_instance.get_cursor()
         self.cache_file_path = None
         if cache_file:
             self.cache_file_path = pathlib.Path(cache_file).resolve()
 
-        # Prepare to create a sqlite database in memory
-        # Not actually created here, because users might reuse the object
-        # for multiple checks on different document sets. Therefore the
-        # check_links() function in __main__.py will call init_in_memory_db
-        # and tear_down_in_memory_db().
-        self.conn = sqlite3.connect(
-            ':memory:',
-            isolation_level=None  # reenable autocommit
-            )
-        self.cursor = self.conn.cursor()
-
-    def get_cursor(self) -> sqlite3.Cursor:
-        """Returns a valid cursor. is used by the report generator that
-           directly accesses the database outside this class.
-           If user reuse the object a new database is created and in that case
-           the old cursor is invalid."""
-        return self.cursor
-
-    def reinitialize_in_memory_db(self) -> None:
-        """If there is already an in memory instance, close it. Then create
-           and initialize a new in memory instance of the database by
-           creating its schema and loading the disk cache (if available)."""
-        logging.debug('Reinitialize in memory database.')
-        self.tear_down_in_memory_db()
-        self.conn = sqlite3.connect(
-            ':memory:',
-            isolation_level=None  # reenable autocommit
-            )
-        self.cursor = self.conn.cursor()
-        self.create_schema()
-
-    def tear_down_in_memory_db(self) -> None:
-        """If there is an active in memory instance, close the connection.
-           All data not stored elsewhere will be lost."""
-        if self.conn:
-            logging.debug("tear down in memory instance")
-            self.conn.close()
-
-    def create_schema(self) -> None:
-        """Create the SQLite database schema. """
-        # Table 'queue': URLs to be tested
-        self.cursor.execute('''
-            CREATE TABLE queue (
-            filePath text,
-            doi text,
-            hostname text,
-            url text,
-            normalizedUrl text,
-            linktext text);''')
-        # Table 'queue_doi': DOIs to be tested
-        self.cursor.execute('''
-            CREATE TABLE queue_doi (
-            filePath text,
-            doi text,
-            description text);''')
-        # Table 'errors': invalid hyperlinks
-        self.cursor.execute('''
-            CREATE TABLE errors (
-            normalizedUrl text,
-            error integer);''')
-        # Table 'fileAccessErrors': paths of files that could not be read
-        self.cursor.execute('''
-            CREATE TABLE fileAccessErrors (
-                filePath text,
-                problem text
-                );''')
-        # Table 'permanentRedirects': permanent redirects that were encountered
-        self.cursor.execute('''
-            CREATE TABLE permanentRedirects (
-                normalizedUrl text,
-                error integer);''')
-        # Table 'exceptions': exception sthat occured by crawling
-        # like network timeouts, et cetera
-        self.cursor.execute('''
-            CREATE TABLE exceptions (
-            normalizedUrl text,
-            reason text);''')
-        # table 'validUrls': cache for URls
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS validUrls (
-            normalizedUrl text,
-            lastValid integer);''')
-        # table 'validDois': cache for DOI
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS validDois (
-            doi text,
-            lastSeen integer);''')
-
-        logging.debug("Created database schema.")
-
-    def generate_indices(self) -> None:
-        """Add indices to the in memory database. This is not done on creation
-           for performance reasons."""
-        # While adding links to the database the index is not needed,
-        # but would be updated with every insert. It is faster to create it
-        # once the table has it contents.
-        logging.debug('Generating indices')
-        self.cursor.execute('''
-            CREATE INDEX IF NOT EXISTS index_timestamp
-            ON validUrls (lastValid);''')
-        self.cursor.execute('''
-            CREATE INDEX IF NOT EXISTS index_normalized_url
-            ON queue (normalizedUrl);''')
-        self.cursor.execute('''
-            CREATE UNIQUE INDEX IF NOT EXISTS index_valid_doi
-            ON validDois (doi);''')
-
-    def generate_db_views(self) -> None:
-        """ Generate Views for Analytics and Output Generating."""
-        # Separate function to execute after all links have been checked
-        # and the respective tables are stable."""
-        logging.debug('Generating database views')
-        self.cursor.execute('''
-            CREATE VIEW IF NOT EXISTS v_errorCountByFile AS
-            SELECT COUNT(*) AS numErrors, filePath
-            FROM queue
-            WHERE normalizedUrl IN (
-            SELECT normalizedUrl FROM errors
-            ) GROUP BY filePath;''')
-        self.cursor.execute('''
-            CREATE VIEW IF NOT EXISTS v_redirectCountByFile AS
-            SELECT COUNT(*) AS numRedirects, filePath
-            FROM queue
-            WHERE normalizedUrl IN (
-            SELECT normalizedUrl FROM permanentRedirects
-            ) GROUP BY filePath;''')
-        self.cursor.execute('''
-            CREATE VIEW IF NOT EXISTS v_exceptionCountByFile AS
-            SELECT COUNT(*) AS numExceptions, filePath
-            FROM queue
-            WHERE normalizedUrl IN (
-            SELECT normalizedUrl FROM exceptions
-            ) GROUP BY filePath;''')
-
-        self.cursor.execute('''
-            CREATE VIEW IF NOT EXISTS v_errorsByFile AS
-            SELECT queue.filePath,
-            queue.url,
-            queue.linktext,
-            errors.error AS httpCode
-            FROM queue
-            INNER JOIN errors
-            ON queue.normalizedUrl = errors.normalizedUrl;''')
-
-        self.cursor.execute('''
-            CREATE VIEW IF NOT EXISTS v_redirectsByFile AS
-            SELECT queue.filePath,
-            queue.url,
-            queue.linktext,
-            permanentRedirects.error AS httpCode
-            FROM queue
-            INNER JOIN permanentRedirects
-            ON queue.normalizedUrl = permanentRedirects.normalizedUrl;''')
-
-        self.cursor.execute('''
-            CREATE VIEW IF NOT EXISTS v_exceptionsByFile AS
-            SELECT queue.filePath,
-            queue.url,
-            queue.linktext,
-            exceptions.reason
-            FROM queue
-            INNER JOIN exceptions
-            ON queue.normalizedUrl = exceptions.normalizedUrl;''')
-
-        logging.debug('Created Views for analytics and output generating.')
-
     def save_found_links(self,
                          links_found: list) -> None:
-        """Save the links found into the memory database."""
+        "Save the links found into the memory database."
         if not links_found:
             logging.debug('No links in this file to save them.')
         else:
@@ -217,7 +51,7 @@ class DatabaseIO:
         return None
 
     def urls_to_check(self) -> Optional[list]:
-        """Return a list of all distinct URLs to check."""
+        "Return a list of all distinct URLs to check."
         self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
         return self.cursor.fetchall()
 
@@ -324,7 +158,7 @@ class DatabaseIO:
                          (num_dois_before - num_dois_after))
 
     def count_errors(self) -> int:
-        """Return the number of errors. """
+        "Return the number of errors."
         self.cursor.execute('SELECT COUNT(*) FROM errors;')
         return self.cursor.fetchone()[0]
 
@@ -339,15 +173,3 @@ class DatabaseIO:
         if urls_with_error:
             return urls_with_error
         return list()
-
-    def overwrite_cache_file(self) -> None:
-        """Write the current in-memory database into a file.
-           Overwrite any file in the given path."""
-
-        self.cache_file_path.unlink(missing_ok=True)  # type: ignore[union-attr]
-
-        if self.cache_file_path:
-            new_cache_file = sqlite3.connect(self.cache_file_path)
-            with new_cache_file:
-                self.conn.backup(new_cache_file, name='main')
-            new_cache_file.close()
