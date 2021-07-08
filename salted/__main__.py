@@ -73,9 +73,18 @@ class Salted:
 
     def parse_configfile(self):
         """If there is a configfile read it and overwrite defaults if new
-           value is set for them."""
+           value is set for them.
+           If a specific parameter is not set, fall back to the application
+           default."""
         cfg = configparser.ConfigParser()
         cfg.read(self.CONFIG_NAME)
+        if 'BEHAVIOR' in cfg.sections():
+            behavior = cfg['BEHAVIOR']
+            self.timeout = behavior.getint('timeout', self.timeout)
+            self.dont_check_again_within_hours = behavior.getint(
+                        'dont_check_again_within_hours',
+                        self.dont_check_again_within_hours)
+            self.raise_for_dead_links = behavior.getboolean('raise_for_dead_links', self.raise_for_dead_links)
 
     def check(self,
               path: Union[str, pathlib.Path],
