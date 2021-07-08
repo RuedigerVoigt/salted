@@ -144,6 +144,7 @@ class DatabaseIO:
         return num_links_after
 
     def del_dois_that_can_be_skipped(self) -> None:
+        "Delete DOI from the check queue which were already validated."
         self.cursor.execute('SELECT COUNT(*) FROM queue_doi;')
         num_dois_before = self.cursor.fetchone()[0]
 
