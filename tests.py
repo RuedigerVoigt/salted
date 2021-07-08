@@ -270,3 +270,9 @@ def test_recommend_num_workers():
     # not 'automatic' / overwrite recommendation
     my_test = salted.url_check.UrlCheck('test', None, 10)
     assert my_test._UrlCheck__recommend_num_workers(10000) == 10
+
+
+def test_scan_files(caplog):
+    input_test = salted.input_handler.InputHandler(None)
+    input_test.scan_files(list())
+    assert 'No files to check' in caplog.text
