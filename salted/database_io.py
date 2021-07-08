@@ -22,17 +22,10 @@ class DatabaseIO:
        and log the crawler's results to sqlite. """
 
     def __init__(self,
-                 dont_check_again_within_hours: int,
                  cache_file: Union[pathlib.Path, str] = None):
-
-        self.dont_check_again_within_hours = dont_check_again_within_hours
-
-        self.cache_file_path: Optional[pathlib.Path] = None
+        self.cache_file_path = None
         if cache_file:
             self.cache_file_path = pathlib.Path(cache_file).resolve()
-            logging.debug('Absolute path to cache file: %s',
-                          self.cache_file_path)
-            self.check_cache_file_path()
 
         # Prepare to create a sqlite database in memory
         # Not actually created here, because users might reuse the object
@@ -64,7 +57,6 @@ class DatabaseIO:
             )
         self.cursor = self.conn.cursor()
         self.create_schema()
-        self.load_disk_cache()
 
     def tear_down_in_memory_db(self) -> None:
         """If there is an active in memory instance, close the connection.
@@ -72,28 +64,6 @@ class DatabaseIO:
         if self.conn:
             logging.debug("tear down in memory instance")
             self.conn.close()
-
-    def check_cache_file_path(self) -> None:
-        """Check if the given path is valid in order to fail if it is not
-           before the linkcheck runs.
-           Raise ValueError if the path is a directory or if parent
-           folders do not exists."""
-
-        if not self.cache_file_path:
-            raise RuntimeError('check_cache_file path called without path set')
-
-        if self.cache_file_path.exists() and self.cache_file_path.is_file():
-            return
-
-        # Established that the file does not exist, but check if it can
-        # exist before returning False.
-        if not self.cache_file_path.parent.is_dir():
-            raise ValueError('Incorrect path to cache_file. ' +
-                             'Parameter cache_file must be the path to ' +
-                             'a file and parent directories must exist.')
-        if self.cache_file_path.is_dir():
-            raise ValueError('Parameter cache_file is a directory, ' +
-                             'but must include file name!')
 
     def create_schema(self) -> None:
         """Create the SQLite database schema. """
@@ -146,50 +116,6 @@ class DatabaseIO:
             lastSeen integer);''')
 
         logging.debug("Created database schema.")
-
-    def load_disk_cache(self) -> None:
-        """If there is a cache file open it, read the valid URLs and
-           load them into the in-memory instance of sqlite."""
-
-        if not self.cache_file_path:
-            logging.info('No cache file provided')
-            return
-        valid_urls = list()
-        valid_dois = list()
-
-        try:
-            logging.debug('Trying to load disk cache')
-            disk_cache = sqlite3.connect(
-                self.cache_file_path,
-                isolation_level=None  # reenable autocommit
-            )
-            disk_cache_cursor = disk_cache.cursor()
-            disk_cache_cursor.execute('''
-                SELECT
-                normalizedUrl, lastValid
-                FROM validUrls
-                WHERE lastValid > (strftime('%s','now') - (? * 3600));''',
-                [self.dont_check_again_within_hours])
-            valid_urls = disk_cache_cursor.fetchall()
-
-            disk_cache_cursor.execute('SELECT doi, lastSeen FROM validDois;')
-            valid_dois = disk_cache_cursor.fetchall()
-
-        except Exception:
-            logging.debug('No cache file or could not read it.', exc_info=True)
-        finally:
-            disk_cache.close()
-
-        if valid_urls:
-            self.cursor.executemany('''
-                INSERT INTO validUrls
-                (normalizedUrl, lastValid)
-                VALUES (?, ?);''', valid_urls)
-
-        if valid_dois:
-            self.cursor.executemany(
-                'INSERT INTO validDois (doi, lastSeen) VALUES (?, ?);',
-                valid_dois)
 
     def generate_indices(self) -> None:
         """Add indices to the in memory database. This is not done on creation
@@ -374,13 +300,13 @@ class DatabaseIO:
         self.cursor.execute('SELECT COUNT(*) FROM queue;')
         num_links_after = self.cursor.fetchone()[0]
 
-        if num_links_before > num_links_after:
-            msg = (f"Tests for {num_links_before - num_links_after} " +
-                   "hyperlinks skipped - they checked out valid within " +
-                   f"the last {self.dont_check_again_within_hours} " +
-                   "hours.\n" +
-                   f"{num_links_after} unique links have to be tested.")
-            logging.info(msg)
+        # if num_links_before > num_links_after:
+        #     msg = (f"Tests for {num_links_before - num_links_after} " +
+        #            "hyperlinks skipped - they checked out valid within " +
+        #            f"the last {self.dont_check_again_within_hours} " +
+        #            "hours.\n" +
+        #            f"{num_links_after} unique links have to be tested.")
+        #     logging.info(msg)
         return num_links_after
 
     def del_dois_that_can_be_skipped(self) -> None:

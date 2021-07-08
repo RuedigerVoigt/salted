@@ -19,6 +19,7 @@ import compatibility
 import userprovided
 
 from salted import _version as version
+from salted import cache_reader
 from salted import database_io
 from salted import doi_check
 from salted import input_handler
@@ -49,17 +50,19 @@ class Salted:
             release_date=datetime.date(2021, 3, 8),
             python_version_support={
                 'min_version': '3.8',
-                'incompatible_versions': ['3.7'],
+                'incompatible_versions': ['3.6', '3.7'],
                 'max_tested_version': '3.9'},
             nag_over_update={
-                    'nag_days_after_release': 30,
+                    'nag_days_after_release': 60,
                     'nag_in_hundred': 100},
             language_messages='en',
             system_support={'full': {'Linux', 'MacOS', 'Windows'}}
             )
 
+        self.cache_file = cache_file
         self.num_workers = workers
         self.timeout = int(timeout_sec)
+        self.dont_check_again_within_hours = dont_check_again_within_hours
 
         userprovided.parameters.enforce_boolean(
             raise_for_dead_links,
@@ -68,9 +71,8 @@ class Salted:
 
         self.user_agent = user_agent
 
-        self.db = database_io.DatabaseIO(
-            dont_check_again_within_hours,
-            cache_file)
+        self.db = database_io.DatabaseIO(cache_file)
+
         self.file_io = input_handler.InputHandler(self.db)
 
         self.display_result = report_generator.ReportGenerator(
@@ -84,7 +86,7 @@ class Salted:
               template_name: str = 'default.cli.jinja',
               write_to: Union[str, pathlib.Path] = 'cli',
               base_url: Optional[str] = None) -> None:
-        """Check all links and DOis found in a specific file or in all supported
+        """Check all links and DOIs found in a specific file or in all supported
            files within the provided folder and its subfolders."""
         start_time = time.monotonic()
 
@@ -92,6 +94,12 @@ class Salted:
         # the database has to reinitialized to remove data like exceptions
         # et cetera from previous runs. However this loads the disk cache.
         self.db.reinitialize_in_memory_db()
+
+        # load the disk cache
+        cache_reader.CacheReader(
+            self.db,
+            self.dont_check_again_within_hours,
+            self.cache_file)
 
         # Expand path as otherwise a relative path will not be rewritten
         # in output:
