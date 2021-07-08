@@ -39,8 +39,6 @@ class UrlCheck:
 
         self.cnt: Counter = Counter()
 
-        self.num_checks = 0
-
         self.pbar_links: tqdm = None
 
         self.session: aiohttp.ClientSession = None  # type: ignore
@@ -53,7 +51,8 @@ class UrlCheck:
         if self.session:
             await self.session.close()
 
-    def __recommend_num_workers(self) -> int:
+    def __recommend_num_workers(self,
+                                num_checks: int) -> int:
         """If the number of workers is set to 'automatic', this returns an
            estimate an appropriate number of async workers to use - based on
            the number of hyperlinks to check.
@@ -61,21 +60,20 @@ class UrlCheck:
            returned instead."""
 
         if self.num_workers == 'automatic':
-            if self.num_checks < 1:
+            if num_checks < 1:
                 raise ValueError
 
-            if self.num_checks < 25:
-                recommendation = 4
-            elif self.num_checks < 100:
+            recommendation = 4
+            if 24 < num_checks < 100:
                 recommendation = 12
-            elif self.num_checks > 99:
+            elif num_checks > 99:
                 recommendation = 32
         else:
             recommendation = int(self.num_workers)
         # Set the logging message here to flush the cache. Cannot use
         # flush() as it is unknow which or how many logging methods are used.
         logging.debug("Using %s workers to check %s hyperlinks.",
-                      recommendation, self.num_checks)
+                      recommendation, num_checks)
         return recommendation
 
     async def head_request(self,
@@ -111,6 +109,7 @@ class UrlCheck:
            request with limited data read) to check the link and log the result
            to the database. """
         # pylint: disable=too-many-branches
+        self.cnt['checked_urls'] += 1
         try:
             if request_type == 'head':
                 response_code = await self.head_request(url)
@@ -196,12 +195,12 @@ class UrlCheck:
                    "All hyperlinks are considered valid.")
             logging.info(msg)
             return
-        self.num_checks = len(urls_to_check)
-        print(f"{self.num_checks} URLs to check:")
+        num_checks = len(urls_to_check)
+        print(f"{num_checks} URLs to check:")
         # Set of number of workers here instead of __distribute_work as
         # otherwise the logging message will force the progress bar to repaint.
-        self.num_workers = self.__recommend_num_workers()
-        self.pbar_links = tqdm(total=self.num_checks)
+        self.num_workers = self.__recommend_num_workers(num_checks)
+        self.pbar_links = tqdm(total=num_checks)
 
         asyncio.run(self.__distribute_work(urls_to_check))
 

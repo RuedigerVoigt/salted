@@ -77,14 +77,20 @@ class Salted:
            If a specific parameter is not set, fall back to the application
            default."""
         cfg = configparser.ConfigParser()
+        # read does not throw an exception if the file is not there!
         cfg.read(self.CONFIG_NAME)
+        for section in cfg.sections():
+            if section not in {'BEHAVIOR'}:
+                raise ValueError('Configfile contains unknown section!')
         if 'BEHAVIOR' in cfg.sections():
             behavior = cfg['BEHAVIOR']
             self.timeout = behavior.getint('timeout', self.timeout)
             self.dont_check_again_within_hours = behavior.getint(
                         'dont_check_again_within_hours',
                         self.dont_check_again_within_hours)
-            self.raise_for_dead_links = behavior.getboolean('raise_for_dead_links', self.raise_for_dead_links)
+            self.raise_for_dead_links = behavior.getboolean(
+                        'raise_for_dead_links',
+                        self.raise_for_dead_links)
 
     def check(self,
               path: Union[str, pathlib.Path],
@@ -174,10 +180,10 @@ class Salted:
             statistics={
                 'timestamp': '{:%Y-%b-%d %H:%Mh}'.format(datetime.datetime.now()),
                 'num_links': file_io.cnt['links_found'],
-                'num_checked': urls.num_checks,
+                'num_checked': urls.cnt['checked_urls'],
                 'time_to_check': (round(runtime_check)),
                 'checks_per_second': (
-                    round(urls.num_checks / runtime_check, 2)),
+                    round(urls.cnt['checked_urls'] / runtime_check, 2)),
                 'num_fine': urls.cnt['fine'],
                 'needed_full_request': urls.cnt['neededFullRequest']
                           },

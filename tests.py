@@ -254,3 +254,19 @@ def test_actual_run_bibtex(tmp_path):
     p.write_text(bibtex_example)
     my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
     my_check.check(path=(d / "test.bib"))
+
+
+def test_recommend_num_workers():
+    my_test = salted.url_check.UrlCheck('test', None, 'automatic')
+    # steps
+    assert my_test._UrlCheck__recommend_num_workers(24) == 4
+    assert my_test._UrlCheck__recommend_num_workers(99) == 12
+    assert my_test._UrlCheck__recommend_num_workers(100) == 32
+    # wrong input
+    with pytest.raises(ValueError):
+        my_test._UrlCheck__recommend_num_workers(0)
+    with pytest.raises(ValueError):
+        my_test._UrlCheck__recommend_num_workers(-9)
+    # not 'automatic' / overwrite recommendation
+    my_test = salted.url_check.UrlCheck('test', None, 10)
+    assert my_test._UrlCheck__recommend_num_workers(10000) == 10
