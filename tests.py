@@ -26,6 +26,7 @@ import pytest_mock
 import salted
 from salted import database_io
 from salted import doi_check
+from salted import err
 from salted import input_handler
 from salted import parser
 from salted import url_check
@@ -254,6 +255,28 @@ def test_actual_run_bibtex(tmp_path):
     p.write_text(bibtex_example)
     my_check = salted.Salted()
     my_check.check(searchpath=(d / "test.bib"))
+
+
+def test_actual_run_multiple_files(tmp_path):
+    d = tmp_path / "multifiletest"
+    d.mkdir()
+    p = d / "test.html"
+    p.write_text(html_example)
+    p = d / "test.md"
+    p.write_text(md_example)
+    my_check = salted.Salted()
+    my_check.check(searchpath=(d))
+
+
+def test_throw_for_dead_link(tmp_path):
+    d = tmp_path / "deadlink"
+    d.mkdir()
+    p = d / "deadlink.html"
+    p.write_text("<a href='https://www.ruediger-voigt.eu/throw-404.html'>Dead Link</a>")
+    my_check = salted.Salted()
+    my_check.raise_for_dead_links = True
+    with pytest.raises(err.DeadLinksException):
+        my_check.check(searchpath=(d))
 
 
 def test_recommend_num_workers():
