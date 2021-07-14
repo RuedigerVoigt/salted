@@ -88,55 +88,25 @@ class UrlCheck:
                                     timeout=self.timeout) as response:
             return response.status
 
-    async def full_request(self,
-                           url: str) -> int:
-        """ Some servers do not understand or block a HTTP HEAD request.
-            In those cases this function can try a full request.
-            This carries the risk of encountering very large pages.
-            Therefore the read is limited."""
-
-        async with self.session.get(url,
-                                    headers=self.headers,
-                                    raise_for_status=False,
-                                    timeout=self.timeout) as response:
-            await response.content.read(100)
-
-        return response.status
-
     async def validate_url(self,
-                           url: str,
-                           request_type: str) -> None:
+                           url: str) -> None:
         """Check the URL by using a HTTP HEAD request (or if necessary a full
            request with limited data read) to check the link and log the result
            to the database. """
-        # pylint: disable=too-many-branches
         self.cnt['checked_urls'] += 1
         try:
-            if request_type == 'head':
-                response_code = await self.head_request(url)
-            elif request_type == 'full':
-                response_code = await self.full_request(url)
-                self.cnt['neededFullRequest'] += 1
-
+            response_code = await self.head_request(url)
             if response_code in (200, 302, 303, 307):
                 self.cnt['fine'] += 1
                 self.db.log_url_is_fine(url)
             elif response_code in (301, 308):
                 self.db.log_redirect(url, response_code)
-            elif response_code == 403:
-                if request_type == 'head':
-                    await self.validate_url(url, 'full')
-                else:
-                    self.db.log_error(url, 403)
-            elif response_code in (404, 410):
+            elif response_code in (403, 404, 410):
                 self.db.log_error(url, response_code)
             elif response_code == 429:
                 self.db.log_exception(url, 'Rate Limit (429)')
             else:
-                if request_type == 'head':
-                    await self.validate_url(url, 'full')
-                else:
-                    self.db.log_exception(url, f"Other ({response_code})")
+                self.db.log_exception(url, f"Other ({response_code})")
         except asyncio.TimeoutError:
             self.db.log_exception(url, 'Timeout')
         except aiohttp.client_exceptions.ClientConnectorError:
@@ -159,7 +129,7 @@ class UrlCheck:
         # after the first iteration.
         while True:
             url = await queue.get()
-            await self.validate_url(url, 'head')
+            await self.validate_url(url)
             self.pbar_links.update(1)
             queue.task_done()
 

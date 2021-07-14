@@ -9,6 +9,7 @@
 * **BREAKING CHANGES:**
   *  The function `check_links()` has been renamed to `check`  and the parameter `path_to_base_folder` is now named `searchpath`.
   * If a configfile is present, it overwrites the default settings. however, if salted is used standalone via the command line interface (CLI), arguments on the CLI overwrite the corresponding values in a config file.
+  * Salted uses head requests as a fast and light query type to check an URL. Some servers do not like head requests. Therefore, salted tried a full request each time a head requests did return an error. This behavior has been tested using a large collection of URLs. In this collection 607 URls answered a head request with an error code. Only in 5 cases a follow up with a full requests yielded a different result. In the face of this insignificant effect, the functionality for doing a second (full) request has been removed.
 * New dependencies:
   * Updated versions of multiple dependencies.
   * Added the [`pybtext`](https://pypi.org/project/pybtex/) as a dependency to parse BibTeX files. (next release)
