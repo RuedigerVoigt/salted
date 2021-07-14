@@ -20,6 +20,9 @@ setuptools.setup(
     package_data={
         "salted": ["py.typed", "templates/*.jinja"]},
     include_package_data=True,
+    entry_points={
+        'console_scripts': ['salted=salted.command_line:main'],
+    },
     packages=setuptools.find_packages(),
     python_requires=">=3.8",
     install_requires=["aiodns>=3.0.0",

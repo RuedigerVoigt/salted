@@ -69,6 +69,7 @@ class UrlCheck:
             elif num_checks > 99:
                 recommendation = 32
         else:
+            # i.e. user set a specific number
             recommendation = int(self.num_workers)
         # Set the logging message here to flush the cache. Cannot use
         # flush() as it is unknow which or how many logging methods are used.

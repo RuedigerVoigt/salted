@@ -123,7 +123,7 @@ class Salted:
             self.base_url = self.base_url.rstrip('/')
 
     def check(self,
-              path: Union[str, pathlib.Path]) -> None:
+              searchpath: Union[str, pathlib.Path]) -> None:
         """Check all links and DOIs found in a specific file or in all supported
            files within the provided folder and its subfolders."""
         start_time = time.monotonic()
@@ -143,7 +143,7 @@ class Salted:
 
         # Expand path as otherwise a relative path will not be rewritten
         # in output:
-        path = pathlib.Path(path).resolve()
+        path = pathlib.Path(searchpath).resolve()
 
         if not path.exists():
             msg = f"File or folder to check ({path}) does not exist."

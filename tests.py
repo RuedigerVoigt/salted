@@ -225,7 +225,7 @@ def test_file_discovery(fs):
 def test_create_object():
     my_check = salted.Salted()
     with pytest.raises(FileNotFoundError):
-        my_check.check(path='non_existent.tex')
+        my_check.check(searchpath='non_existent.tex')
 
 
 def test_actual_run_html(tmp_path):
@@ -234,7 +234,7 @@ def test_actual_run_html(tmp_path):
     p = d / "test.html"
     p.write_text(html_example)
     my_check = salted.Salted()
-    my_check.check(path=(d / "test.html"))
+    my_check.check(searchpath=(d / "test.html"))
 
 
 def test_actual_run_markdown(tmp_path):
@@ -243,7 +243,7 @@ def test_actual_run_markdown(tmp_path):
     p = d / "test.md"
     p.write_text(md_example)
     my_check = salted.Salted()
-    my_check.check(path=(d / "test.md"))
+    my_check.check(searchpath=(d / "test.md"))
 
 
 def test_actual_run_bibtex(tmp_path):
@@ -253,7 +253,7 @@ def test_actual_run_bibtex(tmp_path):
     p = d / "test.bib"
     p.write_text(bibtex_example)
     my_check = salted.Salted()
-    my_check.check(path=(d / "test.bib"))
+    my_check.check(searchpath=(d / "test.bib"))
 
 
 def test_recommend_num_workers():
