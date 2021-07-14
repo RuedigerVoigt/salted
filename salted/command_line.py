@@ -97,7 +97,7 @@ def main() -> None:
     parser.add_argument(
         "--base_url",
         type=str,
-        help="",
+        help="The file system path to the checked folder is replaced with this URL in template outputs.",
         metavar='https://www.example.com')
 
     args = parser.parse_args()
