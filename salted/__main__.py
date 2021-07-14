@@ -38,9 +38,7 @@ class Salted:
     VERSION = version.__version__
     CONFIG_NAME = 'salted-linkcheck.ini'
 
-    def __init__(self,
-                 cache_file: Union[pathlib.Path, str]
-                 ) -> None:
+    def __init__(self) -> None:
 
         compatibility.Check(
             package_name='salted',
@@ -57,47 +55,75 @@ class Salted:
             system_support={'full': {'Linux', 'MacOS', 'Windows'}}
             )
 
-        self.cache_file = cache_file
-
-        # Application defaults:
+        # #################### Application defaults ####################
+        # Files
+        self.searchpath: Union[str, pathlib.Path] = '.'
+        self.file_types: str = 'supported'
+        # Behavior
         self.num_workers: Union[int, str] = 'automatic'
         self.timeout: int = 5
-        self.dont_check_again_within_hours: int = 24
         self.raise_for_dead_links = False
         self.user_agent = f"salted/{self.VERSION}"
+        # Cache
+        self.cache_file: Union[pathlib.Path, str] = 'salted-cache.sqlite3'
+        self.dont_check_again_within_hours: int = 24
+        # Template
+        self.template_searchpath: str = 'salted/templates'
+        self.template_name: str = 'default.cli.jinja'
+        self.write_to: Union[str, pathlib.Path] = 'cli'
+        self.base_url: Optional[str] = None
+
         # If there is a configfile, overwrite defaults with those settings
-        self.parse_configfile()
-        # If there are CLi parameters, they overwrite defaults and configile
+        self.__parse_configfile()
 
         self.cnt: Counter = Counter()
 
-    def parse_configfile(self) -> None:
+    def __parse_configfile(self) -> None:
         """If there is a configfile read it and overwrite defaults if new
-           value is set for them.
-           If a specific parameter is not set, fall back to the application
-           default."""
+           value is set for them. If a specific parameter is not set,
+           fall back to the application default.
+           Config file settings can be overwritten trough CLI parameters."""
         cfg = configparser.ConfigParser()
         # read does not throw an exception if the file is not there!
         cfg.read(self.CONFIG_NAME)
         for section in cfg.sections():
-            if section not in {'BEHAVIOR'}:
+            if section not in {'BEHAVIOR', 'CACHE', 'FILES', 'TEMPLATE'}:
                 raise ValueError('Configfile contains unknown section!')
+
         if 'BEHAVIOR' in cfg.sections():
             behavior = cfg['BEHAVIOR']
+            self.num_workers = behavior.get('num_workers', self.num_workers)  # type: ignore[arg-type]
             self.timeout = behavior.getint('timeout', self.timeout)
-            self.dont_check_again_within_hours = behavior.getint(
-                        'dont_check_again_within_hours',
-                        self.dont_check_again_within_hours)
             self.raise_for_dead_links = behavior.getboolean(
                         'raise_for_dead_links',
                         self.raise_for_dead_links)
+            self.user_agent = behavior.get('user_agent', self.user_agent)
+        if 'CACHE' in cfg.sections():
+            cache = cfg['CACHE']
+            self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
+            self.dont_check_again_within_hours = cache.getint(
+                        'dont_check_again_within_hours',
+                        self.dont_check_again_within_hours)
+        if 'FILES' in cfg.sections():
+            files = cfg['FILES']
+            self.searchpath = files.get('searchpath', self.searchpath)  # type: ignore[arg-type]
+            self.file_types = files.get('file_types', self.file_types)
+        if 'TEMPLATE' in cfg.sections():
+            template = cfg['TEMPLATE']
+            self.template_searchpath = template.get(
+                'template_searchpath', self.template_searchpath)
+            self.template_name = template.get(
+                'template_name', self.template_name)
+            self.write_to = template.get('write_to', self.write_to)  # type: ignore[arg-type]
+            self.base_url = template.get('base_url', self.base_url)
+
+    def check_parameters(self) -> None:
+        # Now the params are fixed => Apply corrections and checks
+        if self.base_url:
+            self.base_url = self.base_url.rstrip('/')
 
     def check(self,
-              path: Union[str, pathlib.Path],
-              template_searchpath: str = 'salted/templates',
-              template_name: str = 'default.cli.jinja',
-              write_to: Union[str, pathlib.Path] = 'cli',
-              base_url: Optional[str] = None) -> None:
+              path: Union[str, pathlib.Path]) -> None:
         """Check all links and DOIs found in a specific file or in all supported
            files within the provided folder and its subfolders."""
         start_time = time.monotonic()
@@ -145,10 +171,6 @@ class Salted:
             logging.exception(msg)
             raise ValueError(msg)
 
-        # Remove trailing slash in base URL if there is one:
-        if base_url:
-            base_url = base_url.rstrip('/')
-
         # ##### START CHECKS #####
 
         urls = url_check.UrlCheck(
@@ -188,14 +210,14 @@ class Salted:
                 'needed_full_request': urls.cnt['neededFullRequest']
                           },
             template={
-                'searchpath': template_searchpath,
-                'name': template_name,
+                'searchpath': self.template_searchpath,
+                'name': self.template_name,
                 'foldername_to_replace': str(path),
-                'base_url': base_url},
-            write_to=write_to,
+                'base_url': self.base_url},
+            write_to=self.write_to,
             replace_path_by_url={
                 'path_to_be_replaced': str(path),
-                'replace_with_url': base_url
+                'replace_with_url': self.base_url
             })
         if self.raise_for_dead_links:
             if db.count_errors() > 0:
