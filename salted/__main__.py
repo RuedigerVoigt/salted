@@ -22,6 +22,7 @@ from salted import _version as version
 from salted import cache_reader
 from salted import database_io
 from salted import doi_check
+from salted import err
 from salted import input_handler
 from salted import memory_instance
 from salted import url_check
@@ -221,6 +222,6 @@ class Salted:
             })
         if self.raise_for_dead_links:
             if db.count_errors() > 0:
-                raise Exception("Found dead URLs")
+                raise err.DeadLinksException("Found dead URLs")
         cache_handler.overwrite_cache_file()
         mem_instance.tear_down_in_memory_db()
