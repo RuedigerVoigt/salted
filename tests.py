@@ -31,7 +31,7 @@ from salted import parser
 from salted import url_check
 from salted import report_generator
 
-myTest = salted.Salted(cache_file='./salted-test-cache.sqlite3')
+myTest = salted.Salted()
 # print(myTest.__dict__.keys())
 
 my_parser = parser.Parser()
@@ -223,7 +223,7 @@ def test_file_discovery(fs):
 
 
 def test_create_object():
-    my_check = salted.Salted(cache_file='./salted-cache-TEST.sqlite3')
+    my_check = salted.Salted()
     with pytest.raises(FileNotFoundError):
         my_check.check(path='non_existent.tex')
 
@@ -233,7 +233,7 @@ def test_actual_run_html(tmp_path):
     d.mkdir()
     p = d / "test.html"
     p.write_text(html_example)
-    my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
+    my_check = salted.Salted()
     my_check.check(path=(d / "test.html"))
 
 
@@ -242,7 +242,7 @@ def test_actual_run_markdown(tmp_path):
     d.mkdir()
     p = d / "test.md"
     p.write_text(md_example)
-    my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
+    my_check = salted.Salted()
     my_check.check(path=(d / "test.md"))
 
 
@@ -252,7 +252,7 @@ def test_actual_run_bibtex(tmp_path):
     d.mkdir()
     p = d / "test.bib"
     p.write_text(bibtex_example)
-    my_check = salted.Salted(cache_file=(d / "cache.sqlite3"))
+    my_check = salted.Salted()
     my_check.check(path=(d / "test.bib"))
 
 
