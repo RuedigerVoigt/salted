@@ -1,18 +1,18 @@
 # Changelog for salted
 
-## Upcoming 0.7.0 beta
+## Version 0.7.0 beta (2021-07-14)
 
-* Breaking Changes:
-  * **The function `check_links()` has been renamed to `check`  and the parameter `path_to_base_folder` is now simply named `path`.**
 * New features:
-  * **Salted now checks BibTeX files!**
-    *  The `url` and the `doi` field are checked.
-    * Added the [`pybtext`](https://pypi.org/project/pybtex/) as a dependency to parse BibTeX files.
-    * It is now possible to check a specific file instead of all supported files within a folder.
-  * Support for checking DOI:
-    * Valid DOI are cached indefinitely because the very reason for using a DOI is that it never changes, while URLs do.
+  * **Salted can be called within a Python script as a library, or as a standalone script via the command line! Both ways support using a configuration file.**
+  * Check a specific file instead of all supported files within a folder.
   * Markdown reports now contain links (instead of bare URLs).
-* Update version of multiple dependencies.
+* **BREAKING CHANGES:**
+  *  The function `check_links()` has been renamed to `check`  and the parameter `path_to_base_folder` is now named `searchpath`.
+  * If a configfile is present, it overwrites the default settings. however, if salted is used standalone via the command line interface (CLI), arguments on the CLI overwrite the corresponding values in a config file.
+* New dependencies:
+  * Updated versions of multiple dependencies.
+  * Added the [`pybtext`](https://pypi.org/project/pybtex/) as a dependency to parse BibTeX files. (next release)
+  * Added sqlalchemy as a dependency.
 * Improved code tests:
     * Automatic tests now also run with `Python 3.10 beta 3`.
     * Although the code is designed to be platform independent, tests now also run in a MacOS and a Windows container to be sure there are no issues.
