@@ -43,7 +43,7 @@ class Salted:
         compatibility.Check(
             package_name='salted',
             package_version=self.VERSION,
-            release_date=datetime.date(2021, 3, 8),
+            release_date=version.release_date,
             python_version_support={
                 'min_version': '3.8',
                 'incompatible_versions': ['3.6', '3.7'],
