@@ -35,7 +35,7 @@ setuptools.setup(
                       "pybtex>=0.24.0",
                       "sqlalchemy>=1.4.20",
                       "tqdm>=4.61.2",
-                      "userprovided>=0.9.1"],
+                      "userprovided>=0.9.2"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
