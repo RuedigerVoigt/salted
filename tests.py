@@ -13,6 +13,7 @@ Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2021: Released under the Apache License 2.0
 """
 
+import logging
 import pathlib
 import re
 import tempfile
@@ -24,6 +25,7 @@ import pytest
 import pytest_mock
 
 import salted
+from salted import cache_reader
 from salted import database_io
 from salted import doi_check
 from salted import err
@@ -299,3 +301,11 @@ def test_scan_files(caplog):
     input_test = salted.input_handler.InputHandler(None)
     input_test.scan_files(list())
     assert 'No files to check' in caplog.text
+
+
+def test_cache_reader_no_cache_file(caplog):
+    # guard condition that just returns if there is no path given to cachefile
+    caplog.set_level(logging.DEBUG)
+    cache_reader.CacheReader(None, 24, None)
+    assert 'No path to cache file provided' in caplog.text
+    
