@@ -109,6 +109,8 @@ class UrlCheck:
                 self.db.log_exception(url, 'Rate Limit (429)')
             else:
                 self.db.log_exception(url, f"Other ({response_code})")
+        # Log but do not raise. Raising leads to the worker not returning
+        # and the application does not finish the loop.
         except asyncio.TimeoutError:
             self.db.log_exception(url, 'Timeout')
         except aiohttp.client_exceptions.ClientConnectorError:
@@ -121,7 +123,6 @@ class UrlCheck:
             self.db.log_exception(url, 'Server disconnected')
         except Exception:
             logging.exception('Exception. URL %s', url,  exc_info=True)
-            raise
 
     async def __worker(self,
                        name: str,
