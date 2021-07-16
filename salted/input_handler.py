@@ -138,7 +138,7 @@ class InputHandler:
                 self.cnt['links_found'] += 1
 
             elif url.startswith('mailto:'):
-                logging.info("Checking mailto Links is not implemented yet")
+                logging.debug("Checking mailto Links is not implemented yet")
                 pass
                 # mail_addresses = self.parser.extract_mails_from_mailto(url)
                 # if not mail_addresses:
