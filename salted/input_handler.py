@@ -128,13 +128,14 @@ class InputHandler:
                 except userprovided.err.QueryKeyConflict:
                     normalized_url = userprovided.url.normalize_url(
                         url, do_not_change_query_part=True)
-                    parsed_url = urllib.parse.urlparse(url)
-                    links_found.append([str(file_path),
-                                        parsed_url.hostname,
-                                        url,
-                                        normalized_url,
-                                        linktext])
-                    self.cnt['links_found'] += 1
+
+                parsed_url = urllib.parse.urlparse(url)
+                links_found.append([str(file_path),
+                                    parsed_url.hostname,
+                                    url,
+                                    normalized_url,
+                                    linktext])
+                self.cnt['links_found'] += 1
 
             elif url.startswith('mailto:'):
                 logging.info("Checking mailto Links is not implemented yet")
