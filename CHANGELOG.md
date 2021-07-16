@@ -1,6 +1,6 @@
 # Changelog for salted
 
-## Version 0.7.0 beta (2021-07-15)
+## Version 0.7.0 beta (2021-07-16)
 
 * New features:
   * **Salted can be called within a Python script as a library, or as a standalone script via the command line! Both ways support using a configuration file.**
