@@ -68,6 +68,8 @@ class UrlCheck:
                 recommendation = 12
             elif num_checks > 99:
                 recommendation = 32
+            elif num_checks > 5000:
+                recommendation = 64
         else:
             # i.e. user set a specific number
             recommendation = int(self.num_workers)
@@ -167,10 +169,10 @@ class UrlCheck:
             logging.info(msg)
             return
         num_checks = len(urls_to_check)
-        print(f"{num_checks} URLs to check:")
         # Set of number of workers here instead of __distribute_work as
         # otherwise the logging message will force the progress bar to repaint.
         self.num_workers = self.__recommend_num_workers(num_checks)
+        print(f"{num_checks} URLs to check with {self.num_workers} workers:")
         self.pbar_links = tqdm(total=num_checks)
 
         asyncio.run(self.__distribute_work(urls_to_check))
