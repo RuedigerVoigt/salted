@@ -58,7 +58,7 @@ class Salted:
 
         # #################### Application defaults ####################
         # Files
-        self.searchpath: Union[str, pathlib.Path] = '.'
+        self.searchpath: Union[str, pathlib.Path] = pathlib.Path.cwd()
         self.file_types: str = 'supported'
         # Behavior
         self.num_workers: Union[int, str] = 'automatic'

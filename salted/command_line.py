@@ -17,11 +17,13 @@ import salted
 
 
 def main() -> None:
+    "Provide an entrypoint for a command line interface of salted"
+    # pylint: disable=too-many-branches
 
     logging.debug('salted called via the CLI')
 
     # Create an instance of the main application.
-    # This already sets default values!
+    # This already sets default values and reads an existent config file
     checker = salted.Salted()
 
     parser = argparse.ArgumentParser(
@@ -36,7 +38,7 @@ def main() -> None:
     # Set no defaults in the arguments as they are already set:
     parser.add_argument(
         "-i", "--searchpath",
-        type=str,
+        type=pathlib.Path,
         help="File or Folder to check (default: current working directory)",
         metavar='<path>')
     parser.add_argument(
@@ -137,4 +139,4 @@ def main() -> None:
     if args.base_url:
         checker.base_url = args.base_url
 
-    checker.check(args.searchpath)
+    checker.check(checker.searchpath)

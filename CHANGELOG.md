@@ -1,5 +1,10 @@
 # Changelog for salted
 
+## Upcoming 0.7.1 beta
+
+* Bugfixes:
+  * If called via the CLI, no searchpath now correctly defaults to the current working directory.
+
 ## Version 0.7.0 beta (2021-07-16)
 
 * New features:
