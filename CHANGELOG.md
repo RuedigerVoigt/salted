@@ -1,9 +1,9 @@
 # Changelog for salted
 
-## Upcoming 0.7.1 beta
+## Version 0.7.1 beta (2021-07-20)
 
-* Bugfixes:
-  * If called via the CLI without a searchpath, the searchpath now correctly defaults to the current working directory.
+* Bugfix: If called via the CLI without a searchpath, the searchpath now correctly defaults to the current working directory.
+* Tests for Python 3.10 now run with Beta 4 instead of Beta 3.
 
 ## Version 0.7.0 beta (2021-07-16)
 
