@@ -110,6 +110,8 @@ class InputHandler:
     def handle_found_urls(self,
                           file_path: pathlib.Path,
                           url_list: list) -> None:
+        """Extract all hyperlinks from url_list, normalize them and
+           add them to test queue."""
 
         links_found: list = []
         mailto_found: list = []
