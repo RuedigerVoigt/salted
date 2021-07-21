@@ -84,6 +84,7 @@ class DatabaseIO:
 
     def log_invalid_dois(self,
                          invalid_dois: list) -> None:
+        "Log an invalid DOI."
         # TO DO
         pass
 
