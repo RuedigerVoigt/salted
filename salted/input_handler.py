@@ -141,7 +141,7 @@ class InputHandler:
 
             elif url.startswith('mailto:'):
                 logging.debug("Checking mailto Links is not implemented yet")
-                pass
+                # TO DO
                 # mail_addresses = self.parser.extract_mails_from_mailto(url)
                 # if not mail_addresses:
                 #     continue
@@ -155,8 +155,7 @@ class InputHandler:
                 #         pass
             else:
                 # cannot check this kind of link
-                # TO DO: at least count
-                pass
+                self.cnt['unsupported_scheme'] += 1
 
         # Push the found links once for each file instead for all files
         # at once. The latter would kill performance for large document
