@@ -23,6 +23,7 @@ from salted import cache_reader
 from salted import database_io
 from salted import doi_check
 from salted import err
+from salted import file_finder
 from salted import input_handler
 from salted import memory_instance
 from salted import url_check
@@ -154,11 +155,12 @@ class Salted:
             logging.exception(msg)
             raise FileNotFoundError(msg)
 
+        filesearch = file_finder.FileFinder()
         file_io = input_handler.InputHandler(db)
         files_to_check = list()
         if path.is_dir():
             logging.info('Base folder: %s', path)
-            files_to_check = file_io.find_files_by_extensions(path)
+            files_to_check = filesearch.find_files_by_extensions(path)
             if files_to_check:
                 file_io.scan_files(files_to_check)
                 mem_instance.generate_indices()
@@ -168,7 +170,7 @@ class Salted:
                 logging.warning(
                     "No supported files in this folder or its subfolders.")
                 return
-        elif path.is_file() and file_io.is_supported_format(path):
+        elif path.is_file() and filesearch.is_supported_format(path):
             files_to_check.append(path)
         else:
             msg = f"File format of {path} not supported"

@@ -214,14 +214,14 @@ def test_file_discovery(fs):
     fs.create_file('/fake/fake/noextension')
     fs.create_file('/fake/fake/foo.htmlandmore')
     fs.create_file('/fake/fake/fake/foo.bib')
-    test_io = salted.input_handler.InputHandler(None)
-    supported_files = test_io.find_files_by_extensions('/fake')
+    filesearch = salted.file_finder.FileFinder()
+    supported_files = filesearch.find_files_by_extensions('/fake')
     assert len(supported_files) == 7
-    html_files = test_io.find_html_files('/fake')
+    html_files = filesearch.find_html_files('/fake')
     assert len(html_files) == 2
-    md_files = test_io.find_markdown_files('/fake')
+    md_files = filesearch.find_markdown_files('/fake')
     assert len(md_files) == 2
-    tex_files = test_io.find_tex_files('/fake')
+    tex_files = filesearch.find_tex_files('/fake')
     assert len(tex_files) == 2
 
 
