@@ -65,6 +65,7 @@ class Salted:
         self.timeout: int = 5
         self.raise_for_dead_links = False
         self.user_agent = f"salted/{self.VERSION}"
+        self.ignore_urls: set = set()
         # Cache
         self.cache_file: Union[pathlib.Path, str] = 'salted-cache.sqlite3'
         self.dont_check_again_within_hours: int = 24
@@ -99,6 +100,8 @@ class Salted:
                         'raise_for_dead_links',
                         self.raise_for_dead_links)
             self.user_agent = behavior.get('user_agent', self.user_agent)
+            if behavior.get('ignore_urls'):
+                self.ignore_urls = set(behavior.get('ignore_urls').split(','))
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
             self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
@@ -178,7 +181,8 @@ class Salted:
             self.user_agent,
             db,
             self.num_workers,
-            self.timeout)
+            self.timeout,
+            self.ignore_urls)
         urls.check_urls()
 
         doi = doi_check.DoiCheck(db)

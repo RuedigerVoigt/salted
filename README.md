@@ -95,7 +95,7 @@ usage: salted [-h] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w 
               [--write_to <path>] [--base_url https://www.example.com]
 
 Salted is an extremly fast link checker. It works with HTML, Markdown and TeX files. Currently it only checks external links.
-You are using version 0.7.0.
+You are using version 0.7.2.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -109,6 +109,8 @@ optional arguments:
   --raise_for_dead_links <True/False>
                         True if dead links shall rise an exception (default: False).
   --user_agent <str>    User agent to identify itself. (Default: salted / version)
+  --ignore_urls <str,str,str>
+                        String with URls that will not be checked. Separate them with commas
   --cache_file <path>   Path to the cache file (default: salted-cache.sqlite3 in the current working directory)
   --dont_check_again_within_hours <hours>
                         Number of hours an already verified URL is considered valid (default: 24).
@@ -155,18 +157,19 @@ This starts the check. By default the results will be displayed on the command l
 
 All versions of salted use the same parameters. Their categories are only important for config files:
 
-* Category "FILES":
+* **Category "FILES":**
   * `searchpath`: Path to file or folder to check (default: current working directory)
   * `file_types`: Choose which types of files to check. Values can be 'supported' (all formats known to salted), 'html', 'tex', or 'markdown'.
-* Category "BEHAVIOR":
+* **Category "BEHAVIOR":**
   * `num_workers` defaults to automatic, which lets salted choose how many workers to start. You can set a specific number of workers. *This is not depended on the number of cores your system has, but more so dependent on the number of URLs to check!* Once a worker has sent a request it awaits the answer and meanwhile other workers can check other URLs. For example: A machine with 4 cores on a standard home connection should work fine with 32 or more workers.
   * `timeout`: The number of seconds to wait for a server to answer the request. This is necessary as some servers do not answer and a single one of those would block the check. This defaults to 5 seconds.
   * `raise_for_dead_links`: if set to `True` salted will raise an exception in case it finds obviously dead links that yield a HTTP status code like 404 ('Not found) or 410 ('Gone'). That behavior is useful for a publication workflow. It will *not* raise an exception for links it could not check as some servers block requests.
   * `user_agent`: sets the 'User-Agent' field of the HTTP header. This defaults to 'salted' if not set.
-* Category "CACHE":
+  * `ignore_urls`: accepts a string with comma separated URLs (like `https://www.example.com/1.html, https://www.example.com/2.html`). Those will not be checked.
+* **Category "CACHE":**
   * `cache_file`: Path to the cache file. Default is `salted-cache.sqlite3` in the current working directory.
   * `dont_check_again_within_hours`: The cache lifetime in full hours. If a link was valid this number of hours ago, salted assumes it is still valid and will not check it again. This defaults to 24 hours.
-* Category "TEMPLATE":
+* **Category "TEMPLATE":**
   * `template_searchpath`: In case you want to use a custom template, this has to be the path to the *folder* in which the template file can be found.
   * `template_name`: The name of the template file. Built-In templates are `default.md.jinja` (for markdown output) and `default.cli.jinja` (for text output on the command line).
   * `write_to`: Default is 'cli' to write to standard out. Alternatively this accepts a file path.

@@ -1,5 +1,10 @@
 # Changelog for salted
 
+## Version 0.7.2 beta (2021-07-22)
+
+* New features:
+  * New command line parameter `ignore_urls` (same command in the `BEHAVIOR` section of a configfile). Accepts URLs (in the form of comma separated string), that will not be checked. This is useful as some websites always return an error code if you do not use a browser.
+
 ## Version 0.7.1 beta (2021-07-20)
 
 * Bugfix: If called via the CLI without a searchpath, the searchpath now correctly defaults to the current working directory.

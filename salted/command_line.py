@@ -67,6 +67,12 @@ def main() -> None:
         help="User agent to identify itself. (Default: salted / version)",
         metavar="<str>"
     )
+    parser.add_argument(
+        "--ignore_urls",
+        type=str,
+        help="String with URls that will not be checked. Separate them with commas.",
+        metavar="<str,str,str>"
+    )
 
     parser.add_argument(
         "--cache_file",
@@ -124,6 +130,8 @@ def main() -> None:
             raise ValueError("Unknown value for raise_for_dead_links")
     if args.user_agent:
         checker.user_agent = args.user_agent
+    if args.ignore_urls:
+        checker.ignore_urls = args.ignore_urls
 
     if args.cache_file:
         checker.cache_file = args.cache_file

@@ -11,7 +11,7 @@ Released under the Apache License 2.0
 import asyncio
 from collections import Counter
 import logging
-from typing import Union
+from typing import Optional, Union
 
 import aiohttp
 from tqdm.asyncio import tqdm  # type: ignore
@@ -21,19 +21,23 @@ from salted import database_io
 
 class UrlCheck:
     "Interacts with the network to check URLs."
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self,
                  user_agent: str,
                  db: database_io.DatabaseIO,
                  workers: Union[int, str] = 'automatic',
-                 timeout_sec: int = 5
+                 timeout_sec: int = 5,
+                 ignore_urls: Optional[set] = None
                  ) -> None:
+        # pylint: disable=too-many-arguments
         self.headers: dict = dict()
         if user_agent:
             self.headers = {'User-Agent': user_agent}
 
         self.db = db
         self.timeout = int(timeout_sec)
+        self.ignore_urls = ignore_urls if ignore_urls else set()
 
         self.num_workers: Union[int, str] = workers
 
@@ -95,6 +99,10 @@ class UrlCheck:
         """Check the URL by using a HTTP HEAD request (or if necessary a full
            request with limited data read) to check the link and log the result
            to the database. """
+        if url in self.ignore_urls:
+            self.cnt['ignored_urls'] += 1
+            return
+
         self.cnt['checked_urls'] += 1
         try:
             response_code = await self.head_request(url)
