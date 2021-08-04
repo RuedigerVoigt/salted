@@ -33,7 +33,7 @@ setuptools.setup(
                       "jinja2>=3.0.1",
                       "lxml>=4.6.3",
                       "pybtex>=0.24.0",
-                      "sqlalchemy>=1.4.23",
+                      "sqlalchemy>=1.4.22",
                       "tqdm>=4.62.0",
                       "userprovided>=0.9.2"],
     classifiers=[
