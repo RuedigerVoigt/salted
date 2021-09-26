@@ -11,19 +11,29 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8, 3.9]
+        python-version: [3.8, 3.9, '3.10.0-rc.2']
 
     steps:
-    - uses: actions/checkout@v2
+    - name: APT Update
+      run: sudo apt update
+
+    - name: Checkout code
+      uses: actions/checkout@v2
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Upgrade pip
       run: |
         python -m pip install --upgrade pip
+
+    - name: Install development packages needed by lxml to build
+      run: sudo apt install libxml2-dev libxslt-dev python-dev
+
+    - name: Install dependencies
+      run: |
         python -m pip install wheel
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
