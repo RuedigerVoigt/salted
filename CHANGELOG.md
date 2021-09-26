@@ -1,5 +1,20 @@
 # Changelog for salted
 
+
+
+## Python 3.10 Support
+
+* Tests with Python 3.10 Release Candidate 2 run without problems on Linux and MacOS. On Windows building the dependency `lxml` fails. Mypy also will not run on 3.10RC2 yet.
+
+---
+
+## Version 0.7.3 beta (2021-09-??)
+
+* React on missing configfile.
+* Update version of dependencies.
+* Reorganize GitHub-Actions config files.
+* Run some tests with Python 3.10 Release Candidate 2.
+
 ## Version 0.7.2 beta (2021-07-22)
 
 * New features:
