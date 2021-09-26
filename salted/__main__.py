@@ -87,8 +87,14 @@ class Salted:
            fall back to the application default.
            Config file settings can be overwritten trough CLI parameters."""
         cfg = configparser.ConfigParser()
+
         # read does not throw an exception if the file is not there!
-        cfg.read(self.CONFIG_NAME)
+        # However, it returns a list of succesfully read files.
+        parsed_files = cfg.read(self.CONFIG_NAME)
+        if len(parsed_files) == 0:
+            logging.info('No configfile found. Using defaults.')
+            return
+
         for section in cfg.sections():
             if section not in {'BEHAVIOR', 'CACHE', 'FILES', 'TEMPLATE'}:
                 raise ValueError('Configfile contains unknown section!')
