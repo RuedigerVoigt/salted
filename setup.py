@@ -31,7 +31,7 @@ setuptools.setup(
                       "cchardet>=2.1.7",
                       "compatibility>=1.0.1",
                       "jinja2>=3.0.2",
-                      "lxml>=4.6.3",
+                      "lxml>=4.6.4",
                       "pybtex>=0.24.0",
                       "sqlalchemy>=1.4.26",
                       "tqdm>=4.62.3",
