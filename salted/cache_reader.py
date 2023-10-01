@@ -23,7 +23,7 @@ class CacheReader:
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
                  dont_check_again_within_hours: int,
-                 cache_file: Union[pathlib.Path, str] = None) -> None:
+                 cache_file: Union[pathlib.Path, str, None] = None) -> None:
 
         self.cache_file_path: Optional[pathlib.Path] = None
 

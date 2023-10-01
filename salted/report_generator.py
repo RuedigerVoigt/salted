@@ -148,7 +148,7 @@ class ReportGenerator:
                         statistics: dict,
                         template: dict,
                         write_to: Union[str, pathlib.Path],
-                        replace_path_by_url: dict = None
+                        replace_path_by_url: Union[dict, None] = None
                         ) -> None:
         """Generate the report for the user with a Jinja2 template.
            Either display it at the command line interface or write

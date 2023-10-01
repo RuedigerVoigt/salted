@@ -21,7 +21,7 @@ class DatabaseIO:
 
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
-                 cache_file: Union[pathlib.Path, str] = None):
+                 cache_file: Union[pathlib.Path, str, None] = None):
         self.cursor = mem_instance.get_cursor()
         self.cache_file_path = None
         if cache_file:
