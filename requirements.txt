@@ -7,4 +7,4 @@ lxml>=4.9.2
 pybtex>=0.24.0
 sqlalchemy>=1.4.35
 tqdm>=4.62.3
-userprovided>=0.9.4
+userprovided>=1.0.0
