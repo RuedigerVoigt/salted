@@ -1,12 +1,10 @@
 # Changelog for salted
 
+## UPCOMING
 
+* Drop support for Python 3.8 (EOL).
+* Add support for Python 3.9 to 3.13.
 
-## Python 3.10 Support
-
-* Tests with Python 3.10 Release Candidate 2 run without problems on Linux and MacOS. On Windows building the dependency `lxml` fails. Mypy also will not run on 3.10RC2 yet.
-
----
 
 ## Version 0.7.3 beta (2021-09-??)
 
