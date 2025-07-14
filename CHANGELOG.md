@@ -5,10 +5,10 @@
 * Supported Python versions:
   * Drop support for Python 3.8 (EOL).
   * Support for Python 3.9 to 3.13.
+  * Update versions of dependencies to ensure compatibility with Python 3.13.
 * New features:
   * React on missing configfile.
 * Security:
-  * Update version of dependencies.
   * Run pip-audit with every push to the repository and with all pull requests.
 
 
