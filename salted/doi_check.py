@@ -67,7 +67,7 @@ class DoiCheck:
 
         if max_queries < 1:
             raise ValueError('Parameter "max_queries" must be an integer > 0.')
-        if max_queries < 1:
+        if seconds < 1:
             raise ValueError('Parameter "seconds" must be an integer > 0.')
         # Keep it at 90% to always be below the limit. This is still fast,
         # given that standard for that API is 50 requests/second.
