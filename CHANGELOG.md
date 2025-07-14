@@ -2,16 +2,16 @@
 
 ## UPCOMING
 
-* Drop support for Python 3.8 (EOL).
-* Add support for Python 3.9 to 3.13.
+* Supported Python versions:
+  * Drop support for Python 3.8 (EOL).
+  * Support for Python 3.9 to 3.13.
+* New features:
+  * React on missing configfile.
+* Security:
+  * Update version of dependencies.
+  * Run pip-audit with every push to the repository and with all pull requests.
 
 
-## Version 0.7.3 beta (2021-09-??)
-
-* React on missing configfile.
-* Update version of dependencies.
-* Reorganize GitHub-Actions config files.
-* Run some tests with Python 3.10 Release Candidate 2.
 
 ## Version 0.7.2 beta (2021-07-22)
 
