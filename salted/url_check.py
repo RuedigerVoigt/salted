@@ -88,11 +88,19 @@ class UrlCheck:
                            url: str) -> int:
         """The HTTP HEAD method requests the headers, but not the body of
            a page. Requesting this way reduces load on the server and
-           reduces network traffic."""
-        async with self.session.get(url,
+           reduces network traffic. Falls back to GET if HEAD is not supported."""
+        # Try HEAD first
+        async with self.session.head(url,
                                     headers=self.headers,
                                     raise_for_status=False,
                                     timeout=self.timeout) as response:
+            # If server doesn't support HEAD (405 Method Not Allowed), fall back to GET
+            if response.status == 405:
+                async with self.session.get(url,
+                                           headers=self.headers,
+                                           raise_for_status=False,
+                                           timeout=self.timeout) as get_response:
+                    return get_response.status
             return response.status
 
     async def validate_url(self,
