@@ -67,13 +67,14 @@ class UrlCheck:
             if num_checks < 1:
                 raise ValueError
 
-            recommendation = 4
-            if 24 < num_checks < 100:
-                recommendation = 12
+            if num_checks > 5000:
+                recommendation = 64
             elif num_checks > 99:
                 recommendation = 32
-            elif num_checks > 5000:
-                recommendation = 64
+            elif num_checks > 24:
+                recommendation = 12
+            else:
+                recommendation = 4
         else:
             # i.e. user set a specific number
             recommendation = int(self.num_workers)
