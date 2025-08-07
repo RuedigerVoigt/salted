@@ -3,11 +3,14 @@
 ## UPCOMING
 
 * Supported Python versions:
-  * Drop support for Python 3.8 (EOL).
-  * Support for Python 3.9 to 3.13.
+  * Drop support for Python 3.8 (EOL 2024) and Python 3.9 (EOL October 2025).
+  * Support for Python 3.10 to 3.13.
   * Update versions of dependencies to ensure compatibility with Python 3.13.
 * New features:
   * React on missing configfile.
+* Build system improvements:
+  * Migrate from legacy `setup.py` to modern `pyproject.toml` packaging standard.
+  * Migrate pytest configuration from `pytest.ini` to `pyproject.toml`.
 * Security:
   * Run pip-audit with every push to the repository and with all pull requests.
 
