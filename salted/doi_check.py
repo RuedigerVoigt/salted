@@ -13,6 +13,7 @@ import logging
 from typing import Final, Optional
 
 import aiohttp
+from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
@@ -96,7 +97,7 @@ class DoiCheck:
                 query_url,
                 headers=self.headers,
                 raise_for_status=False,
-                timeout=self.timeout_sec) as response:
+                timeout=ClientTimeout(total=self.timeout_sec)) as response:
             # format is 'numeric s'
             timewindow = response.headers['X-Rate-Limit-Interval']
             timewindow = timewindow.rstrip('s').strip()

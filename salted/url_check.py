@@ -14,6 +14,7 @@ import logging
 from typing import Optional, Union
 
 import aiohttp
+from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
@@ -93,13 +94,13 @@ class UrlCheck:
         async with self.session.head(url,
                                     headers=self.headers,
                                     raise_for_status=False,
-                                    timeout=self.timeout) as response:
+                                    timeout=ClientTimeout(total=self.timeout)) as response:
             # If server doesn't support HEAD (405 Method Not Allowed), fall back to GET
             if response.status == 405:
                 async with self.session.get(url,
                                            headers=self.headers,
                                            raise_for_status=False,
-                                           timeout=self.timeout) as get_response:
+                                           timeout=ClientTimeout(total=self.timeout)) as get_response:
                     return get_response.status
             return response.status
 

@@ -107,8 +107,9 @@ class Salted:
                         'raise_for_dead_links',
                         self.raise_for_dead_links)
             self.user_agent = behavior.get('user_agent', self.user_agent)
-            if behavior.get('ignore_urls'):
-                self.ignore_urls = set(behavior.get('ignore_urls').split(','))
+            ignore_urls_str = behavior.get('ignore_urls')
+            if ignore_urls_str:
+                self.ignore_urls = set(ignore_urls_str.split(','))
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
             self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
