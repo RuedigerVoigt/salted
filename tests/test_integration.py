@@ -308,4 +308,109 @@ def test_cache_reader_no_cache_file(caplog):
     caplog.set_level(logging.DEBUG)
     cache_reader.CacheReader(None, 24, None)
     assert 'No path to cache file provided' in caplog.text
+
+
+def test_ignore_urls_config_none_value():
+    """Test that None ignore_urls config value doesn't cause AttributeError."""
+    import configparser
+    import tempfile
+    from pathlib import Path
+    
+    # Create config with no ignore_urls setting
+    config_content = """
+[BEHAVIOR]
+timeout = 30
+user_agent = test-agent
+"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.ini', delete=False) as f:
+        f.write(config_content)
+        config_path = f.name
+    
+    try:
+        # Mock the CONFIG_NAME to point to our test file
+        with unittest.mock.patch.object(salted.Salted, 'CONFIG_NAME', config_path):
+            checker = salted.Salted()
+            
+            # ignore_urls should remain as default empty set
+            assert isinstance(checker.ignore_urls, set)
+            assert len(checker.ignore_urls) == 0
+            
+    finally:
+        Path(config_path).unlink()
+
+
+def test_ignore_urls_config_empty_string():
+    """Test that empty string ignore_urls config doesn't cause issues."""
+    import configparser
+    import tempfile
+    from pathlib import Path
+    
+    config_content = """
+[BEHAVIOR]
+ignore_urls = 
+timeout = 30
+"""
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.ini', delete=False) as f:
+        f.write(config_content)
+        config_path = f.name
+    
+    try:
+        # Mock the CONFIG_NAME to point to our test file
+        with unittest.mock.patch.object(salted.Salted, 'CONFIG_NAME', config_path):
+            checker = salted.Salted()
+            
+            # ignore_urls should remain empty since empty string is falsy
+            assert isinstance(checker.ignore_urls, set)
+            assert len(checker.ignore_urls) == 0
+            
+    finally:
+        Path(config_path).unlink()
+
+
+def test_doi_check_init():
+    """Test DoiCheck initialization."""
+    mock_db = unittest.mock.MagicMock(spec=database_io.DatabaseIO)
+    checker = doi_check.DoiCheck(mock_db)
+    
+    assert checker.db == mock_db
+    assert checker.session is None
+    assert checker.timeout_sec == 3
+    assert checker.valid_doi_list == []
+    assert checker.invalid_doi_list == []
+    assert 'salted/' in checker.headers['User-Agent']
+    assert 'github.com/RuedigerVoigt/salted' in checker.headers['User-Agent']
+
+
+def test_doi_check_rate_limit_validation():
+    """Test DOI rate limiting parameter validation."""
+    import asyncio
+    
+    mock_db = unittest.mock.MagicMock(spec=database_io.DatabaseIO)
+    checker = doi_check.DoiCheck(mock_db)
+    
+    async def run_test():
+        # Test invalid max_queries
+        with pytest.raises(ValueError, match='Parameter "max_queries" must be an integer > 0'):
+            await checker._DoiCheck__rate_limit_wait(0, 1)
+            
+        # Test invalid seconds
+        with pytest.raises(ValueError, match='Parameter "seconds" must be an integer > 0'):
+            await checker._DoiCheck__rate_limit_wait(50, 0)
+    
+    asyncio.run(run_test())
+
+
+def test_doi_check_no_dois():
+    """Test check_dois when no DOIs need checking."""
+    mock_db = unittest.mock.MagicMock(spec=database_io.DatabaseIO)
+    mock_db.get_dois_to_check.return_value = []
+    
+    checker = doi_check.DoiCheck(mock_db)
+    
+    # Should return early without error
+    checker.check_dois()
+    
+    mock_db.get_dois_to_check.assert_called_once()
     
