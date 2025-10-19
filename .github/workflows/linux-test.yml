@@ -37,7 +37,7 @@ jobs:
 
     - name: Install test utilities
       run: |
-        pip install pytest pytest_mock pyfakefs
+        pip install pytest pytest-asyncio pytest_mock pyfakefs
 
     - name: Test with pytest
       run: |
