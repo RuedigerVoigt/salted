@@ -1,6 +1,6 @@
 # Changelog for salted
 
-## UPCOMING
+## UPCOMING (10-2025)
 
 * Supported Python versions:
   * Drop support for Python 3.8 and 3.9 (EOL).
@@ -8,9 +8,10 @@
   * Update versions of dependencies to ensure compatibility with Python 3.14.
 * New features:
   * React on missing configfile.
-* Build system improvements:
+* Build system / packaging improvements:
   * Migrate from legacy `setup.py` to modern `pyproject.toml` packaging standard.
   * Migrate pytest configuration from `pytest.ini` to `pyproject.toml`.
+  * Switch to [poetry](https://python-poetry.org/).
 * Security:
   * Run pip-audit with every push to the repository and with all pull requests.
 
