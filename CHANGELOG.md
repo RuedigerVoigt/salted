@@ -1,12 +1,13 @@
 # Changelog for salted
 
-## UPCOMING (10-2025)
+## UPCOMING (11-2025)
 
 * Supported Python versions:
   * Drop support for Python 3.8 and 3.9 (EOL).
   * Add support for Python 3.10 to 3.14.
   * Update versions of dependencies to ensure compatibility with Python 3.14.
 * New features:
+  * [Presets for custom user agents](https://github.com/RuedigerVoigt/salted#handling-problematic-servers)
   * React on missing configfile.
 * Build system / packaging improvements:
   * Migrate from legacy `setup.py` to modern `pyproject.toml` packaging standard.

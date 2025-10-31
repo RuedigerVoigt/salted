@@ -50,22 +50,19 @@ Salted automatically recognizes supported file formats by their extension (i.e. 
 
 ## Installation
 
-Python 3.7 causes an [issue](https://github.com/aio-libs/aiohttp/issues/3535). **You need Python 3.8. or newer.**
-
-You can check your Python version this way:
+Python 3.10 or newer is required. You can check your Python version:
 ```bash
-python3 -v
+python3 --version
 # or depending on your system:
-python -v
+python --version
 ```
 
-`Salted` is built with `aoihttp`.
-If installing `aiohttp` fails because `multidict` does not install you need a C-Compiler present or need to install the binary. Please look at [multidict's documentation](https://github.com/aio-libs/multidict).
-
-Aside from this installation is easy:
+Installation is straightforward using pip:
 
 ```bash
-sudo pip3 install salted
+pip3 install salted
+# or
+pip install salted
 ```
 
 *The installation via pip / pip3 install the library salted AND registers it as a command line script in the path. So you can just call salted in the terminal.*
@@ -108,7 +105,9 @@ optional arguments:
   --timeout <seconds>   Number of seconds to wait for an answer of a server (default: 5).
   --raise_for_dead_links <True/False>
                         True if dead links shall rise an exception (default: False).
-  --user_agent <str>    User agent to identify itself. (Default: salted / version)
+  --user_agent <preset or custom string>
+                        User agent to identify itself. Use a preset (chrome, firefox, edge, safari,
+                        chrome-mac, chrome-linux) or provide a custom string. (Default: salted / version)
   --ignore_urls <str,str,str>
                         String with URls that will not be checked. Separate them with commas
   --cache_file <path>   Path to the cache file (default: salted-cache.sqlite3 in the current working directory)
@@ -164,7 +163,7 @@ All versions of salted use the same parameters. Their categories are only import
   * `num_workers` defaults to automatic, which lets salted choose how many workers to start. You can set a specific number of workers. *This is not depended on the number of cores your system has, but more so dependent on the number of URLs to check!* Once a worker has sent a request it awaits the answer and meanwhile other workers can check other URLs. For example: A machine with 4 cores on a standard home connection should work fine with 32 or more workers.
   * `timeout`: The number of seconds to wait for a server to answer the request. This is necessary as some servers do not answer and a single one of those would block the check. This defaults to 5 seconds.
   * `raise_for_dead_links`: if set to `True` salted will raise an exception in case it finds obviously dead links that yield a HTTP status code like 404 ('Not found) or 410 ('Gone'). That behavior is useful for a publication workflow. It will *not* raise an exception for links it could not check as some servers block requests.
-  * `user_agent`: sets the 'User-Agent' field of the HTTP header. This defaults to 'salted' if not set.
+  * `user_agent`: sets the 'User-Agent' field of the HTTP header. This defaults to 'salted/version' if not set. You can use predefined browser presets (`chrome`, `firefox`, `edge`, `safari`, `chrome-mac`, `chrome-linux`) or provide a custom user agent string. Providing a browser user agent might help to avoid being wrongfully blocked.
   * `ignore_urls`: accepts a string with comma separated URLs (like `https://www.example.com/1.html, https://www.example.com/2.html`). Those will not be checked.
 * **Category "CACHE":**
   * `cache_file`: Path to the cache file. Default is `salted-cache.sqlite3` in the current working directory.
@@ -199,4 +198,30 @@ The last optional parameter is `base_url`. Assume all your HTML files will be ho
 
 Servers might block you if you send too many requests in a certain amount of time, then you should reduce the number of workers to slow salted down.
 
-However, some servers block bots in general fearing automated access might be with malicious intent. This often includes link checkers although having working links pointing to their pages helps their SEO. Salted also mainly uses HEAD requests which do not load the full webpage, but only the headers. (Full requests are used as backup, but even then only a part is read.) You might ask the page's owner to excempt a specific IP or user agent. If that is not feasible it might help to set the `user_agent` parameter to something a browser might send.
+However, some servers block bots in general fearing automated access might be with malicious intent. This often includes link checkers although having working links pointing to their pages helps their SEO. Salted also mainly uses HEAD requests which do not load the full webpage, but only the headers. (Full requests are used as backup, but even then only a part is read.)
+
+**Using Browser User Agents**
+
+Some websites block user agents that do not match a browser. Salted provides easy-to-use presets:
+
+```bash
+# Use Chrome user agent (recommended)
+salted -i ./homepage/ --user_agent chrome
+
+# Use Firefox user agent
+salted -i ./homepage/ --user_agent firefox
+
+# Other presets: edge, safari, chrome-mac, chrome-linux
+```
+
+When using salted as a library:
+```python
+import salted
+
+linkcheck = salted.Salted()
+
+# Use a preset
+linkcheck.user_agent = salted.get_user_agent('chrome')
+
+linkcheck.check('./homepage/')
+```

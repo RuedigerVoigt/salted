@@ -14,6 +14,7 @@ import logging
 import pathlib
 
 import salted
+from salted.user_agents import get_user_agent, list_presets
 
 
 def main() -> None:
@@ -61,11 +62,12 @@ def main() -> None:
         type=str,
         help="True if dead links shall rise an exception (default: False).",
         metavar='<True/False>')
+    presets = ', '.join(list_presets())
     parser.add_argument(
         "--user_agent",
         type=str,
-        help="User agent to identify itself. (Default: salted / version)",
-        metavar="<str>"
+        help=f"User agent to identify itself. Use a preset ({presets}) or provide a custom string. (If nothing is set it defaults to: salted / version)",
+        metavar="<preset or custom string>"
     )
     parser.add_argument(
         "--ignore_urls",
@@ -129,7 +131,12 @@ def main() -> None:
         else:
             raise ValueError("Unknown value for raise_for_dead_links")
     if args.user_agent:
-        checker.user_agent = args.user_agent
+        # Check if it's a preset or a custom string
+        try:
+            checker.user_agent = get_user_agent(args.user_agent)
+        except ValueError:
+            # Not a preset, treat as custom user agent string
+            checker.user_agent = args.user_agent
     if args.ignore_urls:
         checker.ignore_urls = args.ignore_urls
 
