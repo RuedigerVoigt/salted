@@ -5,8 +5,6 @@ description = "Smart, Asynchronous Link Tester with Database backend"
 authors = ["Rüdiger Voigt <projects@ruediger-voigt.eu>"]
 license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://github.com/RuedigerVoigt/salted"
-repository = "https://github.com/RuedigerVoigt/salted"
 keywords = ["link-checker", "url-validation", "html", "markdown", "latex", "bibtex", "async"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -29,6 +27,12 @@ classifiers = [
 packages = [{include = "salted"}]
 include = ["salted/py.typed", "salted/templates/*.jinja"]
 
+[tool.poetry.urls]
+Homepage = "https://github.com/RuedigerVoigt/salted"
+Repository = "https://github.com/RuedigerVoigt/salted"
+"Bug Tracker" = "https://github.com/RuedigerVoigt/salted/issues"
+Changelog = "https://github.com/RuedigerVoigt/salted/blob/main/CHANGELOG.md"
+
 [tool.poetry.dependencies]
 python = "^3.10"
 aiodns = ">=3.5.0"
@@ -38,7 +42,6 @@ compatibility = ">=1.0.1"
 jinja2 = ">=3.1.5"
 lxml = ">=6.0.2"
 pybtex = ">=0.25.1"
-sqlalchemy = ">=2.0.44"
 tqdm = ">=4.67.1"
 userprovided = ">=2.0.0"
 

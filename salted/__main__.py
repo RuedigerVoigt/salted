@@ -47,9 +47,9 @@ class Salted:
             package_version=self.VERSION,
             release_date=version.release_date,
             python_version_support={
-                'min_version': '3.8',
+                'min_version': '3.10',
                 'incompatible_versions': ['3.6', '3.7'],
-                'max_tested_version': '3.9'},
+                'max_tested_version': '3.14'},
             nag_over_update={
                     'nag_days_after_release': 60,
                     'nag_in_hundred': 100},
