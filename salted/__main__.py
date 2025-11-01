@@ -16,9 +16,9 @@ import pathlib
 import time
 from typing import Optional, Union
 
-import compatibility
+from importlib.metadata import version as pkg_version
 
-from salted import _version as version
+import compatibility
 from salted import cache_reader
 from salted import database_io
 from salted import doi_check
@@ -40,15 +40,17 @@ class Salted:
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-instance-attributes
 
-    VERSION = version.__version__
+    VERSION = pkg_version("salted")
     CONFIG_NAME = 'salted-linkcheck.ini'
+    # Release date kept for compatibility dependency, not exposed
+    RELEASE_DATE = datetime.date(2025, 11, 2)
 
     def __init__(self) -> None:
 
         compatibility.Check(
             package_name='salted',
             package_version=self.VERSION,
-            release_date=version.release_date,
+            release_date=self.RELEASE_DATE,
             python_version_support={
                 'min_version': '3.10',
                 'incompatible_versions': ['3.6', '3.7'],

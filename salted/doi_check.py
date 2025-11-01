@@ -17,7 +17,7 @@ from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
-from salted import _version
+from importlib.metadata import version as pkg_version
 
 
 class DoiCheck:
@@ -38,8 +38,8 @@ class DoiCheck:
         # Requests of polite bots get directed to a separate pool of machines.
         # See: https://github.com/CrossRef/rest-api-doc
         self.headers = {'User-Agent': (
-            f"salted/{_version.__version__} " +
-            "(https://github.com/RuedigerVoigt/salted; " +
+            f"salted/{pkg_version('salted')} "
+            "(https://github.com/RuedigerVoigt/salted; "
             "mailto:projects@ruediger-voigt.eu)")}
 
         self.session: Optional[aiohttp.ClientSession] = None

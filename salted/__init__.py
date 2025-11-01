@@ -9,12 +9,15 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
+from importlib.metadata import version as pkg_version
+
 from salted.__main__ import Salted
-from salted import _version
 from salted.user_agents import get_user_agent, list_presets
 
 NAME = "salted"
-__version__ = _version.__version__
 __author__ = "Rüdiger Voigt"
+
+# Single source of truth: pyproject.toml (via installed package metadata)
+__version__ = pkg_version("salted")
 
 __all__ = ['Salted', 'get_user_agent', 'list_presets']
