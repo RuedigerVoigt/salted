@@ -27,7 +27,6 @@ import pytest_mock
 import salted
 from salted import cache_reader
 from salted import database_io
-from salted import doi_check
 from salted import err
 from salted import input_handler
 from salted import parser
@@ -369,48 +368,5 @@ timeout = 30
         Path(config_path).unlink()
 
 
-def test_doi_check_init():
-    """Test DoiCheck initialization."""
-    mock_db = unittest.mock.MagicMock(spec=database_io.DatabaseIO)
-    checker = doi_check.DoiCheck(mock_db)
-    
-    assert checker.db == mock_db
-    assert checker.session is None
-    assert checker.timeout_sec == 3
-    assert checker.valid_doi_list == []
-    assert checker.invalid_doi_list == []
-    assert 'salted/' in checker.headers['User-Agent']
-    assert 'github.com/RuedigerVoigt/salted' in checker.headers['User-Agent']
-
-
-def test_doi_check_rate_limit_validation():
-    """Test DOI rate limiting parameter validation."""
-    import asyncio
-    
-    mock_db = unittest.mock.MagicMock(spec=database_io.DatabaseIO)
-    checker = doi_check.DoiCheck(mock_db)
-    
-    async def run_test():
-        # Test invalid max_queries
-        with pytest.raises(ValueError, match='Parameter "max_queries" must be an integer > 0'):
-            await checker._DoiCheck__rate_limit_wait(0, 1)
-            
-        # Test invalid seconds
-        with pytest.raises(ValueError, match='Parameter "seconds" must be an integer > 0'):
-            await checker._DoiCheck__rate_limit_wait(50, 0)
-    
-    asyncio.run(run_test())
-
-
-def test_doi_check_no_dois():
-    """Test check_dois when no DOIs need checking."""
-    mock_db = unittest.mock.MagicMock(spec=database_io.DatabaseIO)
-    mock_db.get_dois_to_check.return_value = []
-    
-    checker = doi_check.DoiCheck(mock_db)
-    
-    # Should return early without error
-    checker.check_dois()
-    
-    mock_db.get_dois_to_check.assert_called_once()
+# NOTE: DOI check tests have been moved to tests/test_doi_check.py for better organization
     
