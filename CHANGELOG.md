@@ -1,6 +1,6 @@
 # Changelog for salted
 
-## UPCOMING (11-2025)
+## Version 1.0.0 (11-2025)
 
 * Supported Python versions:
   * Drop support for Python 3.8 and 3.9 (EOL).
