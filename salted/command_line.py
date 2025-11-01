@@ -18,7 +18,11 @@ from salted.user_agents import get_user_agent, list_presets
 
 
 def main() -> None:
-    "Provide an entrypoint for a command line interface of salted"
+    """Provide an entrypoint for the command line interface of salted.
+
+    Parses command line arguments, overrides defaults and config file settings,
+    and runs the link checker.
+    """
     # pylint: disable=too-many-branches
 
     logging.debug('salted called via the CLI')

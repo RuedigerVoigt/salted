@@ -17,11 +17,21 @@ from salted import memory_instance
 
 
 class DatabaseIO:
-    "Log the crawler's results to sqlite."
+    """Log the crawler's results to SQLite database.
+
+    Provides methods to save found links, log validation results, and
+    manage the check queue.
+    """
 
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
                  cache_file: Union[pathlib.Path, str, None] = None):
+        """Initialize the database I/O handler.
+
+        Args:
+            mem_instance: In-memory database instance for storing results.
+            cache_file: Path to the cache file on disk. If None, no cache is used.
+        """
         self.cursor = mem_instance.get_cursor()
         self.cache_file_path = None
         if cache_file:
@@ -29,7 +39,12 @@ class DatabaseIO:
 
     def save_found_links(self,
                          links_found: list) -> None:
-        "Save the links found into the memory database."
+        """Save the links found into the memory database.
+
+        Args:
+            links_found: List of tuples containing link information
+                (filePath, hostname, url, normalizedUrl, linktext).
+        """
         if not links_found:
             logging.debug('No links in this file to save them.')
         else:

@@ -31,8 +31,11 @@ from salted import report_generator
 
 
 class Salted:
-    """Main class. Creates the other Objects, starts workers,
-       collects results and starts the report of results. """
+    """Main class for the SALTED link checker.
+
+    Creates the other objects, starts workers, collects results and
+    generates the report of results.
+    """
     # pylint: disable=too-few-public-methods
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-instance-attributes
@@ -83,10 +86,13 @@ class Salted:
         self.cnt: Counter = Counter()
 
     def __parse_configfile(self) -> None:
-        """If there is a configfile read it and overwrite defaults if new
-           value is set for them. If a specific parameter is not set,
-           fall back to the application default.
-           Config file settings can be overwritten trough CLI parameters."""
+        """Parse configuration file and overwrite defaults with its settings.
+
+        Reads the config file (if present) and overwrites default values with
+        configured values. If a specific parameter is not set in the config,
+        falls back to the application default. Config file settings can be
+        overwritten through CLI parameters.
+        """
         cfg = configparser.ConfigParser()
 
         # read does not throw an exception if the file is not there!
@@ -138,8 +144,14 @@ class Salted:
 
     def check(self,
               searchpath: Union[str, pathlib.Path]) -> None:
-        """Check all links and DOIs found in a specific file or in all supported
-           files within the provided folder and its subfolders."""
+        """Check all links and DOIs found in files.
+
+        Validates all links and DOIs found in a specific file or in all supported
+        files within the provided folder and its subfolders.
+
+        Args:
+            searchpath: Path to a file or folder to check for links.
+        """
         start_time = time.monotonic()
 
         # check might be reused with the same salted object. Therefore

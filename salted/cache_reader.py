@@ -18,12 +18,24 @@ from salted import memory_instance
 
 
 class CacheReader:
-    """Handle the cache file"""
+    """Handle the cache file for storing previously validated URLs.
+
+    Manages loading valid URLs from disk cache and persisting new results
+    back to disk to avoid redundant checks.
+    """
 
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
                  dont_check_again_within_hours: int,
                  cache_file: Union[pathlib.Path, str, None] = None) -> None:
+        """Initialize the cache reader.
+
+        Args:
+            mem_instance: In-memory database instance for storing cache data.
+            dont_check_again_within_hours: Cache lifetime in hours. URLs validated
+                within this period will be skipped.
+            cache_file: Path to the cache file on disk. If None, caching is disabled.
+        """
 
         self.cache_file_path: Optional[pathlib.Path] = None
 
@@ -41,10 +53,14 @@ class CacheReader:
         self.__check_cache_file_path()
 
     def __check_cache_file_path(self) -> None:
-        """Check if the given path is valid in order to fail if it is not
-           before the linkcheck runs.
-           Raise ValueError if the path is a directory or if parent
-           folders do not exists."""
+        """Validate the cache file path before linkcheck runs.
+
+        Checks if the given path is valid to fail early if it is not.
+
+        Raises:
+            ValueError: If the path is a directory or if parent folders do not exist.
+            RuntimeError: If called without a path set.
+        """
 
         if not self.cache_file_path:
             raise RuntimeError('check_cache_file path called without path set')
@@ -63,8 +79,12 @@ class CacheReader:
                              'but must include file name!')
 
     def load_disk_cache(self) -> None:
-        """If there is a cache file open it, read the valid URLs and
-           load them into the in-memory instance of sqlite."""
+        """Load valid URLs from disk cache into in-memory database.
+
+        Opens the cache file (if it exists), reads valid URLs that haven't
+        expired based on cache lifetime, and loads them into the in-memory
+        SQLite instance.
+        """
 
         if not self.cache_file_path:
             return
@@ -107,8 +127,11 @@ class CacheReader:
                 valid_dois)
 
     def overwrite_cache_file(self) -> None:
-        """Write the current in-memory database into a file.
-           Overwrite any file in the given path."""
+        """Persist the in-memory database to disk cache file.
+
+        Writes the current in-memory database to the cache file,
+        overwriting any existing file at the given path.
+        """
 
         self.cache_file_path.unlink(missing_ok=True)  # type: ignore[union-attr]
 
