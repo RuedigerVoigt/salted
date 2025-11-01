@@ -92,6 +92,7 @@ class CacheReader:
         valid_urls = list()
         valid_dois = list()
 
+        disk_cache = None
         try:
             logging.debug('Trying to load disk cache')
             disk_cache = sqlite3.connect(
@@ -113,7 +114,11 @@ class CacheReader:
         except Exception:
             logging.debug('No cache file or could not read it.', exc_info=True)
         finally:
-            disk_cache.close()
+            if disk_cache is not None:
+                try:
+                    disk_cache.close()
+                except Exception:
+                    logging.debug('Failed closing disk cache connection.', exc_info=True)
 
         if valid_urls:
             self.cursor.executemany('''
