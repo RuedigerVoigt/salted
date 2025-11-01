@@ -14,6 +14,8 @@
   * Migrate from legacy `setup.py` to modern `pyproject.toml` packaging standard.
   * Migrate pytest configuration from `pytest.ini` to `pyproject.toml`.
   * Switch to [poetry](https://python-poetry.org/).
+* Quality:
+  * Ensure with an automatic workflow that coverage is 95% or higher.
 * Dependency updates:
   * Update [userprovided](https://github.com/RuedigerVoigt/userprovided) from 2.0.0 to 2.1.0 (adds `extract_domain()` function).
   * Remove unused `sqlalchemy` dependency - salted uses Python's built-in `sqlite3` module.
