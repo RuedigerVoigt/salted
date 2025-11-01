@@ -18,6 +18,7 @@ from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
+from salted.rate_limiter import DomainRateLimiter
 
 
 class UrlCheck:
@@ -29,7 +30,8 @@ class UrlCheck:
                  db: database_io.DatabaseIO,
                  workers: Union[int, str] = 'automatic',
                  timeout_sec: int = 5,
-                 ignore_urls: Optional[set] = None
+                 ignore_urls: Optional[set] = None,
+                 domain_delay: float = 0.25
                  ) -> None:
         # pylint: disable=too-many-arguments
         self.headers: dict = dict()
@@ -47,6 +49,9 @@ class UrlCheck:
         self.pbar_links: tqdm = None
 
         self.session: aiohttp.ClientSession = None  # type: ignore
+
+        # Initialize domain-based rate limiter
+        self.rate_limiter = DomainRateLimiter(delay_seconds=domain_delay)
 
     async def __create_session(self) -> None:
         self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
@@ -114,6 +119,10 @@ class UrlCheck:
             return
 
         self.cnt['checked_urls'] += 1
+
+        # Apply domain-based rate limiting
+        await self.rate_limiter.wait_if_needed(url)
+
         try:
             response_code = await self.head_request(url)
             if response_code in (200, 302, 303, 307):

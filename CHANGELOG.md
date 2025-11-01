@@ -7,12 +7,16 @@
   * Add support for Python 3.10 to 3.14.
   * Update versions of dependencies to ensure compatibility with Python 3.14.
 * New features:
-  * [Presets for custom user agents](https://github.com/RuedigerVoigt/salted#handling-problematic-servers)
+  * [Presets for custom user agents](https://github.com/RuedigerVoigt/salted#handling-problematic-servers).
+  * [Per-domain rate limiting](https://github.com/RuedigerVoigt/salted#parameters--initializing) - enforces configurable delay between requests to the same domain (default: 250ms). Prevents hammering servers and reduces rate limit errors.
   * React on missing configfile.
 * Build system / packaging improvements:
   * Migrate from legacy `setup.py` to modern `pyproject.toml` packaging standard.
   * Migrate pytest configuration from `pytest.ini` to `pyproject.toml`.
   * Switch to [poetry](https://python-poetry.org/).
+* Dependency updates:
+  * Update [userprovided](https://github.com/RuedigerVoigt/userprovided) from 2.0.0 to 2.1.0 (adds `extract_domain()` function).
+  * Remove unused `sqlalchemy` dependency - salted uses Python's built-in `sqlite3` module.
 * Security:
   * Run pip-audit with every push to the repository and with all pull requests.
 

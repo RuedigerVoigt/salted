@@ -75,6 +75,12 @@ def main() -> None:
         help="String with URls that will not be checked. Separate them with commas.",
         metavar="<str,str,str>"
     )
+    parser.add_argument(
+        "--domain_delay",
+        type=float,
+        help="Minimum delay in seconds between requests to the same domain (default: 0.25). Set to 0 to disable rate limiting.",
+        metavar="<seconds>"
+    )
 
     parser.add_argument(
         "--cache_file",
@@ -139,6 +145,8 @@ def main() -> None:
             checker.user_agent = args.user_agent
     if args.ignore_urls:
         checker.ignore_urls = args.ignore_urls
+    if args.domain_delay is not None:
+        checker.domain_delay = args.domain_delay
 
     if args.cache_file:
         checker.cache_file = args.cache_file
