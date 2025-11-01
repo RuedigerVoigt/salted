@@ -33,7 +33,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(
         prog='salted',
-        description=f"""Salted is an extremly fast link checker.
+        description=f"""Salted is an extremely fast link checker.
         It works with HTML, Markdown and TeX files.
         Currently it only checks external links.
         You are using version {checker.VERSION}.""",
@@ -64,7 +64,7 @@ def main() -> None:
     parser.add_argument(
         "--raise_for_dead_links",
         type=str,
-        help="True if dead links shall rise an exception (default: False).",
+        help="True if dead links shall raise an exception (default: False).",
         metavar='<True/False>')
     presets = ', '.join(list_presets())
     parser.add_argument(
@@ -76,7 +76,7 @@ def main() -> None:
     parser.add_argument(
         "--ignore_urls",
         type=str,
-        help="String with URls that will not be checked. Separate them with commas.",
+        help="String with URLs that will not be checked. Separate them with commas.",
         metavar="<str,str,str>"
     )
     parser.add_argument(

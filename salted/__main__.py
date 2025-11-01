@@ -98,7 +98,7 @@ class Salted:
         cfg = configparser.ConfigParser()
 
         # read does not throw an exception if the file is not there!
-        # However, it returns a list of succesfully read files.
+        # However, it returns a list of successfully read files.
         parsed_files = cfg.read(self.CONFIG_NAME)
         if len(parsed_files) == 0:
             logging.info('No configfile found. Using defaults.')

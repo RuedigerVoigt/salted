@@ -13,7 +13,7 @@ Key advantages of this application compared to other linkcheckers are:
     * Salted uses a configurable cache. If your check found some broken links and you fixed them within the cache lifetime (default: 24h), then the next run will only check the changed links.
     * It normalizes URLs. Because `https://www.example.com/index.html#one` and `https://www.example.com/index.html#two` point to the same page, only one check is performed.
 * *It is fast.*
-    * Many linkcheckers work in a linear way - one link after another. This applications spawns many asynchronous worker threats that work in parallel and free up resources while waiting on a server's response.
+    * Many linkcheckers work in a linear way - one link after another. This application spawns many asynchronous worker threads that work in parallel and free up resources while waiting on a server's response.
     * Salted is much faster and can check dozens of links *per second* (depending on your connection).
 * *Salted can be used stand-alone or in a CI pipeline.*
      * The result can be written to standard out / the command line or to a file.
@@ -79,11 +79,11 @@ pip install salted
 
 Once salted is installed with pip, it registers itself as a command line script and is available in your path. So open a command line, switch into the directory you want to check and try:
 ```bash
-# Check all supported files within this directory and it subdirectories.
+# Check all supported files within this directory and its subdirectories.
 # Output result to the command line.
 salted -i ./
 ```
-On the command line salted supports all parameters. To get an overview, simply type `salted -h` and it will display this help message with all availbale options.
+On the command line salted supports all parameters. To get an overview, simply type `salted -h` and it will display this help message with all available options.
 
 ```
 usage: salted [-h] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>] [--timeout <seconds>]
@@ -91,7 +91,7 @@ usage: salted [-h] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w 
               [--dont_check_again_within_hours <hours>] [--template_searchpath <path to folder>] [--template_name <filename>]
               [--write_to <path>] [--base_url https://www.example.com]
 
-Salted is an extremly fast link checker. It works with HTML, Markdown and TeX files. Currently it only checks external links.
+Salted is an extremely fast link checker. It works with HTML, Markdown and TeX files. Currently it only checks external links.
 You are using version 0.7.2.
 
 optional arguments:
@@ -104,12 +104,12 @@ optional arguments:
                         The number of workers to use in parallel (default: automatic)
   --timeout <seconds>   Number of seconds to wait for an answer of a server (default: 5).
   --raise_for_dead_links <True/False>
-                        True if dead links shall rise an exception (default: False).
+                        True if dead links shall raise an exception (default: False).
   --user_agent <preset or custom string>
                         User agent to identify itself. Use a preset (chrome, firefox, edge, safari,
                         chrome-mac, chrome-linux) or provide a custom string. (Default: salted / version)
   --ignore_urls <str,str,str>
-                        String with URls that will not be checked. Separate them with commas
+                        String with URLs that will not be checked. Separate them with commas
   --cache_file <path>   Path to the cache file (default: salted-cache.sqlite3 in the current working directory)
   --dont_check_again_within_hours <hours>
                         Number of hours an already verified URL is considered valid (default: 24).
@@ -140,7 +140,7 @@ logging.basicConfig(level=logging.INFO)
 # Initializing salted by creating an object
 linkcheck = salted.Salted()
 
-# Now you can set parameters to specifc values, for example:
+# Now you can set parameters to specific values, for example:
 linkcheck.timeout = 10
 
 # Salted assumes all your files are in one folder or subfolders of that.

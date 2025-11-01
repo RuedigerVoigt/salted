@@ -72,8 +72,8 @@ class MemoryInstance():
             CREATE TABLE permanentRedirects (
                 normalizedUrl text,
                 error integer);''')
-        # Table 'exceptions': exception sthat occured by crawling
-        # like network timeouts, et cetera
+        # Table 'exceptions': exceptions that occurred during crawling
+        # like network timeouts, etc.
         self.cursor.execute('''
             CREATE TABLE exceptions (
             normalizedUrl text,

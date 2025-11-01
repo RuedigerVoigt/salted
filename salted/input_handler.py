@@ -127,7 +127,7 @@ class InputHandler:
         dois_found = list()
         for entry in doi_list:
             dois_found.append([str(file_path), entry[0], entry[1]])
-        # In case of a bibliography taht can be a very long list.
+        # In case of a bibliography that can be a very long list.
         # So feed it to sqlite in little pieces
         first = 0
         step = 50

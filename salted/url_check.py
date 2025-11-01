@@ -85,7 +85,7 @@ class UrlCheck:
             # i.e. user set a specific number
             recommendation = int(self.num_workers)
         # Set the logging message here to flush the cache. Cannot use
-        # flush() as it is unknow which or how many logging methods are used.
+        # flush() as it is unknown which or how many logging methods are used.
         logging.debug("Using %s workers to check %s hyperlinks.",
                       recommendation, num_checks)
         return recommendation
