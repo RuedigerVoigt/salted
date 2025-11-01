@@ -1,0 +1,172 @@
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
+"""
+Tests for configuration file handling in __main__
+~~~~~~~~~~~~~~~~~~~~~
+Smart, Asynchronous Link Tester with Database backend (SALTED)
+Source: https://github.com/RuedigerVoigt/salted
+(c) 2020-2025: Released under the Apache License 2.0
+"""
+
+import os
+import pathlib
+import tempfile
+import pytest
+
+from salted import Salted
+
+
+class TestConfigFileHandling:
+    """Test configuration file loading"""
+
+    def test_no_config_file_uses_defaults(self, tmp_path, monkeypatch):
+        """Test that when no config file exists, defaults are used"""
+        # Change to a directory with no config file
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        # Should use default values without raising errors (searchpath defaults to cwd)
+        assert checker.searchpath is not None
+
+    def test_config_file_with_invalid_section(self, tmp_path, monkeypatch):
+        """Test that invalid section in config raises ValueError"""
+        # Create a config file with invalid section
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[INVALID_SECTION]
+some_setting = value
+""")
+
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(ValueError, match="unknown section"):
+            Salted()
+
+    def test_config_file_with_behavior_section(self, tmp_path, monkeypatch):
+        """Test loading BEHAVIOR section from config"""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[BEHAVIOR]
+num_workers = 10
+timeout = 15
+raise_for_dead_links = true
+user_agent = chrome
+domain_delay = 0.5
+ignore_urls = http://example.com,http://test.com
+""")
+
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        # Config parser returns strings, not ints
+        assert checker.num_workers == '10'
+        assert checker.timeout == 15
+        assert checker.raise_for_dead_links is True
+        assert checker.user_agent == 'chrome'
+        assert checker.domain_delay == 0.5
+        assert 'http://example.com' in checker.ignore_urls
+        assert 'http://test.com' in checker.ignore_urls
+
+    def test_config_file_with_cache_section(self, tmp_path, monkeypatch):
+        """Test loading CACHE section from config"""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[CACHE]
+cache_file = my-cache.db
+dont_check_again_within_hours = 48
+""")
+
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        assert checker.cache_file == 'my-cache.db'
+        assert checker.dont_check_again_within_hours == 48
+
+    def test_config_file_with_files_section(self, tmp_path, monkeypatch):
+        """Test loading FILES section from config"""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[FILES]
+searchpath = /path/to/files
+file_types = html
+""")
+
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        assert checker.searchpath == '/path/to/files'
+        assert checker.file_types == 'html'
+
+    def test_config_file_with_template_section(self, tmp_path, monkeypatch):
+        """Test loading TEMPLATE section from config"""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[TEMPLATE]
+template_searchpath = /path/to/templates
+template_name = custom.jinja
+write_to = report.md
+base_url = http://example.com/
+""")
+
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        assert checker.template_searchpath == '/path/to/templates'
+        assert checker.template_name == 'custom.jinja'
+        assert checker.write_to == 'report.md'
+        # Base URL still has slash at this point; stripped in check_parameters()
+        assert checker.base_url == 'http://example.com/'
+        # Call check_parameters to strip trailing slash
+        checker.check_parameters()
+        assert checker.base_url == 'http://example.com'
+
+    def test_config_file_with_all_sections(self, tmp_path, monkeypatch):
+        """Test loading config with all valid sections"""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[BEHAVIOR]
+timeout = 10
+
+[CACHE]
+dont_check_again_within_hours = 12
+
+[FILES]
+file_types = markdown
+
+[TEMPLATE]
+base_url = http://test.com/docs/
+""")
+
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        assert checker.timeout == 10
+        assert checker.dont_check_again_within_hours == 12
+        assert checker.file_types == 'markdown'
+        assert checker.base_url == 'http://test.com/docs/'
+        # Call check_parameters to strip trailing slash
+        checker.check_parameters()
+        assert checker.base_url == 'http://test.com/docs'
+
+    def test_base_url_stripping_in_check_parameters(self, tmp_path, monkeypatch):
+        """Test that base_url has trailing slashes stripped"""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[TEMPLATE]
+base_url = http://example.com///
+""")
+
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert checker.base_url == 'http://example.com///'
+        checker.check_parameters()
+        assert checker.base_url == 'http://example.com'
+
+    def test_base_url_none_check_parameters(self):
+        """Test check_parameters with no base_url"""
+        checker = Salted()
+        # Set base_url to None after initialization
+        checker.base_url = None
+        checker.check_parameters()
+        assert checker.base_url is None

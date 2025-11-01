@@ -4,7 +4,7 @@
 ![Last commit](https://img.shields.io/github/last-commit/RuedigerVoigt/salted)
 ![pypi version](https://img.shields.io/pypi/v/salted)
 [![Downloads](https://pepy.tech/badge/salted)](https://pepy.tech/project/salted)
-[![Coverage](https://img.shields.io/badge/coverage-65%25-yellow)](https://www.ruediger-voigt.eu/coverage/salted/index.html)
+[![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen)](https://www.ruediger-voigt.eu/coverage/salted/index.html)
 
 Broken hyperlinks are bad for user experience and may hurt SEO.
 Salted checks if external links in HTML, Markdown, or TeX files are valid.

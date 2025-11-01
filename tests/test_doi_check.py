@@ -288,12 +288,64 @@ class TestWorker:
         assert '10.1234/invalid' in doi_checker.invalid_doi_list
         assert len(doi_checker.valid_doi_list) == 0
 
+    @pytest.mark.asyncio
+    async def test_worker_unexpected_status(self, capsys):
+        """Test worker handling unexpected API status code"""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+        doi_checker.pbar_doi = Mock()
+        doi_checker.pbar_doi.update = Mock()
+
+        # Mock the API request to return unexpected status
+        async def mock_api_request(doi):
+            return {
+                'status': 500,  # Unexpected status
+                'max_queries': '50',
+                'seconds': '1'
+            }
+
+        doi_checker._DoiCheck__api_send_head_request = mock_api_request
+        doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
+
+        queue = asyncio.Queue()
+        queue.put_nowait('10.1234/unexpected')
+
+        worker_task = asyncio.create_task(
+            doi_checker._DoiCheck__worker('test-worker', queue)
+        )
+
+        await queue.join()
+
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
+
+        # Check that unexpected status message was printed
+        captured = capsys.readouterr()
+        assert 'Unexpected API response: 500' in captured.out
+
 
 class TestCheckDois:
     """Test main check_dois method"""
 
     def test_check_dois_no_dois(self):
         """Test check_dois when there are no DOIs to check"""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        db_mock.get_dois_to_check = Mock(return_value=None)
+
+        doi_checker = DoiCheck(db_mock)
+
+        # Should return early without error
+        doi_checker.check_dois()
+
+        # Database should not be called to save anything
+        db_mock.save_valid_dois.assert_not_called()
+        db_mock.log_invalid_dois.assert_not_called()
+
+    def test_check_dois_empty_list(self):
+        """Test check_dois when DOI list is empty"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         db_mock.get_dois_to_check = Mock(return_value=[])
 
@@ -368,3 +420,109 @@ class TestCheckDois:
         # Only invalid DOIs should be logged
         db_mock.save_valid_dois.assert_not_called()
         db_mock.log_invalid_dois.assert_called_once()
+
+
+class TestDistributeWork:
+    """Test __distribute_work method with real async execution"""
+
+    @pytest.mark.asyncio
+    async def test_distribute_work_with_dois(self):
+        """Test that __distribute_work actually runs workers and processes DOIs"""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+
+        # Mock the API request to return valid DOI responses
+        async def mock_api_request(doi):
+            return {
+                'status': 200,
+                'max_queries': '50',
+                'seconds': '1'
+            }
+
+        doi_checker._DoiCheck__api_send_head_request = mock_api_request
+        doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
+
+        # Mock tqdm for progress bar
+        doi_checker.pbar_doi = Mock()
+        doi_checker.pbar_doi.update = Mock()
+
+        # Test with a small list of DOIs
+        dois = ['10.1234/test1', '10.1234/test2', '10.1234/test3']
+
+        await doi_checker._DoiCheck__distribute_work(dois)
+
+        # Verify all DOIs were processed
+        assert len(doi_checker.valid_doi_list) == 3
+        assert '10.1234/test1' in doi_checker.valid_doi_list
+        assert '10.1234/test2' in doi_checker.valid_doi_list
+        assert '10.1234/test3' in doi_checker.valid_doi_list
+        assert len(doi_checker.invalid_doi_list) == 0
+
+        # Verify session was created (it's closed but object remains)
+        assert doi_checker.session is not None
+
+    @pytest.mark.asyncio
+    async def test_distribute_work_with_mixed_results(self):
+        """Test __distribute_work with both valid and invalid DOIs"""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+
+        # Mock the API request to return mixed responses
+        async def mock_api_request(doi):
+            if doi.startswith('10.1234/valid'):
+                return {
+                    'status': 200,
+                    'max_queries': '50',
+                    'seconds': '1'
+                }
+            else:
+                return {
+                    'status': 404,
+                    'max_queries': '50',
+                    'seconds': '1'
+                }
+
+        doi_checker._DoiCheck__api_send_head_request = mock_api_request
+        doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
+
+        doi_checker.pbar_doi = Mock()
+        doi_checker.pbar_doi.update = Mock()
+
+        dois = ['10.1234/valid1', '10.1234/notfound', '10.1234/valid2']
+
+        await doi_checker._DoiCheck__distribute_work(dois)
+
+        # Verify results were categorized correctly
+        assert len(doi_checker.valid_doi_list) == 2
+        assert '10.1234/valid1' in doi_checker.valid_doi_list
+        assert '10.1234/valid2' in doi_checker.valid_doi_list
+        assert len(doi_checker.invalid_doi_list) == 1
+        assert '10.1234/notfound' in doi_checker.invalid_doi_list
+
+    @pytest.mark.asyncio
+    async def test_distribute_work_task_cancellation(self):
+        """Test that __distribute_work properly cancels and gathers tasks"""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+
+        # Mock the API request
+        async def mock_api_request(doi):
+            return {
+                'status': 200,
+                'max_queries': '50',
+                'seconds': '1'
+            }
+
+        doi_checker._DoiCheck__api_send_head_request = mock_api_request
+        doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
+
+        doi_checker.pbar_doi = Mock()
+        doi_checker.pbar_doi.update = Mock()
+
+        # Run with just one DOI to test task cancellation logic
+        dois = ['10.1234/test']
+
+        await doi_checker._DoiCheck__distribute_work(dois)
+
+        # Should complete without errors even with task cancellation
+        assert len(doi_checker.valid_doi_list) == 1
