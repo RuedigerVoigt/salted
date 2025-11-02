@@ -203,25 +203,27 @@ class Salted:
 
         filesearch = file_finder.FileFinder()
         file_io = input_handler.InputHandler(db)
-        files_to_check = list()
+
+        # Select files to check (directory or single supported file)
         if path.is_dir():
             logging.info('Base folder: %s', path)
             files_to_check = filesearch.find_files_by_extensions(path)
-            if files_to_check:
-                file_io.scan_files(files_to_check)
-                mem_instance.generate_indices()
-                db.del_links_that_can_be_skipped()
-                db.del_dois_that_can_be_skipped()
-            else:
-                logging.warning(
-                    "No supported files in this folder or its subfolders.")
-                return
         elif path.is_file() and filesearch.is_supported_format(path):
-            files_to_check.append(path)
+            files_to_check = [path]
         else:
             msg = f"File format of {path} not supported"
             logging.exception(msg)
             raise ValueError(msg)
+
+        # Scan and prune for both directory and single-file modes
+        if not files_to_check:
+            logging.warning("No supported files in this folder or its subfolders.")
+            return
+
+        file_io.scan_files(files_to_check)
+        mem_instance.generate_indices()
+        db.del_links_that_can_be_skipped()
+        db.del_dois_that_can_be_skipped()
 
         # ##### START CHECKS #####
 
