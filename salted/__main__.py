@@ -266,7 +266,11 @@ class Salted:
                 'checks_per_second': (
                     round(urls.cnt['checked_urls'] / runtime_check, 2)),
                 'num_fine': urls.cnt['fine'],
-                'needed_full_request': urls.cnt['neededFullRequest']
+                'needed_full_request': urls.cnt['neededFullRequest'],
+                'percentage_full_request': (
+                    round((urls.cnt['neededFullRequest'] / urls.cnt['checked_urls']) * 100, 2)
+                    if urls.cnt['checked_urls'] > 0 else 0
+                )
                           },
             template={
                 'searchpath': self.template_searchpath,

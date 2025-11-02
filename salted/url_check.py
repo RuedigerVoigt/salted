@@ -104,6 +104,8 @@ class UrlCheck:
                                     timeout=ClientTimeout(total=self.timeout)) as response:
             # If server doesn't support HEAD (405 Method Not Allowed), fall back to GET
             if response.status == 405:
+                # Count how often a full GET was needed
+                self.cnt['neededFullRequest'] += 1
                 async with self.session.get(url,
                                            headers=self.headers,
                                            raise_for_status=False,

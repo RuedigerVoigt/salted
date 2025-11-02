@@ -71,6 +71,8 @@ class TestHeadRequestFallback:
             assert status == 200
             mock_session.head.assert_called_once()
             mock_session.get.assert_called_once()  # Fallback triggered
+            # Ensure fallback counter was incremented
+            assert url_checker.cnt['neededFullRequest'] == 1
 
     @pytest.mark.asyncio
     async def test_head_request_405_fallback_also_fails(self, url_checker):
