@@ -14,6 +14,7 @@ import logging
 from typing import Optional, Union
 
 import aiohttp
+import sys
 from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
@@ -202,7 +203,7 @@ class UrlCheck:
         # otherwise the logging message will force the progress bar to repaint.
         self.num_workers = self.__recommend_num_workers(num_checks)
         print(f"{num_checks} URLs to check with {self.num_workers} workers:")
-        self.pbar_links = tqdm(total=num_checks)
+        self.pbar_links = tqdm(total=num_checks, disable=not sys.stdout.isatty())
 
         # Synchronous wrapper for environments without an event loop
         asyncio.run(self.__distribute_work(urls_to_check))
@@ -220,7 +221,7 @@ class UrlCheck:
         num_checks = len(urls_to_check)
         self.num_workers = self.__recommend_num_workers(num_checks)
         print(f"{num_checks} URLs to check with {self.num_workers} workers:")
-        self.pbar_links = tqdm(total=num_checks)
+        self.pbar_links = tqdm(total=num_checks, disable=not sys.stdout.isatty())
         try:
             await self.__distribute_work(urls_to_check)
         finally:

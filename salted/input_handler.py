@@ -14,6 +14,7 @@ import logging
 import pathlib
 from typing import List, Optional
 import urllib.parse
+import sys
 
 import userprovided
 from tqdm.asyncio import tqdm  # type: ignore
@@ -154,7 +155,7 @@ class InputHandler:
         self.cnt['links_found'] = 0
 
         print("Scanning files for links:")
-        for file_path in tqdm(files_to_check):
+        for file_path in tqdm(files_to_check, disable=not sys.stdout.isatty()):
             content = self.read_file_content(file_path)
             if not content:
                 # If for any reason this file could not be read, try the next.

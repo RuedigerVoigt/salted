@@ -13,6 +13,7 @@ import logging
 from typing import Final, Optional
 
 import aiohttp
+import sys
 from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
@@ -164,7 +165,7 @@ class DoiCheck:
             return
         num_doi = len(dois_to_check)
         print(f"{num_doi} DOI to check:")
-        self.pbar_doi = tqdm(total=num_doi)
+        self.pbar_doi = tqdm(total=num_doi, disable=not sys.stdout.isatty())
 
         asyncio.run(self.__distribute_work(dois_to_check))
         # executemany needs a list of tuples:
@@ -181,7 +182,7 @@ class DoiCheck:
             return
         num_doi = len(dois_to_check)
         print(f"{num_doi} DOI to check:")
-        self.pbar_doi = tqdm(total=num_doi)
+        self.pbar_doi = tqdm(total=num_doi, disable=not sys.stdout.isatty())
         try:
             await self.__distribute_work(dois_to_check)
         finally:
