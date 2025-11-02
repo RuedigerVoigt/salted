@@ -30,8 +30,8 @@ class TestHtmlParsing:
         parser = Parser()
         html = '<a>No href here</a><a name="anchor">Named anchor</a>'
         links = parser.extract_links_from_html(html)
-        # Should handle tags without href gracefully
-        assert isinstance(links, list)
+        # Should skip anchors without href and return empty list
+        assert links == []
 
     def test_extract_links_from_html_empty(self):
         """Test empty HTML"""
