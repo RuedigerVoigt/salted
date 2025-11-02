@@ -51,7 +51,8 @@ class DoiCheck:
         self.invalid_doi_list: list = list()
 
     async def __create_session(self) -> None:
-        self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
+        # Create a client session bound to the current running loop
+        self.session = aiohttp.ClientSession()
 
     async def __close_session(self) -> None:
         "Close the session object once it is no longer needed."
@@ -156,7 +157,7 @@ class DoiCheck:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_dois(self) -> None:
-        "Check the DOI in the queue and show a progress bar."
+        "Check the DOI in the queue and show a progress bar (sync wrapper)."
         dois_to_check = self.db.get_dois_to_check()
         if not dois_to_check:
             logging.debug('No DOIs to check.')
@@ -167,6 +168,24 @@ class DoiCheck:
 
         asyncio.run(self.__distribute_work(dois_to_check))
         # executemany needs a list of tuples:
+        if self.valid_doi_list:
+            self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
+        if self.invalid_doi_list:
+            self.db.log_invalid_dois([(doi, ) for doi in self.invalid_doi_list])
+
+    async def check_dois_async(self) -> None:
+        """Async variant of check_dois for integration in async applications."""
+        dois_to_check = self.db.get_dois_to_check()
+        if not dois_to_check:
+            logging.debug('No DOIs to check.')
+            return
+        num_doi = len(dois_to_check)
+        print(f"{num_doi} DOI to check:")
+        self.pbar_doi = tqdm(total=num_doi)
+        try:
+            await self.__distribute_work(dois_to_check)
+        finally:
+            self.pbar_doi.close()
         if self.valid_doi_list:
             self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
         if self.invalid_doi_list:

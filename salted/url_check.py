@@ -54,7 +54,8 @@ class UrlCheck:
         self.rate_limiter = DomainRateLimiter(delay_seconds=domain_delay)
 
     async def __create_session(self) -> None:
-        self.session = aiohttp.ClientSession(loop=asyncio.get_running_loop())
+        # Create a client session bound to the current running loop
+        self.session = aiohttp.ClientSession()
 
     async def __close_session(self) -> None:
         "Close the session object once it is no longer needed"
@@ -203,6 +204,24 @@ class UrlCheck:
         print(f"{num_checks} URLs to check with {self.num_workers} workers:")
         self.pbar_links = tqdm(total=num_checks)
 
+        # Synchronous wrapper for environments without an event loop
         asyncio.run(self.__distribute_work(urls_to_check))
 
         self.pbar_links.close()
+
+    async def check_urls_async(self) -> None:
+        """Async variant of check_urls for integration in async applications."""
+        urls_to_check = self.db.urls_to_check()
+        if not urls_to_check:
+            logging.info(
+                "No URLs to check after skipping cached results."
+                "All hyperlinks are considered valid.")
+            return
+        num_checks = len(urls_to_check)
+        self.num_workers = self.__recommend_num_workers(num_checks)
+        print(f"{num_checks} URLs to check with {self.num_workers} workers:")
+        self.pbar_links = tqdm(total=num_checks)
+        try:
+            await self.__distribute_work(urls_to_check)
+        finally:
+            self.pbar_links.close()
