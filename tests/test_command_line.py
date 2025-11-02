@@ -128,7 +128,20 @@ class TestCommandLineArguments:
                 
                 command_line.main()
                 
-                assert mock_checker.ignore_urls == 'https://skip1.com,https://skip2.com'
+                assert mock_checker.ignore_urls == {'https://skip1.com', 'https://skip2.com'}
+
+    def test_main_with_ignore_urls_trims_and_drops_empty(self):
+        """Test CLI cleaning of --ignore_urls (trims whitespace, drops empties)."""
+        test_args = ['salted', '--ignore_urls', ' https://a.com , , https://b.com  , ']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.ignore_urls == {'https://a.com', 'https://b.com'}
 
     def test_main_with_cache_file_argument(self):
         """Test CLI with --cache_file argument."""

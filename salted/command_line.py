@@ -14,6 +14,7 @@ import logging
 import pathlib
 
 import salted
+from userprovided.parameters import separated_string_to_set
 from salted.user_agents import get_user_agent, list_presets
 
 
@@ -148,7 +149,8 @@ def main() -> None:
             # Not a preset, treat as custom user agent string
             checker.user_agent = args.user_agent
     if args.ignore_urls:
-        checker.ignore_urls = args.ignore_urls
+        # Parse comma-separated values into a clean set using userprovided helper
+        checker.ignore_urls = separated_string_to_set(args.ignore_urls)
     if args.domain_delay is not None:
         checker.domain_delay = args.domain_delay
 

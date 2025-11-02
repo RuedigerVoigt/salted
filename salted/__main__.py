@@ -14,7 +14,7 @@ import datetime
 import logging
 import pathlib
 import time
-from typing import Optional, Union
+from typing import Optional, Union, Set
 
 from importlib.metadata import version as pkg_version
 
@@ -28,6 +28,29 @@ from salted import input_handler
 from salted import memory_instance
 from salted import url_check
 from salted import report_generator
+from userprovided.parameters import separated_string_to_set
+from userprovided import url as user_url
+from userprovided import err as user_err
+
+
+def _normalize_url_set(raw: Optional[Set[str]]) -> Set[str]:
+    """Return a set of URLs in a normalized form suitable for matching.
+
+    Normalization ensures entries in ignore lists match the same canonical
+    form used when queueing URLs for checks.
+    """
+    if not raw:
+        return set()
+    normalized: Set[str] = set()
+    for u in raw:
+        try:
+            normalized.add(user_url.normalize_url(u))
+        except user_err.QueryKeyConflict:
+            normalized.add(user_url.normalize_url(u, do_not_change_query_part=True))
+        except Exception:
+            # If normalization fails unexpectedly, keep original entry
+            normalized.add(u)
+    return normalized
 
 
 class Salted:
@@ -117,9 +140,9 @@ class Salted:
                         self.raise_for_dead_links)
             self.user_agent = behavior.get('user_agent', self.user_agent)
             self.domain_delay = behavior.getfloat('domain_delay', self.domain_delay)
-            ignore_urls_str = behavior.get('ignore_urls')
-            if ignore_urls_str:
-                self.ignore_urls = set(ignore_urls_str.split(','))
+            parsed_ignores = separated_string_to_set(behavior.get('ignore_urls'))
+            if parsed_ignores is not None:
+                self.ignore_urls = parsed_ignores
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
             self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
@@ -202,12 +225,15 @@ class Salted:
 
         # ##### START CHECKS #####
 
+        # Normalize ignore list to align with normalized URLs in the queue
+        normalized_ignores = _normalize_url_set(self.ignore_urls)
+
         urls = url_check.UrlCheck(
             self.user_agent,
             db,
             self.num_workers,
             self.timeout,
-            self.ignore_urls,
+            normalized_ignores,
             self.domain_delay)
         urls.check_urls()
 
