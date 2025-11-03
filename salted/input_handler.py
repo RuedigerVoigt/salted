@@ -61,8 +61,7 @@ class InputHandler:
         except Exception as unexpected:  # pylint: disable=W0703
             self.db.log_file_access_error(
                 str(path_to_file), str(unexpected))
-        finally:  # pylint: disable=W0150
-            return content
+        return content
 
     def handle_found_urls(self,
                           file_path: pathlib.Path,

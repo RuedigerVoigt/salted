@@ -66,7 +66,7 @@ class Salted:
     VERSION = pkg_version("salted")
     CONFIG_NAME = 'salted-linkcheck.ini'
     # Release date kept for compatibility dependency, not exposed
-    RELEASE_DATE = datetime.date(2025, 11, 2)
+    RELEASE_DATE = datetime.date(2025, 11, 3)
 
     def __init__(self) -> None:
 
@@ -287,3 +287,8 @@ class Salted:
                 raise err.DeadLinksException("Found dead URLs")
         cache_handler.overwrite_cache_file()
         mem_instance.tear_down_in_memory_db()
+
+
+if __name__ == '__main__':
+    from salted.command_line import main
+    main()

@@ -1,5 +1,9 @@
 # Changelog for salted
 
+## Version 1.0.1 (2025-11-03)
+
+* Fix CLI-bug not caught by tests
+
 ## Version 1.0.0 (2025-11-03)
 
 * Supported Python versions:

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "salted"
-version = "1.0.0"
+version = "1.0.1"
 description = "Smart, Asynchronous Link Tester with Database backend"
 authors = ["Rüdiger Voigt <projects@ruediger-voigt.eu>"]
 license = "Apache-2.0"
