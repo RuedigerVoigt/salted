@@ -18,8 +18,10 @@ from salted import memory_instance
 
 
 class ReportGenerator:
-    """Generates a report about broken links and redirects for display.
-       Reports can be styled using Jinja2 templates."""
+    """Generate reports about broken links and redirects.
+
+    Reports can be styled using Jinja2 templates.
+    """
 
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
@@ -32,8 +34,17 @@ class ReportGenerator:
 
     def rewrite_path(self,
                      path_to_rewrite: str) -> str:
-        """In a given path, replace the path to the folder
-           with the base URL."""
+        """Rewrite a file path by replacing it with the base URL.
+
+        Args:
+            path_to_rewrite: The file path to rewrite.
+
+        Returns:
+            The path with the folder path replaced by the base URL.
+
+        Raises:
+            ValueError: If path_to_be_replaced or replace_with_url is not set.
+        """
         # Silence mypy index error, because this assures the values
         # are available:
         if not self.replace_path_by_url['path_to_be_replaced']:  # type: ignore
@@ -47,9 +58,12 @@ class ReportGenerator:
             1)
 
     def generate_access_error_list(self) -> Optional[list]:
-        """If there were errors reading the files (FileNotFoundError, ...)
-           return a list of dictionaries containing the file path
-           and the reason."""
+        """Generate a list of file access errors.
+
+        Returns:
+            List of dictionaries containing 'path' and 'problem' keys,
+            or None if no access errors occurred.
+        """
         cursor = self.db.get_cursor()
         cursor.execute(
             '''SELECT filePath, problem
@@ -63,9 +77,15 @@ class ReportGenerator:
         return result
 
     def generate_error_list(self) -> Optional[list]:
-        """If the crawl found hyperlinks that yield permanent errors, return
-           a list of dictionaries containing the file path, the number of
-           permanent errors in that file, and a list of the actual errors."""
+        """Generate a list of permanent link errors.
+
+        Returns:
+            List of dictionaries containing:
+                - path: File path (rewritten if base_url is set)
+                - num_errors: Number of errors in the file
+                - defects: List of (url, linktext, httpCode) tuples
+            Returns None if no permanent errors were found.
+        """
         cursor = self.db.get_cursor()
         result = list()
         cursor.execute(
@@ -90,9 +110,15 @@ class ReportGenerator:
         return result
 
     def generate_redirect_list(self) -> Optional[list]:
-        """If the crawl found hyperlinks that yield permanent redirects, return
-           a list of dictionaries containing the file path, the number of
-           permanent redirects in that file, and a list of the redirects."""
+        """Generate a list of permanent redirects.
+
+        Returns:
+            List of dictionaries containing:
+                - path: File path (rewritten if base_url is set)
+                - num_redirects: Number of redirects in the file
+                - redirects: List of (url, linktext, httpCode) tuples
+            Returns None if no permanent redirects were found.
+        """
         cursor = self.db.get_cursor()
         result = list()
         cursor.execute(
@@ -117,10 +143,15 @@ class ReportGenerator:
         return result
 
     def generate_exception_list(self) -> Optional[list]:
-        """If it was not possible due to exceptions to check or more links,
-           return a list of dictionaries containing the file path, the number
-           of exception causing links in that file, and a list of the
-           actual exceptions."""
+        """Generate a list of exceptions that occurred during link checking.
+
+        Returns:
+            List of dictionaries containing:
+                - path: File path (rewritten if base_url is set)
+                - num_exceptions: Number of exceptions in the file
+                - exceptions: List of (url, linktext, reason) tuples
+            Returns None if no exceptions occurred.
+        """
         cursor = self.db.get_cursor()
         result = list()
         cursor.execute(
@@ -150,9 +181,21 @@ class ReportGenerator:
                         write_to: Union[str, pathlib.Path],
                         replace_path_by_url: Union[dict, None] = None
                         ) -> None:
-        """Generate the report for the user with a Jinja2 template.
-           Either display it at the command line interface or write
-           it to a file. """
+        """Generate and output the final report.
+
+        Renders a Jinja2 template with link checking results and either
+        displays it to the CLI or writes it to a file.
+
+        Args:
+            statistics: Dictionary containing statistics about the check.
+            template: Dictionary with 'name' and optionally 'searchpath' keys.
+            write_to: Output destination - 'cli' for stdout or a file path.
+            replace_path_by_url: Optional dictionary with 'path_to_be_replaced'
+                and 'replace_with_url' keys for path rewriting.
+
+        Raises:
+            Exception: If writing to file fails.
+        """
         # The base URL is always given. Invalidate the parameter if no
         # replacement is provided.
         if not replace_path_by_url['replace_with_url']:  # type: ignore[index]

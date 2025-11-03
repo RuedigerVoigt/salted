@@ -18,7 +18,7 @@ from pybtex.database import parse_string # type: ignore
 
 
 class Parser():
-    "Methods to extract hyperlinks and mail addresses from different formats."
+    """Methods to extract hyperlinks and mail addresses from different formats."""
 
     def __init__(self) -> None:
 
@@ -43,7 +43,14 @@ class Parser():
 
     @staticmethod
     def extract_links_from_html(file_content: str) -> list:
-        """Extract all links from a HTML file."""
+        """Extract all links from a HTML file.
+
+        Args:
+            file_content: HTML file content as a string.
+
+        Returns:
+            List of [url, linktext] pairs extracted from anchor tags.
+        """
         matches = []
         soup = BeautifulSoup(file_content, 'html.parser')
         for link in soup.find_all('a'):
@@ -56,7 +63,15 @@ class Parser():
     def extract_links_from_markdown(self,
                                     file_content: str) -> list:
         """Extract all links from a Markdown file.
-        Returns a list of lists: [[url, linktext], [url, linktext]]"""
+
+        Supports both [text](url) and <url> syntax.
+
+        Args:
+            file_content: Markdown file content as a string.
+
+        Returns:
+            List of [url, linktext] pairs extracted from the markdown.
+        """
         matches = []
         md_links_in_file = re.findall(self.pattern_md_link, file_content)
         for match in md_links_in_file:
@@ -69,8 +84,16 @@ class Parser():
 
     def extract_links_from_tex(self,
                                file_content: str) -> list:
-        """Extract all links from a .tex file.
-        Returns a list of lists: [[url, linktext], [url, linktext]]"""
+        """Extract all links from a TeX file.
+
+        Supports \\url{url} and \\href{url}{text} commands.
+
+        Args:
+            file_content: TeX file content as a string.
+
+        Returns:
+            List of [url, linktext] pairs extracted from hyperref commands.
+        """
         matches = []
         # extract class \href{url}{text} links
         href_in_file = re.findall(self.pattern_latex_href, file_content)
@@ -86,12 +109,18 @@ class Parser():
 
     @staticmethod
     def extract_links_from_bib(file_content: str) -> list:
-        """Extract all URLs and DOIs from a .bib file.
-           Returns a list of two lists:
-           * The first one in the format [[url, text], [url, text]] - with text
-             being the key-value of the bibtex-entry and the respective field.
-           * The second one in the format [[doi, text], [doi, text]] - text
-             being the key-value of the bibtex-entry and the field."""
+        """Extract all URLs and DOIs from a BibTeX file.
+
+        Args:
+            file_content: BibTeX file content as a string.
+
+        Returns:
+            List containing two lists:
+                - First list: [[url, text], [url, text]] where text is the
+                  bibtex entry key and field name.
+                - Second list: [[doi, text], [doi, text]] where text is the
+                  bibtex entry key and field name.
+        """
         url_list = []
         doi_list = []
         bib_data = parse_string(file_content, bib_format='bibtex')
@@ -114,8 +143,16 @@ class Parser():
 
     @staticmethod
     def extract_mails_from_mailto(mailto_link: str) -> None:
-        """A single mailto link can contain *multiple* mail addresses.
-           Extract them and return them as a list."""
+        """Extract mail addresses from a mailto link.
+
+        A single mailto link can contain multiple mail addresses.
+
+        Args:
+            mailto_link: The mailto URL string to parse.
+
+        Returns:
+            List of email addresses extracted from the mailto link.
+        """
         mailto_link = mailto_link[7:]  # cut off the mailto: part
         # TO DO
         pass

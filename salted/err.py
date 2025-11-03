@@ -11,11 +11,14 @@ Released under the Apache License 2.0
 
 
 class SaltedException(Exception):
-    "An exception occured"
+    """Base exception for salted-specific errors."""
     def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         Exception.__init__(self, *args, **kwargs)
 
 
 class DeadLinksException(SaltedException):
-    """Raised if dead links are found and the settings require raising
-       an exception for them."""
+    """Raised when dead links are found and raise_for_dead_links is enabled.
+
+    This exception is raised if dead links are found and the configuration
+    requires raising an exception for them (typically in CI/CD pipelines).
+    """

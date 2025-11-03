@@ -24,7 +24,7 @@ from salted import parser
 
 
 class InputHandler:
-    """read files and extract the hyperlinks inside them."""
+    """Read files and extract the hyperlinks inside them."""
 
     def __init__(self,
                  db: database_io.DatabaseIO):
@@ -34,7 +34,14 @@ class InputHandler:
 
     def read_file_content(self,
                           path_to_file: pathlib.Path) -> Optional[str]:
-        "Return the file content or log an error if file cannot be accessed."
+        """Return the file content or log an error if file cannot be accessed.
+
+        Args:
+            path_to_file: Path to the file to read.
+
+        Returns:
+            File content as a string, or None if the file could not be read.
+        """
         content: Optional[str] = None
         try:
             with open(path_to_file, 'r') as code:
@@ -60,8 +67,14 @@ class InputHandler:
     def handle_found_urls(self,
                           file_path: pathlib.Path,
                           url_list: list) -> None:
-        """Extract all hyperlinks from url_list, normalize them and
-           add them to test queue."""
+        """Extract all hyperlinks from url_list and add them to the test queue.
+
+        Normalizes URLs to eliminate duplicates before adding to queue.
+
+        Args:
+            file_path: Path to the file where URLs were found.
+            url_list: List of [url, linktext] pairs extracted from the file.
+        """
 
         links_found: list = []
         mailto_found: list = []
@@ -118,8 +131,14 @@ class InputHandler:
     def handle_found_dois(self,
                           file_path: pathlib.Path,
                           doi_list: list) -> None:
-        """Change the DOI list into the needed format and send it piecewise
-           to the database."""
+        """Convert DOI list to the needed format and save to database.
+
+        Sends DOIs to the database in batches for performance.
+
+        Args:
+            file_path: Path to the file where DOIs were found.
+            doi_list: List of [doi, text] pairs extracted from the file.
+        """
         if not doi_list:
             return None
         # The parser generated a list in the format [[doi, text], [doi, text]]
@@ -144,8 +163,14 @@ class InputHandler:
 
     def scan_files(self,
                    files_to_check: List[pathlib.Path]) -> None:
-        """Scan each file within a list of paths for hyperlinks and DOIs.
-           Write those to the SQLite database. """
+        """Scan files for hyperlinks and DOIs.
+
+        Scans each file in the provided list, extracts URLs and DOIs,
+        and writes them to the SQLite database.
+
+        Args:
+            files_to_check: List of file paths to scan for links.
+        """
         if not files_to_check:
             logging.warning('No files to check')
             return None

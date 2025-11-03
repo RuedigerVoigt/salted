@@ -55,7 +55,12 @@ class DatabaseIO:
 
     def save_found_dois(self,
                         dois_found: list) -> None:
-        "Save a list of DOIs into the in memory database."
+        """Save a list of DOIs into the in memory database.
+
+        Args:
+            dois_found: List of tuples containing DOI information
+                (filePath, doi, description).
+        """
         if not dois_found:
             logging.debug('No DOI in this file to save them.')
             return None
@@ -66,13 +71,20 @@ class DatabaseIO:
         return None
 
     def urls_to_check(self) -> Optional[list]:
-        "Return a list of all distinct URLs to check."
+        """Return a list of all distinct URLs to check.
+
+        Returns:
+            List of tuples containing distinct normalized URLs, or None if empty.
+        """
         self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
         return self.cursor.fetchall()
 
     def get_dois_to_check(self) -> Optional[list]:
-        """Return all DOI that are not validated yet or None
-           if DOI queue is empty."""
+        """Return all DOIs that are not validated yet.
+
+        Returns:
+            List of DOI strings, or None if DOI queue is empty.
+        """
         # Maybe replace it with a generator but for several thousnad DOIs
         # this way should be no problem!
         self.cursor.execute('SELECT DISTINCT doi FROM queue_doi;')
@@ -82,8 +94,11 @@ class DatabaseIO:
 
     def log_url_is_fine(self,
                         url: str) -> None:
-        """If a request to an URL returns a HTTP status code that indicates a
-           working hyperlink, note that with a timestamp."""
+        """Log a URL as valid with a timestamp.
+
+        Args:
+            url: The normalized URL that returned a successful HTTP status code.
+        """
         self.cursor.execute('''
             INSERT INTO validUrls
             (normalizedUrl, lastValid)
@@ -91,30 +106,53 @@ class DatabaseIO:
 
     def save_valid_dois(self, valid_dois: list) -> None:
         """Permanently store a list of valid DOIs in the cache.
-           Contrary to URLs, DOIs are made to be persistent - so no need
-           to recheck them once they have been validated."""
+
+        Contrary to URLs, DOIs are made to be persistent identifiers,
+        so no need to recheck them once they have been validated.
+
+        Args:
+            valid_dois: List of validated DOI strings to store in cache.
+        """
         # TO DO: batches!!
         self.cursor.executemany('''
         INSERT OR IGNORE INTO validDois (doi) VALUES (?);''', valid_dois)
 
     def log_invalid_dois(self,
                          invalid_dois: list) -> None:
-        "Log an invalid DOI."
+        """Log an invalid DOI.
+
+        Args:
+            invalid_dois: List of invalid DOI strings to log.
+        """
         # TO DO
         pass
 
     def log_error(self,
                   url: str,
                   error_code: int) -> None:
-        """An error is logged for HTTP status codes that indicate a permanently
-           broken link like '404 - File Not found' or '410 Gone'."""
+        """Log a permanent error for a URL.
+
+        An error is logged for HTTP status codes that indicate a permanently
+        broken link like '404 - File Not found' or '410 Gone'.
+
+        Args:
+            url: The normalized URL that returned an error.
+            error_code: HTTP status code indicating the error type.
+        """
         self.cursor.execute('INSERT INTO errors VALUES (?, ?);',
                             [url, error_code])
 
     def log_redirect(self,
                      url: str,
                      code: int) -> None:
-        """Logs permanent redirects. Those links *should* be fixed. """
+        """Log permanent redirects.
+
+        Those links *should* be fixed.
+
+        Args:
+            url: The normalized URL that returned a redirect.
+            code: HTTP status code indicating the redirect type (e.g., 301, 308).
+        """
         self.cursor.execute('''INSERT INTO permanentRedirects
                                (normalizedUrl, error)
                                VALUES (?, ?);''', [url, code])
@@ -122,23 +160,37 @@ class DatabaseIO:
     def log_exception(self,
                       url: str,
                       exception_str: str) -> None:
-        """An exception is logged if it was not possible to check
-           a specific URL."""
+        """Log an exception that occurred while checking a URL.
+
+        Args:
+            url: The normalized URL that caused the exception.
+            exception_str: String representation of the exception.
+        """
         self.cursor.execute('''INSERT INTO exceptions VALUES (?, ?);''',
                             [url, exception_str])
 
     def log_file_access_error(self,
                               file_path: str,
                               reason: str) -> None:
-        "Log the reason if a file cannot be read."
+        """Log the reason if a file cannot be read.
+
+        Args:
+            file_path: Path to the file that could not be accessed.
+            reason: Description of why the file could not be accessed.
+        """
         self.cursor.execute(
             'INSERT INTO fileAccessErrors VALUES (?, ?);',
             [file_path, reason])
 
     def del_links_that_can_be_skipped(self) -> int:
-        """If links from a non-expired cache have been read, try to eliminate
-           them in the list of URLs to check.
-           Return the absolute number of (non-normalized) URLs to check."""
+        """Delete links from the check queue that are still valid in the cache.
+
+        If links from a non-expired cache have been read, eliminate them
+        from the list of URLs to check.
+
+        Returns:
+            The absolute number of (non-normalized) URLs still to check.
+        """
 
         self.cursor.execute('SELECT COUNT(*) FROM queue;')
         num_links_before = self.cursor.fetchone()[0]
@@ -160,7 +212,11 @@ class DatabaseIO:
         return num_links_after
 
     def del_dois_that_can_be_skipped(self) -> None:
-        "Delete DOI from the check queue which were already validated."
+        """Delete DOIs from the check queue that were already validated.
+
+        DOIs that have been previously validated are removed from the
+        queue to avoid redundant checks.
+        """
         self.cursor.execute('SELECT COUNT(*) FROM queue_doi;')
         num_dois_before = self.cursor.fetchone()[0]
 
@@ -175,14 +231,24 @@ class DatabaseIO:
                          (num_dois_before - num_dois_after))
 
     def count_errors(self) -> int:
-        "Return the number of errors."
+        """Return the number of errors.
+
+        Returns:
+            Total count of logged errors.
+        """
         self.cursor.execute('SELECT COUNT(*) FROM errors;')
         return self.cursor.fetchone()[0]
 
     def list_errors(self,
                     error_code: int) -> list:
-        """Return a list of normalized URLs that yield a specific
-           error code (from the HTTP status codes)."""
+        """Return a list of normalized URLs that yield a specific error code.
+
+        Args:
+            error_code: HTTP status code to filter by (e.g., 404, 410).
+
+        Returns:
+            List of tuples containing normalized URLs with the specified error code.
+        """
         self.cursor.execute('''SELECT normalizedUrl
                           FROM errors
                           WHERE error = ?;''', [error_code])

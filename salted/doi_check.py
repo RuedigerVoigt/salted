@@ -56,7 +56,7 @@ class DoiCheck:
         self.session = aiohttp.ClientSession()
 
     async def __close_session(self) -> None:
-        "Close the session object once it is no longer needed."
+        """Close the session object once it is no longer needed."""
         if self.session:
             await self.session.close()
 
@@ -64,9 +64,18 @@ class DoiCheck:
                                 max_queries: int,
                                 seconds: int
                                 ) -> None:
-        """Sleep long enough to keep the number of API requests within
-        the rate limit. Always taking into account the newest values provided
-        by the server."""
+        """Sleep to keep the number of API requests within the rate limit.
+
+        Always takes into account the newest rate limit values provided
+        by the server.
+
+        Args:
+            max_queries: Maximum number of queries allowed in the time window.
+            seconds: Time window in seconds for the rate limit.
+
+        Raises:
+            ValueError: If max_queries or seconds is less than 1.
+        """
 
         if max_queries < 1:
             raise ValueError('Parameter "max_queries" must be an integer > 0.')
@@ -88,9 +97,17 @@ class DoiCheck:
 
     async def __api_send_head_request(self,
                                       doi: str) -> dict:
-        """Send a HTTP Head request to the server and return the status code
-           (tells us if the DOI exists or not) plus information about the rate
-           limit."""
+        """Send a HTTP HEAD request to the CrossRef API.
+
+        Args:
+            doi: The DOI string to check.
+
+        Returns:
+            Dictionary containing:
+                - max_queries: Maximum queries allowed per time window.
+                - seconds: Time window in seconds.
+                - status: HTTP status code (200 if DOI exists, 404 if not).
+        """
         logging.debug("Sending head request to Crossref API: check %s", doi)
         # The HTTP HEAD method requests the headers, but not the page's body.
         # Requesting this way reduces load on the server and network traffic.
@@ -111,8 +128,14 @@ class DoiCheck:
     async def __worker(self,
                        name: str,
                        queue: asyncio.Queue) -> None:
-        """Worker: wait for the result of the API request and then wait long
-           enough to stay within the rate limit."""
+        """Worker coroutine to process DOI checks from the queue.
+
+        Waits for API request results and enforces rate limiting.
+
+        Args:
+            name: Worker identifier for debugging purposes.
+            queue: Async queue containing DOIs to check.
+        """
         # DO NOT REMOVE 'while True'. Without that the queue is stopped
         # after the first iteration.
         while True:
@@ -134,7 +157,11 @@ class DoiCheck:
 
     async def __distribute_work(self,
                                 doi_list: list) -> None:
-        """Start a queue and spawn workers to work in parallel."""
+        """Start a queue and spawn workers to work in parallel.
+
+        Args:
+            doi_list: List of DOI strings to check.
+        """
         queue: asyncio.Queue = asyncio.Queue()
         for entry in doi_list:
             queue.put_nowait(entry)
@@ -158,7 +185,10 @@ class DoiCheck:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_dois(self) -> None:
-        "Check the DOI in the queue and show a progress bar (sync wrapper)."
+        """Check the DOIs in the queue and show a progress bar.
+
+        Synchronous wrapper for the async DOI checking process.
+        """
         dois_to_check = self.db.get_dois_to_check()
         if not dois_to_check:
             logging.debug('No DOIs to check.')
@@ -175,7 +205,10 @@ class DoiCheck:
             self.db.log_invalid_dois([(doi, ) for doi in self.invalid_doi_list])
 
     async def check_dois_async(self) -> None:
-        """Async variant of check_dois for integration in async applications."""
+        """Check the DOIs in the queue asynchronously.
+
+        Async variant of check_dois for integration in async applications.
+        """
         dois_to_check = self.db.get_dois_to_check()
         if not dois_to_check:
             logging.debug('No DOIs to check.')

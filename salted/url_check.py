@@ -23,7 +23,7 @@ from salted.rate_limiter import DomainRateLimiter
 
 
 class UrlCheck:
-    "Interacts with the network to check URLs."
+    """Interact with the network to check URLs."""
     # pylint: disable=too-many-instance-attributes
 
     def __init__(self,
@@ -59,17 +59,27 @@ class UrlCheck:
         self.session = aiohttp.ClientSession()
 
     async def __close_session(self) -> None:
-        "Close the session object once it is no longer needed"
+        """Close the session object once it is no longer needed."""
         if self.session:
             await self.session.close()
 
     def __recommend_num_workers(self,
                                 num_checks: int) -> int:
-        """If the number of workers is set to 'automatic', this returns an
-           estimate an appropriate number of async workers to use - based on
-           the number of hyperlinks to check.
-           If the user provided a specific number of workers, that will be
-           returned instead."""
+        """Recommend the number of async workers to use.
+
+        If the number of workers is set to 'automatic', estimates an appropriate
+        number based on the number of hyperlinks to check. If the user provided
+        a specific number, that value is returned instead.
+
+        Args:
+            num_checks: Number of URLs to check.
+
+        Returns:
+            Recommended number of worker coroutines (4-64).
+
+        Raises:
+            ValueError: If num_checks is less than 1.
+        """
 
         if self.num_workers == 'automatic':
             if num_checks < 1:
@@ -94,9 +104,18 @@ class UrlCheck:
 
     async def head_request(self,
                            url: str) -> int:
-        """The HTTP HEAD method requests the headers, but not the body of
-           a page. Requesting this way reduces load on the server and
-           reduces network traffic. Falls back to GET if HEAD is not supported."""
+        """Send an HTTP HEAD request to check the URL.
+
+        The HTTP HEAD method requests headers but not the page body,
+        reducing server load and network traffic. Falls back to GET
+        if HEAD is not supported (405 Method Not Allowed).
+
+        Args:
+            url: The URL to check.
+
+        Returns:
+            HTTP status code from the response.
+        """
         # Try HEAD first
         async with self.session.head(url,
                                     headers=self.headers,
@@ -115,9 +134,15 @@ class UrlCheck:
 
     async def validate_url(self,
                            url: str) -> None:
-        """Check the URL by using a HTTP HEAD request (or if necessary a full
-           request with limited data read) to check the link and log the result
-           to the database. """
+        """Validate a URL and log the result to the database.
+
+        Uses HTTP HEAD request (or GET if necessary) to check the link.
+        Applies domain-based rate limiting and handles various HTTP status
+        codes and exceptions appropriately.
+
+        Args:
+            url: The URL to validate.
+        """
         if url in self.ignore_urls:
             self.cnt['ignored_urls'] += 1
             return
@@ -158,7 +183,12 @@ class UrlCheck:
     async def __worker(self,
                        name: str,
                        queue: asyncio.Queue) -> None:
-        "Worker of the queue."
+        """Worker coroutine to process URL checks from the queue.
+
+        Args:
+            name: Worker identifier for debugging purposes.
+            queue: Async queue containing URLs to check.
+        """
         # DO NOT REMOVE 'while True'. Without that the queue is stopped
         # after the first iteration.
         while True:
@@ -169,7 +199,11 @@ class UrlCheck:
 
     async def __distribute_work(self,
                                 urls_to_check: list) -> None:
-        "Start a queue and spawn workers to work in parallel."
+        """Start a queue and spawn workers to work in parallel.
+
+        Args:
+            urls_to_check: List of tuples containing URLs to validate.
+        """
         queue: asyncio.Queue = asyncio.Queue()
         for entry in urls_to_check:
             queue.put_nowait(entry[0])
@@ -193,7 +227,10 @@ class UrlCheck:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_urls(self) -> None:
-        "Process all URLs that are not assumed as valid in the cache."
+        """Process all URLs that are not assumed as valid in the cache.
+
+        Synchronous wrapper for the async URL checking process.
+        """
         urls_to_check = self.db.urls_to_check()
         if not urls_to_check:
             msg = ("No URLs to check after skipping cached results." +
@@ -213,7 +250,10 @@ class UrlCheck:
         self.pbar_links.close()
 
     async def check_urls_async(self) -> None:
-        """Async variant of check_urls for integration in async applications."""
+        """Check URLs asynchronously.
+
+        Async variant of check_urls for integration in async applications.
+        """
         urls_to_check = self.db.urls_to_check()
         if not urls_to_check:
             logging.info(

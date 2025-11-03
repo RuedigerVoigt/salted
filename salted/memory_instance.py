@@ -14,9 +14,10 @@ import sqlite3
 
 
 class MemoryInstance():
-    "Handles the in memory instance of the database"
+    """Handles the in-memory instance of the database."""
+
     def __init__(self) -> None:
-        "Initialize the in memory instance of sqlite"
+        """Initialize the in-memory instance of SQLite."""
         logging.debug('Initializing in memory database.')
         self.conn = sqlite3.connect(
             ':memory:',
@@ -26,21 +27,28 @@ class MemoryInstance():
         self.create_schema()
 
     def get_cursor(self) -> sqlite3.Cursor:
-        """Returns a valid cursor. Is used by the report generator that
-           directly accesses the database outside this class.
-           If user reuse the object a new database is created and in that case
-           the old cursor is invalid."""
+        """Return a valid cursor for database operations.
+
+        Used by the report generator to directly access the database.
+        If the object is reused, a new database is created and the old
+        cursor becomes invalid.
+
+        Returns:
+            SQLite cursor object for executing queries.
+        """
         return self.cursor
 
     def tear_down_in_memory_db(self) -> None:
-        """If there is an active in memory instance, close the connection.
-           All data not stored elsewhere will be lost."""
+        """Close the in-memory database connection.
+
+        All data not stored elsewhere will be lost.
+        """
         if self.conn:
             logging.debug("tear down in memory instance")
             self.conn.close()
 
     def create_schema(self) -> None:
-        """Create the SQLite database schema. """
+        """Create the SQLite database schema."""
         # Table 'queue': URLs to be tested
         self.cursor.execute('''
             CREATE TABLE queue (
@@ -92,8 +100,11 @@ class MemoryInstance():
         logging.debug("Created database schema.")
 
     def generate_indices(self) -> None:
-        """Add indices to the in memory database. This is not done on creation
-           for performance reasons."""
+        """Add indices to the in-memory database.
+
+        This is not done during schema creation for performance reasons.
+        Indices are created after the table is populated.
+        """
         # While adding links to the database the index is not needed,
         # but would be updated with every insert. It is faster to create it
         # once the table has it contents.
@@ -109,7 +120,11 @@ class MemoryInstance():
             ON validDois (doi);''')
 
     def generate_db_views(self) -> None:
-        """ Generate Views for Analytics and Output Generating."""
+        """Generate database views for analytics and output generation.
+
+        Creates views to aggregate errors, redirects, and exceptions by file.
+        These views are used by the report generator.
+        """
         # Separate function to execute after all links have been checked
         # and the respective tables are stable."""
         logging.debug('Generating database views')
