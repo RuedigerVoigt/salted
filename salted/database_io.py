@@ -202,13 +202,9 @@ class DatabaseIO:
         self.cursor.execute('SELECT COUNT(*) FROM queue;')
         num_links_after = self.cursor.fetchone()[0]
 
-        # if num_links_before > num_links_after:
-        #     msg = (f"Tests for {num_links_before - num_links_after} " +
-        #            "hyperlinks skipped - they checked out valid within " +
-        #            f"the last {self.dont_check_again_within_hours} " +
-        #            "hours.\n" +
-        #            f"{num_links_after} unique links have to be tested.")
-        #     logging.info(msg)
+        if num_links_before > num_links_after:
+            num_skipped = num_links_before - num_links_after
+            print(f"Skipped {num_skipped} cached URL{'s' if num_skipped != 1 else ''} (still valid in cache)")
         return num_links_after
 
     def del_dois_that_can_be_skipped(self) -> None:
@@ -227,8 +223,8 @@ class DatabaseIO:
         num_dois_after = self.cursor.fetchone()[0]
 
         if num_dois_before > num_dois_after:
-            logging.info("Skipped tests for %s DOIs: already validated!",
-                         (num_dois_before - num_dois_after))
+            num_skipped = num_dois_before - num_dois_after
+            print(f"Skipped {num_skipped} cached DOI{'s' if num_skipped != 1 else ''} (already validated)")
 
     def count_errors(self) -> int:
         """Return the number of errors.

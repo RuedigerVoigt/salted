@@ -1,8 +1,13 @@
 # Changelog for salted
 
-## Version 1.0.1 (2025-11-03)
+## Version 1.0.1 (2025-11-04)
 
-* Fix CLI-bug not caught by tests
+* Bug Fixes:
+  * Fix `python -m salted` not working - module was missing entry point that calls the CLI
+  * Fix path handling bug where trailing backslashes in quoted paths (e.g., `"C:\path\"`) caused the closing quote to be included in the path, resulting in FileNotFoundError
+  * Check this behavior with new tests.
+* Improvements:
+  * Add feedback message when cached URLs/DOIs can be skipped to speed up tests (e.g., "Skipped 238 cached URLs (still valid in cache)")
 
 ## Version 1.0.0 (2025-11-03)
 

@@ -192,6 +192,13 @@ class Salted:
 
         cache_handler.load_disk_cache()
 
+        # Normalize path: strip quotes and resolve
+        # This handles cases like 'C:\path\"' where trailing backslash
+        # escapes the quote on Windows
+        if isinstance(searchpath, str):
+            # Strip leading/trailing quotes that may have been preserved
+            searchpath = searchpath.strip('"').strip("'")
+
         # Expand path as otherwise a relative path will not be rewritten
         # in output:
         path = pathlib.Path(searchpath).resolve()

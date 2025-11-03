@@ -126,7 +126,10 @@ def main() -> None:
     # Settings on the command line interface shall override any setting in a
     # configfile and defaults. So if anything was set here, use it to override:
     if args.searchpath:
-        checker.searchpath = pathlib.Path(args.searchpath)
+        # Strip quotes that may be preserved due to trailing backslash escaping
+        # e.g., "C:\path\" becomes "C:\path\"" on Windows
+        searchpath_str = str(args.searchpath).strip('"').strip("'")
+        checker.searchpath = pathlib.Path(searchpath_str)
     if args.file_types:
         checker.file_types = args.file_types
 
