@@ -74,3 +74,10 @@ console_output_style = "classic"
 python_files = "test_*.py"
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+
+[tool.coverage.run]
+branch = true
+source = ["salted"]
+
+[tool.coverage.html]
+title = "Coverage Report for the salted Python Package"

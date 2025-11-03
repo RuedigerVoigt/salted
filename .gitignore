@@ -1,5 +1,12 @@
 # Cache for salted link checker
 salted-cache.sqlite3
+test-cache*.sqlite3
+
+# Test/temporary files
+test_report.txt
+cli_output.txt
+full_cli_output.txt
+NUL
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -49,6 +56,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage_report.txt
 *.cover
 *.py,cover
 .hypothesis/
