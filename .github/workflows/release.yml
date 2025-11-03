@@ -1,0 +1,44 @@
+name: Release / Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+
+jobs:
+  pypi-publish:
+    name: upload release to PyPI
+    runs-on: ubuntu-latest
+    if: github.event.release.target_commitish == 'main'
+    # Specifying a GitHub environment is optional, but strongly encouraged
+    environment: pypi
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Build package
+        run: poetry build
+
+      - name: Install Twine
+        run: pip install twine
+
+      - name: Validate built distributions with Twine
+        run: twine check dist/*
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
