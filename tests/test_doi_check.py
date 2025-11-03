@@ -358,9 +358,8 @@ class TestCheckDois:
         db_mock.save_valid_dois.assert_not_called()
         db_mock.log_invalid_dois.assert_not_called()
 
-    @patch('salted.doi_check.asyncio.run')
     @patch('salted.doi_check.tqdm')
-    def test_check_dois_with_dois(self, mock_tqdm, mock_asyncio_run):
+    def test_check_dois_with_dois(self, mock_tqdm):
         """Test check_dois with DOIs to process"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         db_mock.get_dois_to_check = Mock(return_value=['10.1234/test1', '10.1234/test2'])
@@ -368,6 +367,9 @@ class TestCheckDois:
         db_mock.log_invalid_dois = Mock()
 
         doi_checker = DoiCheck(db_mock)
+
+        # Mock the distribute_work method to avoid actual async execution
+        doi_checker._DoiCheck__distribute_work = AsyncMock()
 
         # Simulate some valid and invalid DOIs
         doi_checker.valid_doi_list = ['10.1234/test1']
@@ -379,15 +381,14 @@ class TestCheckDois:
         assert mock_tqdm.called
 
         # Verify async distribute_work was called
-        assert mock_asyncio_run.called
+        doi_checker._DoiCheck__distribute_work.assert_called_once()
 
         # Verify database was updated
         db_mock.save_valid_dois.assert_called_once()
         db_mock.log_invalid_dois.assert_called_once()
 
-    @patch('salted.doi_check.asyncio.run')
     @patch('salted.doi_check.tqdm')
-    def test_check_dois_only_valid(self, mock_tqdm, mock_asyncio_run):
+    def test_check_dois_only_valid(self, mock_tqdm):
         """Test check_dois with only valid DOIs"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         db_mock.get_dois_to_check = Mock(return_value=['10.1234/test1'])
@@ -395,6 +396,8 @@ class TestCheckDois:
         db_mock.log_invalid_dois = Mock()
 
         doi_checker = DoiCheck(db_mock)
+        # Mock the distribute_work method to avoid actual async execution
+        doi_checker._DoiCheck__distribute_work = AsyncMock()
         doi_checker.valid_doi_list = ['10.1234/test1']
 
         doi_checker.check_dois()
@@ -403,9 +406,8 @@ class TestCheckDois:
         db_mock.save_valid_dois.assert_called_once()
         db_mock.log_invalid_dois.assert_not_called()
 
-    @patch('salted.doi_check.asyncio.run')
     @patch('salted.doi_check.tqdm')
-    def test_check_dois_only_invalid(self, mock_tqdm, mock_asyncio_run):
+    def test_check_dois_only_invalid(self, mock_tqdm):
         """Test check_dois with only invalid DOIs"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         db_mock.get_dois_to_check = Mock(return_value=['10.1234/invalid'])
@@ -413,6 +415,8 @@ class TestCheckDois:
         db_mock.log_invalid_dois = Mock()
 
         doi_checker = DoiCheck(db_mock)
+        # Mock the distribute_work method to avoid actual async execution
+        doi_checker._DoiCheck__distribute_work = AsyncMock()
         doi_checker.invalid_doi_list = ['10.1234/invalid']
 
         doi_checker.check_dois()

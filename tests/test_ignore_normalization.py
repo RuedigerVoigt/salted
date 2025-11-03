@@ -28,7 +28,7 @@ class FakeUrlCheck:
         return None
 
 
-def test_ignore_urls_are_normalized(tmp_path):
+def test_ignore_urls_are_normalized(tmp_path, monkeypatch):
     # Arrange: create a simple HTML file to ensure the pipeline runs
     d = tmp_path / "sample"
     d.mkdir()
@@ -36,7 +36,7 @@ def test_ignore_urls_are_normalized(tmp_path):
     p.write_text("<a href='https://example.com/?x=1'>x</a>")
 
     # Write a config with a messy ignore entry (unsorted query, spaces)
-    cfg = d / 'salted-linkcheck.ini'
+    cfg = tmp_path / 'salted-linkcheck.ini'
     cfg.write_text("""
 [BEHAVIOR]
 ignore_urls =  https://example.com/?b=2&a=1 ,
@@ -44,6 +44,8 @@ ignore_urls =  https://example.com/?b=2&a=1 ,
     )
 
     # Act: run check with UrlCheck patched to our fake
+    # Change to tmp_path so config file is found
+    monkeypatch.chdir(tmp_path)
     with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.check(d)
