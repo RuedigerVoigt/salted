@@ -322,3 +322,75 @@ class TestGenerateErrorListWithPathRewriting:
         assert result is not None
         assert result[0]['path'] == 'http://example.com.html'
         mem_inst.tear_down_in_memory_db()
+
+
+class TestGenerateReport:
+    """Test report generation with different templates and outputs"""
+
+    def test_generate_report_with_custom_template(self, tmp_path):
+        """Test generating report with custom template from file system"""
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+
+        # Create a custom template
+        template_dir = tmp_path / "templates"
+        template_dir.mkdir()
+        template_file = template_dir / "custom.jinja"
+        template_file.write_text("Statistics: {{ statistics.num_links }}")
+
+        gen.generate_report(
+            statistics={'num_links': 10},
+            template={
+                'searchpath': str(template_dir),
+                'name': 'custom.jinja'
+            },
+            write_to='cli',
+            replace_path_by_url={'replace_with_url': None}
+        )
+        mem_inst.tear_down_in_memory_db()
+
+    def test_generate_report_write_to_file(self, tmp_path):
+        """Test writing report to file"""
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+
+        output_file = tmp_path / "report.txt"
+
+        gen.generate_report(
+            statistics={
+                'timestamp': '2025-01-01 12:00h',
+                'num_links': 10,
+                'num_checked': 5,
+                'time_to_check': 1,
+                'checks_per_second': 5.0,
+                'num_fine': 5,
+                'needed_full_request': 0,
+                'percentage_full_request': 0
+            },
+            template={'name': 'default.cli.jinja'},
+            write_to=str(output_file),
+            replace_path_by_url={'replace_with_url': None}
+        )
+
+        # Verify file was created
+        assert output_file.exists()
+        mem_inst.tear_down_in_memory_db()
+
+    def test_generate_report_write_to_file_exception(self, tmp_path):
+        """Test exception handling when writing to file fails"""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+
+        # Try to write to an invalid path (directory doesn't exist)
+        invalid_path = tmp_path / "nonexistent" / "report.txt"
+
+        with pytest.raises(Exception):
+            gen.generate_report(
+                statistics={'num_links': 10},
+                template={'name': 'default.cli.jinja'},
+                write_to=str(invalid_path),
+                replace_path_by_url={'replace_with_url': None}
+            )
+        mem_inst.tear_down_in_memory_db()

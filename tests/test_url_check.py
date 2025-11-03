@@ -8,7 +8,7 @@ Focuses on testing previously untested components with mocking.
 
 import asyncio
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 import aiohttp
 from aiohttp import ClientSession, ClientResponse, ClientTimeout
@@ -301,9 +301,57 @@ class TestSessionManagement:
     async def test_close_session_none(self, url_checker):
         """Test closing when session is None (shouldn't crash)."""
         url_checker.session = None
-        
+
         # Should not raise exception
         await url_checker._UrlCheck__close_session()
+
+
+class TestCheckUrlsAsync:
+    """Test async check_urls_async method"""
+
+    @pytest.mark.asyncio
+    async def test_check_urls_async_no_urls(self):
+        """Test check_urls_async when there are no URLs to check"""
+        mock_db = Mock(spec=database_io.DatabaseIO)
+        mock_db.urls_to_check = Mock(return_value=None)
+
+        url_checker = url_check.UrlCheck(
+            user_agent="test",
+            db=mock_db,
+            workers=4,
+            timeout_sec=5
+        )
+
+        # Should return early without error (no exception raised)
+        await url_checker.check_urls_async()
+
+    @pytest.mark.asyncio
+    @patch('salted.url_check.tqdm')
+    async def test_check_urls_async_with_urls(self, mock_tqdm):
+        """Test check_urls_async with URLs to process"""
+        mock_db = Mock(spec=database_io.DatabaseIO)
+        mock_db.urls_to_check = Mock(return_value=[
+            ('https://example.com',),
+            ('https://test.com',)
+        ])
+
+        url_checker = url_check.UrlCheck(
+            user_agent="test",
+            db=mock_db,
+            workers=4,
+            timeout_sec=5
+        )
+
+        # Mock the distribute_work method to avoid actual async execution
+        url_checker._UrlCheck__distribute_work = AsyncMock()
+
+        await url_checker.check_urls_async()
+
+        # Verify progress bar was created
+        assert mock_tqdm.called
+
+        # Verify async distribute_work was called
+        url_checker._UrlCheck__distribute_work.assert_called_once()
 
 
 if __name__ == "__main__":

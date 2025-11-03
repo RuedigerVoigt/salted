@@ -150,7 +150,9 @@ def main() -> None:
             checker.user_agent = args.user_agent
     if args.ignore_urls:
         # Parse comma-separated values into a clean set using userprovided helper
-        checker.ignore_urls = separated_string_to_set(args.ignore_urls)
+        parsed_ignores = separated_string_to_set(args.ignore_urls)
+        if parsed_ignores is not None:
+            checker.ignore_urls = parsed_ignores
     if args.domain_delay is not None:
         checker.domain_delay = args.domain_delay
 
