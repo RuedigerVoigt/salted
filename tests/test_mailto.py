@@ -74,16 +74,6 @@ class NoopDoiCheck:
         return None
 
 
-captured_mailto = None
-
-
-def capture_report(statistics, template, write_to, replace_path_by_url):
-    global captured_mailto
-    # We need to reach into the report generator's generate_mailto_list output.
-    # We do this by patching generate_report itself and calling generate_mailto_list
-    # directly before; easier: just capture via the template render side-effect.
-    pass
-
 
 def test_empty_mailto_flagged_as_invalid(tmp_path):
     """A bare mailto: with no address hits the empty-address branch."""
