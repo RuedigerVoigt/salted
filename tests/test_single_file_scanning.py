@@ -16,7 +16,7 @@ class FakeUrlCheck:
 
     last_urls = None
 
-    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls, domain_delay):
+    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls, domain_delay, quiet=False):
         # Store db handle so check_urls can inspect queued URLs
         self.db = db
         self.cnt = {
@@ -35,7 +35,7 @@ class FakeUrlCheck:
 class NoopDoiCheck:
     """Skip DOI checks to avoid network and progress bars in tests."""
 
-    def __init__(self, db):
+    def __init__(self, db, quiet=False):
         pass
 
     def check_dois(self):
@@ -86,4 +86,67 @@ def test_directory_mode_still_enqueues_urls(tmp_path):
 
     assert FakeUrlCheck.last_urls is not None
     assert len(FakeUrlCheck.last_urls) == 2
+
+
+def test_file_types_html_excludes_markdown(tmp_path):
+    """--file_types html should only scan HTML files, not Markdown."""
+    dir_path = tmp_path / 'mixed'
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    (dir_path / 'page.html').write_text(
+        "<html><body><a href='https://html-link.example.com/'>x</a></body></html>")
+    (dir_path / 'notes.md').write_text(
+        "[link](https://markdown-link.example.com/)")
+
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+        checker = salted.Salted()
+        checker.file_types = 'html'
+        checker.check(dir_path)
+
+    urls = [u[0] for u in FakeUrlCheck.last_urls] if FakeUrlCheck.last_urls else []
+    assert any('html-link' in u for u in urls)
+    assert not any('markdown-link' in u for u in urls)
+
+
+def test_file_types_markdown_excludes_html(tmp_path):
+    """--file_types markdown should only scan Markdown files, not HTML."""
+    dir_path = tmp_path / 'mixed'
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    (dir_path / 'page.html').write_text(
+        "<html><body><a href='https://html-link.example.com/'>x</a></body></html>")
+    (dir_path / 'notes.md').write_text(
+        "[link](https://markdown-link.example.com/)")
+
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+        checker = salted.Salted()
+        checker.file_types = 'markdown'
+        checker.check(dir_path)
+
+    urls = [u[0] for u in FakeUrlCheck.last_urls] if FakeUrlCheck.last_urls else []
+    assert any('markdown-link' in u for u in urls)
+    assert not any('html-link' in u for u in urls)
+
+
+def test_file_types_supported_scans_all(tmp_path):
+    """--file_types supported (default) should scan all supported formats."""
+    dir_path = tmp_path / 'mixed'
+    dir_path.mkdir(parents=True, exist_ok=True)
+
+    (dir_path / 'page.html').write_text(
+        "<html><body><a href='https://html-link.example.com/'>x</a></body></html>")
+    (dir_path / 'notes.md').write_text(
+        "[link](https://markdown-link.example.com/)")
+
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+        checker = salted.Salted()
+        checker.file_types = 'supported'
+        checker.check(dir_path)
+
+    urls = [u[0] for u in FakeUrlCheck.last_urls] if FakeUrlCheck.last_urls else []
+    assert any('html-link' in u for u in urls)
+    assert any('markdown-link' in u for u in urls)
 

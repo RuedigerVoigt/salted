@@ -10,6 +10,7 @@
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
 * Bug Fixes:
+  * Fix `--file_types` having no effect on directory scans
   * Fix BibTeX URL and DOI extraction silently failing due to wrong field name casing (`'Url'`/`'Doi'` → `'url'`/`'doi'`)
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled
   * Fix DOI checks using GET instead of HEAD against the CrossRef API

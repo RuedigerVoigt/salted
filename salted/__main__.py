@@ -213,10 +213,17 @@ class Salted:
         filesearch = file_finder.FileFinder()
         file_io = input_handler.InputHandler(db, quiet=self.quiet)
 
+        FILE_TYPE_SUFFIXES = {
+            'html': {'.htm', '.html'},
+            'tex': {'.tex'},
+            'markdown': {'.md'},
+        }
+        suffixes = FILE_TYPE_SUFFIXES.get(self.file_types)  # None for 'supported'
+
         # Select files to check (directory or single supported file)
         if path.is_dir():
             logging.info('Base folder: %s', path)
-            files_to_check = filesearch.find_files_by_extensions(path)
+            files_to_check = filesearch.find_files_by_extensions(path, suffixes=suffixes)
         elif path.is_file() and filesearch.is_supported_format(path):
             files_to_check = [path]
         else:
