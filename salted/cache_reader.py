@@ -138,10 +138,9 @@ class CacheReader:
         overwriting any existing file at the given path.
         """
 
-        self.cache_file_path.unlink(missing_ok=True)  # type: ignore[union-attr]
+        if not self.cache_file_path:
+            return
 
-        if self.cache_file_path:
-            new_cache_file = sqlite3.connect(self.cache_file_path)
-            with new_cache_file:
-                self.mem_instance.conn.backup(new_cache_file, name='main')
-            new_cache_file.close()
+        self.cache_file_path.unlink(missing_ok=True)
+        with sqlite3.connect(self.cache_file_path) as new_cache_file:
+            self.mem_instance.conn.backup(new_cache_file, name='main')
