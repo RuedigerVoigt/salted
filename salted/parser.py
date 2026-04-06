@@ -128,14 +128,14 @@ class Parser():
             # Neither the URL, nor the DOI field is required by BiBTeX.
             # pybtex throws a KeyError if the field does not exist.
             try:
-                url = bib_data.entries[entry].fields['Url']
-                url_list.append([url, f"Key: {entry}, Field: Url"])
+                url = bib_data.entries[entry].fields['url']
+                url_list.append([url, f"Key: {entry}, Field: url"])
             except KeyError:
                 pass
 
             try:
-                doi = bib_data.entries[entry].fields['Doi']
-                doi_list.append([doi.strip(), f"Key: {entry}, Field: DOI"])
+                doi = bib_data.entries[entry].fields['doi']
+                doi_list.append([doi.strip(), f"Key: {entry}, Field: doi"])
             except KeyError:
                 pass
 
