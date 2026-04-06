@@ -2,6 +2,8 @@
 
 ## Version 1.1.0 (2026-04-06)
 
+* New features:
+  * Add `-q`/`--quiet` flag to suppress progress messages — useful for CI pipelines where only the final report should appear on stdout
 * Improved documentation
 * Security:
   * Updated dependencies

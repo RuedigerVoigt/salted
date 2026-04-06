@@ -27,8 +27,10 @@ class InputHandler:
     """Read files and extract the hyperlinks inside them."""
 
     def __init__(self,
-                 db: database_io.DatabaseIO):
+                 db: database_io.DatabaseIO,
+                 quiet: bool = False):
         self.db = db
+        self.quiet = quiet
         self.cnt: Counter = Counter()
         self.parser = parser.Parser()
 
@@ -178,8 +180,9 @@ class InputHandler:
         # should be per run:
         self.cnt['links_found'] = 0
 
-        print("Scanning files for links:")
-        for file_path in tqdm(files_to_check, disable=not sys.stdout.isatty()):
+        if not self.quiet:
+            print("Scanning files for links:")
+        for file_path in tqdm(files_to_check, disable=self.quiet or not sys.stdout.isatty()):
             content = self.read_file_content(file_path)
             if not content:
                 # If for any reason this file could not be read, try the next.

@@ -32,7 +32,8 @@ class UrlCheck:
                  workers: Union[int, str] = 'automatic',
                  timeout_sec: int = 5,
                  ignore_urls: Optional[set] = None,
-                 domain_delay: float = 0.25
+                 domain_delay: float = 0.25,
+                 quiet: bool = False
                  ) -> None:
         # pylint: disable=too-many-arguments
         self.headers: dict = dict()
@@ -44,6 +45,7 @@ class UrlCheck:
         self.ignore_urls = ignore_urls if ignore_urls else set()
 
         self.num_workers: Union[int, str] = workers
+        self.quiet = quiet
 
         self.cnt: Counter = Counter()
 
@@ -241,8 +243,9 @@ class UrlCheck:
         # Set of number of workers here instead of __distribute_work as
         # otherwise the logging message will force the progress bar to repaint.
         self.num_workers = self.__recommend_num_workers(num_checks)
-        print(f"{num_checks} URLs to check with {self.num_workers} workers:")
-        self.pbar_links = tqdm(total=num_checks, disable=not sys.stdout.isatty())
+        if not self.quiet:
+            print(f"{num_checks} URLs to check with {self.num_workers} workers:")
+        self.pbar_links = tqdm(total=num_checks, disable=self.quiet or not sys.stdout.isatty())
 
         # Synchronous wrapper for environments without an event loop
         asyncio.run(self.__distribute_work(urls_to_check))
@@ -262,8 +265,9 @@ class UrlCheck:
             return
         num_checks = len(urls_to_check)
         self.num_workers = self.__recommend_num_workers(num_checks)
-        print(f"{num_checks} URLs to check with {self.num_workers} workers:")
-        self.pbar_links = tqdm(total=num_checks, disable=not sys.stdout.isatty())
+        if not self.quiet:
+            print(f"{num_checks} URLs to check with {self.num_workers} workers:")
+        self.pbar_links = tqdm(total=num_checks, disable=self.quiet or not sys.stdout.isatty())
         try:
             await self.__distribute_work(urls_to_check)
         finally:

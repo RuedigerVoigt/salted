@@ -25,14 +25,17 @@ class DatabaseIO:
 
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
-                 cache_file: Union[pathlib.Path, str, None] = None):
+                 cache_file: Union[pathlib.Path, str, None] = None,
+                 quiet: bool = False):
         """Initialize the database I/O handler.
 
         Args:
             mem_instance: In-memory database instance for storing results.
             cache_file: Path to the cache file on disk. If None, no cache is used.
+            quiet: If True, suppress progress messages.
         """
         self.cursor = mem_instance.get_cursor()
+        self.quiet = quiet
         self.cache_file_path = None
         if cache_file:
             self.cache_file_path = pathlib.Path(cache_file).resolve()
@@ -204,7 +207,8 @@ class DatabaseIO:
 
         if num_links_before > num_links_after:
             num_skipped = num_links_before - num_links_after
-            print(f"Skipped {num_skipped} cached URL{'s' if num_skipped != 1 else ''} (still valid in cache)")
+            if not self.quiet:
+                print(f"Skipped {num_skipped} cached URL{'s' if num_skipped != 1 else ''} (still valid in cache)")
         return num_links_after
 
     def del_dois_that_can_be_skipped(self) -> None:
@@ -224,7 +228,8 @@ class DatabaseIO:
 
         if num_dois_before > num_dois_after:
             num_skipped = num_dois_before - num_dois_after
-            print(f"Skipped {num_skipped} cached DOI{'s' if num_skipped != 1 else ''} (already validated)")
+            if not self.quiet:
+                print(f"Skipped {num_skipped} cached DOI{'s' if num_skipped != 1 else ''} (already validated)")
 
     def count_errors(self) -> int:
         """Return the number of errors.

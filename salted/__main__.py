@@ -104,6 +104,7 @@ class Salted:
         self.template_name: str = 'default.cli.jinja'
         self.write_to: Union[str, pathlib.Path] = 'cli'
         self.base_url: Optional[str] = None
+        self.quiet: bool = False
 
         # If there is a configfile, overwrite defaults with those settings
         self.__parse_configfile()
@@ -184,7 +185,7 @@ class Salted:
         # the in memory database has to initialized here instead of on
         # a higher level.
         mem_instance = memory_instance.MemoryInstance()
-        db = database_io.DatabaseIO(mem_instance, self.cache_file)
+        db = database_io.DatabaseIO(mem_instance, self.cache_file, quiet=self.quiet)
 
         cache_handler = cache_reader.CacheReader(
             mem_instance,
@@ -210,7 +211,7 @@ class Salted:
             raise FileNotFoundError(msg)
 
         filesearch = file_finder.FileFinder()
-        file_io = input_handler.InputHandler(db)
+        file_io = input_handler.InputHandler(db, quiet=self.quiet)
 
         # Select files to check (directory or single supported file)
         if path.is_dir():
@@ -244,10 +245,11 @@ class Salted:
             self.num_workers,
             self.timeout,
             normalized_ignores,
-            self.domain_delay)
+            self.domain_delay,
+            quiet=self.quiet)
         urls.check_urls()
 
-        doi = doi_check.DoiCheck(db)
+        doi = doi_check.DoiCheck(db, quiet=self.quiet)
         doi.check_dois()
 
         # ##### END CHECKS #####

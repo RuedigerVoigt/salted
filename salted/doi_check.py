@@ -29,9 +29,11 @@ class DoiCheck:
     NUM_API_WORKERS: Final[int] = 5
 
     def __init__(self,
-                 db_io: database_io.DatabaseIO) -> None:
+                 db_io: database_io.DatabaseIO,
+                 quiet: bool = False) -> None:
 
         self.db = db_io
+        self.quiet = quiet
 
         # Do NOT conceal the user agent for API requests.
         # The providers of the API explicitly ask that bots identify themselves
@@ -148,7 +150,8 @@ class DoiCheck:
                 logging.debug("DOI %s does not exist!", doi)
                 self.invalid_doi_list.append(doi)
             else:
-                print(f"Unexpected API response: {api_response['status']}")
+                if not self.quiet:
+                    print(f"Unexpected API response: {api_response['status']}")
             await self.__rate_limit_wait(
                 int(api_response['max_queries']),
                 int(api_response['seconds']))
@@ -194,8 +197,9 @@ class DoiCheck:
             logging.debug('No DOIs to check.')
             return
         num_doi = len(dois_to_check)
-        print(f"{num_doi} DOI to check:")
-        self.pbar_doi = tqdm(total=num_doi, disable=not sys.stdout.isatty())
+        if not self.quiet:
+            print(f"{num_doi} DOI to check:")
+        self.pbar_doi = tqdm(total=num_doi, disable=self.quiet or not sys.stdout.isatty())
 
         asyncio.run(self.__distribute_work(dois_to_check))
         # executemany needs a list of tuples:
@@ -214,8 +218,9 @@ class DoiCheck:
             logging.debug('No DOIs to check.')
             return
         num_doi = len(dois_to_check)
-        print(f"{num_doi} DOI to check:")
-        self.pbar_doi = tqdm(total=num_doi, disable=not sys.stdout.isatty())
+        if not self.quiet:
+            print(f"{num_doi} DOI to check:")
+        self.pbar_doi = tqdm(total=num_doi, disable=self.quiet or not sys.stdout.isatty())
         try:
             await self.__distribute_work(dois_to_check)
         finally:

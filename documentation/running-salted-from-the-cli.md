@@ -1,6 +1,18 @@
 # Running salted from the command line
 
 Once salted is installed with pip, it registers itself as a command line script and is available in your path. So open a command line, switch into the directory you want to check and try:
+
+## Quiet mode for CI pipelines
+
+By default, salted prints progress messages (number of URLs to check, cache hits, etc.) to standard output alongside the final report. In a CI pipeline you may want only the report:
+
+```bash
+salted -i ./homepage/ --quiet
+# or short form:
+salted -i ./homepage/ -q
+```
+
+With `--quiet`, all progress messages and progress bars are suppressed. Only the final report is written to output.
 ```bash
 # Check all supported files within this directory and its subdirectories.
 # Output result to the command line.

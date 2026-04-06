@@ -121,6 +121,12 @@ def main() -> None:
         help="The file system path to the checked folder is replaced with this URL in template outputs.",
         metavar='https://www.example.com')
 
+    parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        default=False,
+        help="Suppress all progress messages. Only the final report is written to output. Useful for CI pipelines.")
+
     args = parser.parse_args()
 
     # Settings on the command line interface shall override any setting in a
@@ -172,5 +178,7 @@ def main() -> None:
         checker.write_to = args.write_to
     if args.base_url:
         checker.base_url = args.base_url
+    if args.quiet:
+        checker.quiet = True
 
     checker.check(checker.searchpath)

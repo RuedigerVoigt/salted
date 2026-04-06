@@ -440,5 +440,49 @@ class TestCheckerExecution:
                     command_line.main()
 
 
+class TestQuietMode:
+    """Test --quiet / -q flag."""
+
+    def test_quiet_flag_long(self):
+        """Test that --quiet sets quiet=True on the checker."""
+        test_args = ['salted', '--quiet']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.quiet is True
+
+    def test_quiet_flag_short(self):
+        """Test that -q sets quiet=True on the checker."""
+        test_args = ['salted', '-q']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.quiet is True
+
+    def test_quiet_not_set_by_default(self):
+        """Test that quiet is not set when flag is absent."""
+        test_args = ['salted']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                # quiet should not be set on the checker
+                assert mock_checker.quiet != True  # noqa: E712
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
