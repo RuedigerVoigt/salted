@@ -175,6 +175,36 @@ class ReportGenerator:
                            'exceptions': exceptions})
         return result
 
+    def generate_mailto_list(self) -> Optional[list]:
+        """Generate a list of mailto links found during the scan.
+
+        Note: addresses are only checked for basic format validity using
+        is_email() — no DNS lookup or delivery verification is performed.
+
+        Returns:
+            List of dicts with keys 'path', 'url', 'address', 'valid',
+            or None if no mailto links were found.
+        """
+        cursor = self.db.get_cursor()
+        cursor.execute('''
+            SELECT filePath, url, address, valid
+            FROM mailtoLinks
+            ORDER BY filePath, url;''')
+        rows = cursor.fetchall()
+        if not rows:
+            return None
+        result = []
+        for file_path, url, address, valid in rows:
+            if self.replace_path_by_url:
+                file_path = self.rewrite_path(file_path)
+            result.append({
+                'path': file_path,
+                'url': url,
+                'address': address,
+                'valid': bool(valid),
+            })
+        return result
+
     def generate_report(self,
                         statistics: dict,
                         template: dict,
@@ -204,6 +234,7 @@ class ReportGenerator:
             self.replace_path_by_url = replace_path_by_url
 
         access_errors = self.generate_access_error_list()
+        mailto_links = self.generate_mailto_list()
 
         permanent_errors = self.generate_error_list()
 
@@ -228,7 +259,8 @@ class ReportGenerator:
                 access_errors=access_errors,
                 permanent=permanent_errors,
                 redirects=permanent_redirects,
-                exceptions=crawl_exceptions)
+                exceptions=crawl_exceptions,
+                mailto_links=mailto_links)
         else:
             # external template from file system
             jinja_env = Environment(
@@ -240,7 +272,8 @@ class ReportGenerator:
                 access_errors=access_errors,
                 permanent=permanent_errors,
                 redirects=permanent_redirects,
-                exceptions=crawl_exceptions)
+                exceptions=crawl_exceptions,
+                mailto_links=mailto_links)
 
         if write_to == 'cli':
             print(rendered_report)

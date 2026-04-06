@@ -17,6 +17,7 @@ import urllib.parse
 import sys
 
 import userprovided
+import userprovided.mail as mail_check
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
@@ -104,19 +105,13 @@ class InputHandler:
                 self.cnt['links_found'] += 1
 
             elif url.startswith('mailto:'):
-                logging.debug("Checking mailto Links is not implemented yet")
-                # TO DO
-                # mail_addresses = self.parser.extract_mails_from_mailto(url)
-                # if not mail_addresses:
-                #     continue
-                # for address in mail_addresses:
-                #     if userprovided.mail.is_email(address):
-                #         host = address.split('@')[1]
-                #         # TO DO: ...
-                #     else:
-                #         # Invalid email
-                #         # TO DO: ...
-                #         pass
+                addresses = self.parser.extract_mails_from_mailto(url)
+                if not addresses:
+                    mailto_found.append((str(file_path), url, '', 0))
+                else:
+                    for address in addresses:
+                        valid = 1 if mail_check.is_email(address) else 0
+                        mailto_found.append((str(file_path), url, address, valid))
             else:
                 # cannot check this kind of link
                 self.cnt['unsupported_scheme'] += 1
@@ -127,7 +122,7 @@ class InputHandler:
         if links_found:
             self.db.save_found_links(links_found)
         if mailto_found:
-            pass
+            self.db.save_mailto_links(mailto_found)
 
     def handle_found_dois(self,
                           file_path: pathlib.Path,

@@ -132,17 +132,16 @@ class TestMailtoParsing:
     """Test mailto link extraction"""
 
     def test_extract_mails_from_mailto(self):
-        """Test mailto extraction (currently not implemented)"""
+        """Test mailto extraction returns the address."""
         parser = Parser()
-        # This function currently just passes, so we test it doesn't raise errors
         result = parser.extract_mails_from_mailto('mailto:test@example.com')
-        assert result is None
+        assert result == ['test@example.com']
 
     def test_extract_mails_from_mailto_multiple(self):
-        """Test mailto with multiple addresses (not implemented)"""
+        """Test mailto with multiple addresses returns all of them."""
         parser = Parser()
         result = parser.extract_mails_from_mailto('mailto:test1@example.com,test2@example.com')
-        assert result is None
+        assert result == ['test1@example.com', 'test2@example.com']
 
 
 class TestMarkdownParsing:

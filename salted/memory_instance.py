@@ -96,6 +96,14 @@ class MemoryInstance():
             CREATE TABLE IF NOT EXISTS validDois (
             doi text,
             lastSeen integer);''')
+        # table 'mailtoLinks': mailto links found in files
+        # valid = 1 means is_email() returned True; 0 means malformed/empty
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS mailtoLinks (
+            filePath text,
+            url      text,
+            address  text,
+            valid    integer);''')
 
         logging.debug("Created database schema.")
 

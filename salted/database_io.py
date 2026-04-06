@@ -120,6 +120,20 @@ class DatabaseIO:
         self.cursor.executemany('''
         INSERT OR IGNORE INTO validDois (doi) VALUES (?);''', valid_dois)
 
+    def save_mailto_links(self,
+                          mailto_links: list) -> None:
+        """Save mailto links found in files to the database.
+
+        Args:
+            mailto_links: List of tuples (filePath, url, address, valid)
+                where valid is 1 if is_email() passed, 0 if malformed.
+        """
+        if not mailto_links:
+            return
+        self.cursor.executemany('''
+            INSERT INTO mailtoLinks (filePath, url, address, valid)
+            VALUES (?, ?, ?, ?);''', mailto_links)
+
     def log_invalid_dois(self,
                          invalid_dois: list) -> None:
         """Log an invalid DOI.

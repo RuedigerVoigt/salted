@@ -11,6 +11,7 @@
 * New features:
   * Add `-q`/`--quiet` flag to suppress progress messages — useful for CI pipelines where only the final report should appear on stdout
   * BibTeX (`.bib`) support now fully working — URL and DOI fields are extracted and checked; `.bib` files are included under `--file_types tex`
+  * Mailto links are now parsed and listed in the report. Each address is checked for basic format validity (not empty, has email address format), but no DNS lookup or delivery verification is performed. The mailto section only appears in the report when mailto links are actually present.
 * Improved documentation
 * Security:
   * Updated dependencies

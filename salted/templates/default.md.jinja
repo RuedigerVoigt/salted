@@ -76,3 +76,18 @@ No exceptions during the crawl!
 {% endfor %}
 {% endfor %}
 {% endif %}
+
+{% if mailto_links %}
+# MAILTO LINKS (NOT CHECKED)
+
+> salted only checks HTTP/HTTPS links. Mailto links are listed here for reference.
+> Addresses are checked for basic format only (not empty, looks like an email address) — no DNS lookup or delivery verification is performed.
+
+{% for entry in mailto_links %}
+{% if entry.valid %}
+* {{ entry.path }}: {{ entry.address }} ({{ entry.url }})
+{% else %}
+* {{ entry.path }}: **MALFORMED ADDRESS** `{{ entry.address }}` ({{ entry.url }})
+{% endif %}
+{% endfor %}
+{% endif %}

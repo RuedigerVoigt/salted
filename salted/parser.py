@@ -142,17 +142,26 @@ class Parser():
         return [url_list, doi_list]
 
     @staticmethod
-    def extract_mails_from_mailto(mailto_link: str) -> None:
+    def extract_mails_from_mailto(mailto_link: str) -> list:
         """Extract mail addresses from a mailto link.
 
-        A single mailto link can contain multiple mail addresses.
+        A single mailto link can contain multiple mail addresses in the
+        path component (the ``to`` field), separated by commas.
+        Query parameters (subject, cc, bcc, …) are intentionally ignored.
 
         Args:
             mailto_link: The mailto URL string to parse.
 
         Returns:
-            List of email addresses extracted from the mailto link.
+            List of raw address strings found in the ``to`` field.
+            Empty list if the link is empty or cannot be parsed.
         """
-        mailto_link = mailto_link[7:]  # cut off the mailto: part
-        # TO DO
-        pass
+        import urllib.parse
+        try:
+            parsed = urllib.parse.urlparse(mailto_link)
+            to_part = urllib.parse.unquote(parsed.path)
+            if not to_part:
+                return []
+            return [addr.strip() for addr in to_part.split(',') if addr.strip()]
+        except Exception:
+            return []
