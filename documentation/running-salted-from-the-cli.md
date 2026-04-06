@@ -12,7 +12,7 @@ On the command line salted supports all parameters. To get an overview, simply t
 
 ```
 usage: salted [-h] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>] [--timeout <seconds>]
-              [--raise_for_dead_links <True/False>] [--user_agent <preset or custom string>]
+              [--raise_for_dead_links | --no-raise_for_dead_links] [--user_agent <preset or custom string>]
               [--ignore_urls <str,str,str>] [--domain_delay <seconds>] [--cache_file <path>]
               [--dont_check_again_within_hours <hours>] [--template_searchpath <path to folder>]
               [--template_name <filename>] [--write_to <path>] [--base_url https://www.example.com] [-q]
@@ -29,8 +29,8 @@ options:
   -w, --num_workers <num>
                         The number of workers to use in parallel (default: automatic)
   --timeout <seconds>   Number of seconds to wait for an answer of a server (default: 5).
-  --raise_for_dead_links <True/False>
-                        True if dead links shall raise an exception (default: False).
+  --raise_for_dead_links, --no-raise_for_dead_links
+                        Raise an exception if dead links are found (default: False).
   --user_agent <preset or custom string>
                         User agent to identify itself. Use a preset (chrome, firefox, edge, safari,
                         chrome-mac, chrome-linux) or provide a custom string. (Default: salted / version)

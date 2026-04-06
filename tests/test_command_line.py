@@ -171,51 +171,48 @@ class TestCommandLineArguments:
 
 
 class TestRaiseForDeadLinksParameter:
-    """Test the complex raise_for_dead_links parameter validation."""
+    """Test --raise_for_dead_links / --no-raise_for_dead_links flags."""
 
-    def test_raise_for_dead_links_true_values(self):
-        """Test raise_for_dead_links with values that should be True."""
-        true_values = ['True', 'true', 'yes']
-        
-        for value in true_values:
-            test_args = ['salted', '--raise_for_dead_links', value]
-            
-            with patch('sys.argv', test_args):
-                with patch('salted.Salted') as mock_salted_class:
-                    mock_checker = MagicMock()
-                    mock_salted_class.return_value = mock_checker
-                    
-                    command_line.main()
-                    
-                    assert mock_checker.raise_for_dead_links is True
+    def test_raise_for_dead_links_flag_sets_true(self):
+        """--raise_for_dead_links sets the flag to True."""
+        test_args = ['salted', '--raise_for_dead_links']
 
-    def test_raise_for_dead_links_false_values(self):
-        """Test raise_for_dead_links with values that should be False."""
-        false_values = ['False', 'false', 'no']
-        
-        for value in false_values:
-            test_args = ['salted', '--raise_for_dead_links', value]
-            
-            with patch('sys.argv', test_args):
-                with patch('salted.Salted') as mock_salted_class:
-                    mock_checker = MagicMock()
-                    mock_salted_class.return_value = mock_checker
-                    
-                    command_line.main()
-                    
-                    assert mock_checker.raise_for_dead_links is False
-
-    def test_raise_for_dead_links_invalid_value(self):
-        """Test raise_for_dead_links with invalid value raises ValueError."""
-        test_args = ['salted', '--raise_for_dead_links', 'maybe']
-        
         with patch('sys.argv', test_args):
             with patch('salted.Salted') as mock_salted_class:
                 mock_checker = MagicMock()
                 mock_salted_class.return_value = mock_checker
-                
-                with pytest.raises(ValueError, match="Unknown value for raise_for_dead_links"):
-                    command_line.main()
+
+                command_line.main()
+
+                assert mock_checker.raise_for_dead_links is True
+
+    def test_no_raise_for_dead_links_flag_sets_false(self):
+        """--no-raise_for_dead_links explicitly sets the flag to False."""
+        test_args = ['salted', '--no-raise_for_dead_links']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.raise_for_dead_links is False
+
+    def test_raise_for_dead_links_absent_leaves_default(self):
+        """When the flag is omitted, raise_for_dead_links is not overwritten."""
+        test_args = ['salted']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_checker.raise_for_dead_links = False  # default
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                # Attribute must not have been overwritten
+                assert mock_checker.raise_for_dead_links is False
 
 
 class TestTemplateArguments:
@@ -286,7 +283,7 @@ class TestCombinedArguments:
             '-w', '8',
             '--timeout', '10',
             '--user_agent', 'TestBot/1.0',
-            '--raise_for_dead_links', 'true',
+            '--raise_for_dead_links',
             '--write_to', 'cli'
         ]
         

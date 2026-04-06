@@ -64,9 +64,9 @@ def main() -> None:
         metavar='<seconds>')
     parser.add_argument(
         "--raise_for_dead_links",
-        type=str,
-        help="True if dead links shall raise an exception (default: False).",
-        metavar='<True/False>')
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Raise an exception if dead links are found (default: False).")
     presets = ', '.join(list_presets())
     parser.add_argument(
         "--user_agent",
@@ -143,13 +143,8 @@ def main() -> None:
         checker.num_workers = args.num_workers
     if args.timeout:
         checker.timeout = args.timeout
-    if args.raise_for_dead_links:
-        if args.raise_for_dead_links in ("True", "true", "yes"):
-            checker.raise_for_dead_links = True
-        elif args.raise_for_dead_links in ("False", "false", "no"):
-            checker.raise_for_dead_links = False
-        else:
-            raise ValueError("Unknown value for raise_for_dead_links")
+    if args.raise_for_dead_links is not None:
+        checker.raise_for_dead_links = args.raise_for_dead_links
     if args.user_agent:
         # Check if it's a preset or a custom string
         try:
