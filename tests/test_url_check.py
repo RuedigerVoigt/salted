@@ -253,6 +253,70 @@ class TestNetworkExceptionHandling:
                 assert "https://unexpected.com" in str(mock_log.call_args)
 
 
+class TestSsrfPreflight:
+    """Test that private/internal targets are blocked before network requests."""
+
+    @pytest.mark.asyncio
+    async def test_loopback_ipv4_blocked(self, url_checker, mock_db):
+        """127.0.0.1 must not reach the network."""
+        with patch.object(url_checker, 'head_request') as mock_req:
+            await url_checker.validate_url("http://127.0.0.1/secret")
+            mock_req.assert_not_called()
+            mock_db.log_exception.assert_called_with(
+                "http://127.0.0.1/secret", 'Blocked: private/internal target')
+
+    @pytest.mark.asyncio
+    async def test_localhost_blocked(self, url_checker, mock_db):
+        """localhost must not reach the network."""
+        with patch.object(url_checker, 'head_request') as mock_req:
+            await url_checker.validate_url("http://localhost/admin")
+            mock_req.assert_not_called()
+            mock_db.log_exception.assert_called_with(
+                "http://localhost/admin", 'Blocked: private/internal target')
+
+    @pytest.mark.asyncio
+    async def test_cloud_metadata_endpoint_blocked(self, url_checker, mock_db):
+        """169.254.169.254 (AWS/GCP metadata) must be blocked."""
+        with patch.object(url_checker, 'head_request') as mock_req:
+            await url_checker.validate_url("http://169.254.169.254/latest/meta-data/")
+            mock_req.assert_not_called()
+            mock_db.log_exception.assert_called_with(
+                "http://169.254.169.254/latest/meta-data/",
+                'Blocked: private/internal target')
+
+    @pytest.mark.asyncio
+    async def test_rfc1918_private_range_blocked(self, url_checker, mock_db):
+        """RFC1918 addresses (10.x, 172.16.x, 192.168.x) must be blocked."""
+        private_urls = [
+            "http://10.0.0.1/",
+            "http://172.16.0.1/",
+            "http://192.168.1.1/",
+        ]
+        for url in private_urls:
+            mock_db.reset_mock()
+            with patch.object(url_checker, 'head_request') as mock_req:
+                await url_checker.validate_url(url)
+                mock_req.assert_not_called()
+                mock_db.log_exception.assert_called_with(
+                    url, 'Blocked: private/internal target')
+
+    @pytest.mark.asyncio
+    async def test_dot_local_hostname_blocked(self, url_checker, mock_db):
+        """mDNS .local hostnames must be blocked."""
+        with patch.object(url_checker, 'head_request') as mock_req:
+            await url_checker.validate_url("http://printer.local/")
+            mock_req.assert_not_called()
+            mock_db.log_exception.assert_called_with(
+                "http://printer.local/", 'Blocked: private/internal target')
+
+    @pytest.mark.asyncio
+    async def test_public_url_not_blocked(self, url_checker, mock_db):
+        """Public URLs must still be checked normally."""
+        with patch.object(url_checker, 'head_request', return_value=200):
+            await url_checker.validate_url("https://example.com/page")
+            mock_db.log_url_is_fine.assert_called_with("https://example.com/page")
+
+
 class TestWorkerRecommendation:
     """Test worker recommendation logic (already tested but adding edge cases)."""
 

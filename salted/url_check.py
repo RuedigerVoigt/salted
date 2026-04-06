@@ -17,6 +17,7 @@ import aiohttp
 import sys
 from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
+from userprovided import ip as ip_check
 
 from salted import database_io
 from salted.rate_limiter import DomainRateLimiter
@@ -147,6 +148,10 @@ class UrlCheck:
         """
         if url in self.ignore_urls:
             self.cnt['ignored_urls'] += 1
+            return
+
+        if ip_check.is_potential_ssrf_target(url):
+            self.db.log_exception(url, 'Blocked: private/internal target')
             return
 
         self.cnt['checked_urls'] += 1
