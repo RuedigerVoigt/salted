@@ -9,6 +9,7 @@
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
 * Bug Fixes:
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled
+  * Fix DOI checks using GET instead of HEAD against the CrossRef API
 
 ## Version 1.0.1 (2025-11-04)
 

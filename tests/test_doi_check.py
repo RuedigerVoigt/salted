@@ -169,7 +169,7 @@ class TestApiSendHeadRequest:
         }
 
         doi_checker.session = AsyncMock()
-        doi_checker.session.get = MagicMock(return_value=mock_response)
+        doi_checker.session.head = MagicMock(return_value=mock_response)
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
 
@@ -193,15 +193,15 @@ class TestApiSendHeadRequest:
         }
 
         doi_checker.session = AsyncMock()
-        mock_get = MagicMock(return_value=mock_response)
-        doi_checker.session.get = mock_get
+        mock_head = MagicMock(return_value=mock_response)
+        doi_checker.session.head = mock_head
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
 
         await doi_checker._DoiCheck__api_send_head_request('10.1234/test.doi')
 
         # Check that URL was constructed correctly
-        called_url = mock_get.call_args[0][0]
+        called_url = mock_head.call_args[0][0]
         assert called_url == 'https://api.crossref.org/works/10.1234/test.doi'
 
 

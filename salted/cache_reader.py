@@ -142,5 +142,8 @@ class CacheReader:
             return
 
         self.cache_file_path.unlink(missing_ok=True)
-        with sqlite3.connect(self.cache_file_path) as new_cache_file:
+        new_cache_file = sqlite3.connect(self.cache_file_path)
+        try:
             self.mem_instance.conn.backup(new_cache_file, name='main')
+        finally:
+            new_cache_file.close()
