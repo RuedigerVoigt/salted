@@ -10,6 +10,7 @@
 * Bug Fixes:
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled
   * Fix DOI checks using GET instead of HEAD against the CrossRef API
+  * Fix `base_url` trailing slash not being normalized
 
 ## Version 1.0.1 (2025-11-04)
 

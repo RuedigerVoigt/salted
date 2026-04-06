@@ -178,6 +178,7 @@ class Salted:
             searchpath: Path to a file or folder to check for links.
         """
         start_time = time.monotonic()
+        self.check_parameters()
 
         # check might be reused with the same salted object. Therefore
         # the in memory database has to initialized here instead of on
