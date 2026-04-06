@@ -60,6 +60,15 @@ class TestRewritePath:
         assert result == 'http://example.com/file.html'
         mem_inst.tear_down_in_memory_db()
 
+    def test_rewrite_path_no_config_raises(self):
+        """rewrite_path raises when replace_path_by_url is None."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        # replace_path_by_url is None by default
+        with pytest.raises(ValueError, match="No path replacement configured"):
+            gen.rewrite_path('/local/path/file.html')
+        mem_inst.tear_down_in_memory_db()
+
     def test_rewrite_path_missing_path_to_replace(self):
         """Test rewrite_path raises error when path_to_be_replaced is missing"""
         mem_inst = memory_instance.MemoryInstance()
@@ -324,6 +333,27 @@ class TestGenerateErrorListWithPathRewriting:
         mem_inst.tear_down_in_memory_db()
 
 
+class TestGenerateMailtoList:
+    """Test generate_mailto_list with path rewriting."""
+
+    def test_generate_mailto_list_with_path_rewriting(self):
+        """generate_mailto_list rewrites file paths when replace_path_by_url is set."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.replace_path_by_url = {
+            'path_to_be_replaced': '/local',
+            'replace_with_url': 'https://example.com',
+        }
+        cursor = mem_inst.get_cursor()
+        cursor.execute(
+            'INSERT INTO mailtoLinks VALUES (?, ?, ?, ?)',
+            ('/local/index.html', 'mailto:a@b.com', 'a@b.com', 1))
+        result = gen.generate_mailto_list()
+        assert result is not None
+        assert result[0]['path'] == 'https://example.com/index.html'
+        mem_inst.tear_down_in_memory_db()
+
+
 class TestGenerateReport:
     """Test report generation with different templates and outputs"""
 
@@ -379,18 +409,27 @@ class TestGenerateReport:
         mem_inst.tear_down_in_memory_db()
 
     def test_generate_report_write_to_file_exception(self, tmp_path):
-        """Test exception handling when writing to file fails"""
+        """Test exception handling when writing to file fails (covers lines 286-289)."""
+        from unittest.mock import patch, mock_open
         mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
         gen = report_generator.ReportGenerator(mem_inst)
 
-        # Try to write to an invalid path (directory doesn't exist)
-        invalid_path = tmp_path / "nonexistent" / "report.txt"
+        full_stats = {
+            'timestamp': '2026-01-01 12:00h',
+            'num_links': 0, 'num_checked': 0,
+            'time_to_check': 1, 'checks_per_second': 0.0,
+            'num_fine': 0, 'needed_full_request': 0,
+            'percentage_full_request': 0,
+        }
 
-        with pytest.raises(Exception):
-            gen.generate_report(
-                statistics={'num_links': 10},
-                template={'name': 'default.cli.jinja'},
-                write_to=str(invalid_path),
-                replace_path_by_url={'replace_with_url': None}
-            )
+        with patch('builtins.open', mock_open()) as mocked_open:
+            mocked_open.side_effect = OSError("disk full")
+            with pytest.raises(OSError):
+                gen.generate_report(
+                    statistics=full_stats,
+                    template={'name': 'default.cli.jinja'},
+                    write_to='/some/report.txt',
+                    replace_path_by_url={'replace_with_url': None}
+                )
         mem_inst.tear_down_in_memory_db()

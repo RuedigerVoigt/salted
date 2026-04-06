@@ -240,6 +240,32 @@ class TestSaveValidDois:
         mem_inst.tear_down_in_memory_db()
 
 
+class TestSaveMailtoLinks:
+    """Test saving mailto links"""
+
+    def test_save_mailto_links_empty_list_returns_early(self):
+        """save_mailto_links with empty list hits the early return."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_mailto_links([])  # should not raise and should not insert
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT COUNT(*) FROM mailtoLinks')
+        assert cursor.fetchone()[0] == 0
+        mem_inst.tear_down_in_memory_db()
+
+    def test_save_mailto_links_with_data(self):
+        """save_mailto_links stores entries correctly."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_mailto_links([
+            ('index.html', 'mailto:alice@example.com', 'alice@example.com', 1),
+        ])
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT COUNT(*) FROM mailtoLinks')
+        assert cursor.fetchone()[0] == 1
+        mem_inst.tear_down_in_memory_db()
+
+
 class TestLogInvalidDois:
     """Test logging invalid DOIs"""
 

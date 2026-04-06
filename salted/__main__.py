@@ -70,7 +70,7 @@ class Salted:
         VERSION = "unknown"
     CONFIG_NAME = 'salted-linkcheck.ini'
     # Release date kept for compatibility dependency, not exposed
-    RELEASE_DATE = datetime.date(2026, 4, 6)
+    RELEASE_DATE = datetime.date(2026, 4, 7)
 
     def __init__(self) -> None:
 

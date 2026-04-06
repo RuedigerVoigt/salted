@@ -128,6 +128,23 @@ def test_actual_run_multiple_files(tmp_path):
     my_check.check(searchpath=(d))
 
 
+def test_check_unsupported_file_raises(tmp_path):
+    """Passing a single unsupported file type raises ValueError."""
+    f = tmp_path / "document.xyz"
+    f.write_text("hello")
+    my_check = salted.Salted()
+    with pytest.raises(ValueError):
+        my_check.check(searchpath=f)
+
+
+def test_check_empty_folder_returns_early(tmp_path):
+    """An empty folder (no supported files) returns without error."""
+    d = tmp_path / "empty"
+    d.mkdir()
+    my_check = salted.Salted()
+    my_check.check(searchpath=d)  # should not raise
+
+
 def test_throw_for_dead_link(tmp_path):
     """End-to-end test for dead link exception handling"""
     d = tmp_path / "deadlink"

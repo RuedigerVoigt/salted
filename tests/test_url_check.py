@@ -320,6 +320,11 @@ class TestSsrfPreflight:
 class TestWorkerRecommendation:
     """Test worker recommendation logic (already tested but adding edge cases)."""
 
+    def test_recommend_workers_zero_raises(self, url_checker):
+        """Zero URLs should raise ValueError."""
+        with pytest.raises(ValueError):
+            url_checker._UrlCheck__recommend_num_workers(0)
+
     def test_recommend_workers_5000_plus(self, url_checker):
         """Test our fix: 5000+ URLs should get 64 workers."""
         assert url_checker._UrlCheck__recommend_num_workers(5001) == 64

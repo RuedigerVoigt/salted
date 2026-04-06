@@ -42,6 +42,12 @@ class TestExtractMailsFromMailto:
         result = self.parser.extract_mails_from_mailto("mailto:")
         assert result == []
 
+    def test_urlparse_exception_returns_empty(self):
+        """If urlparse raises internally, an empty list is returned."""
+        with patch('urllib.parse.urlparse', side_effect=Exception("boom")):
+            result = self.parser.extract_mails_from_mailto('mailto:test@example.com')
+        assert result == []
+
     def test_whitespace_stripped(self):
         result = self.parser.extract_mails_from_mailto(
             "mailto: alice@example.com , bob@example.com ")
@@ -77,6 +83,31 @@ def capture_report(statistics, template, write_to, replace_path_by_url):
     # We do this by patching generate_report itself and calling generate_mailto_list
     # directly before; easier: just capture via the template render side-effect.
     pass
+
+
+def test_empty_mailto_flagged_as_invalid(tmp_path):
+    """A bare mailto: with no address hits the empty-address branch."""
+    d = tmp_path / 'site'
+    d.mkdir()
+    (d / 'index.html').write_text("<a href='mailto:'>empty</a>")
+
+    report_data = {}
+
+    def fake_generate_report(self, statistics, template, write_to,
+                              replace_path_by_url=None):
+        report_data['mailto'] = self.generate_mailto_list()
+
+    with patch('salted.__main__.url_check.UrlCheck', StubUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck), \
+         patch('salted.report_generator.ReportGenerator.generate_report',
+               fake_generate_report):
+        checker = salted.Salted()
+        checker.check(d)
+
+    assert report_data['mailto'] is not None
+    entry = report_data['mailto'][0]
+    assert entry['address'] == ''
+    assert entry['valid'] is False
 
 
 def test_valid_mailto_stored(tmp_path):

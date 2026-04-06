@@ -215,6 +215,20 @@ class TestRaiseForDeadLinksParameter:
                 assert mock_checker.raise_for_dead_links is False
 
 
+    def test_main_with_domain_delay_argument(self):
+        """Test CLI with --domain_delay argument."""
+        test_args = ['salted', '--domain_delay', '0.5']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.domain_delay == 0.5
+
+
 class TestTemplateArguments:
     """Test template-related CLI arguments."""
 
