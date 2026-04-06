@@ -215,7 +215,7 @@ class Salted:
 
         FILE_TYPE_SUFFIXES = {
             'html': {'.htm', '.html'},
-            'tex': {'.tex'},
+            'tex': {'.tex', '.bib'},
             'markdown': {'.md'},
         }
         suffixes = FILE_TYPE_SUFFIXES.get(self.file_types)  # None for 'supported'

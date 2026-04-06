@@ -6,7 +6,7 @@
 [![Downloads](https://pepy.tech/badge/salted)](https://pepy.tech/project/salted)
 [![Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen)](https://www.ruediger-voigt.eu/coverage/salted/index.html)
 
-SALTED is a fast, async Python link checker for HTML, Markdown, and TeX files. It detects broken hyperlinks, uses a local cache to avoid rechecking. It is a command line application and integrates into CI/CD pipelines. It can be run on Windows, Linux and Mac.
+SALTED is a fast, async Python link checker for HTML, Markdown, TeX, and BibTeX files. It detects broken hyperlinks, uses a local cache to avoid rechecking. It is a command line application and integrates into CI/CD pipelines. It can be run on Windows, Linux and Mac.
 
 It was developed to check hyperlinks in scientific works (Markdown, TeX) as broken links are seen as sloppy. It can also scan HTML files because dead hyperlinks are bad for user experience and will hurt SEO. It is designed to be run automatically (for example in a quality control pipelines). Speed is an explicit design goal. SALTED is short for "Smart, Asynchronous Link Tester with Database backend".
 
@@ -75,6 +75,7 @@ SALTED does support the following file-formats:
   * Mailto links are not yet checked.
 * **Markdown** : The pandoc version as well as GitHub flavored markdown are supported.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
+* **BibTeX** : URL and DOI fields are extracted and checked. BibTeX files are included when using `--file_types tex` or `--file_types supported`.
 * **Microsoft Word**: is not directly supported, but you can convert Word to markdown which is supported.
 
 
