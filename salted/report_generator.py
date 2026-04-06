@@ -45,16 +45,16 @@ class ReportGenerator:
         Raises:
             ValueError: If path_to_be_replaced or replace_with_url is not set.
         """
-        # Silence mypy index error, because this assures the values
-        # are available:
-        if not self.replace_path_by_url['path_to_be_replaced']:  # type: ignore
+        if not self.replace_path_by_url:
+            raise ValueError('No path replacement configured.')
+        if not self.replace_path_by_url.get('path_to_be_replaced'):
             raise ValueError('Cannot replace in URL not knowing what.')
-        if not self.replace_path_by_url['replace_with_url']:  # type: ignore
+        if not self.replace_path_by_url.get('replace_with_url'):
             raise ValueError('Cannot replace in URL not knowing with what.')
 
         return path_to_rewrite.replace(
-            self.replace_path_by_url['path_to_be_replaced'],  # type: ignore
-            self.replace_path_by_url['replace_with_url'],  # type: ignore
+            self.replace_path_by_url['path_to_be_replaced'],
+            self.replace_path_by_url['replace_with_url'],
             1)
 
     def generate_access_error_list(self) -> Optional[list]:
@@ -198,7 +198,7 @@ class ReportGenerator:
         """
         # The base URL is always given. Invalidate the parameter if no
         # replacement is provided.
-        if not replace_path_by_url['replace_with_url']:  # type: ignore[index]
+        if not replace_path_by_url or not replace_path_by_url.get('replace_with_url'):
             replace_path_by_url = None
         else:
             self.replace_path_by_url = replace_path_by_url
