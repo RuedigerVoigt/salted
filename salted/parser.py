@@ -5,7 +5,7 @@
 Input Parser for salted
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020-2021 Rüdiger Voigt
+(c) 2020-2026 Rüdiger Voigt and contributors
 Released under the Apache License 2.0
 """
 
