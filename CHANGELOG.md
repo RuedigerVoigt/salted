@@ -1,6 +1,6 @@
 # Changelog for salted
 
-## Version 1.1.0 (upcoming)
+## Version 1.1.0 (2026-04-06)
 
 * Improved documentation
 * Security:

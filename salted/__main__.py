@@ -66,7 +66,7 @@ class Salted:
     VERSION = pkg_version("salted")
     CONFIG_NAME = 'salted-linkcheck.ini'
     # Release date kept for compatibility dependency, not exposed
-    RELEASE_DATE = datetime.date(2025, 11, 3)
+    RELEASE_DATE = datetime.date(2026, 4, 6)
 
     def __init__(self) -> None:
 
@@ -76,7 +76,7 @@ class Salted:
             release_date=self.RELEASE_DATE,
             python_version_support={
                 'min_version': '3.10',
-                'incompatible_versions': ['3.6', '3.7'],
+                'incompatible_versions': ['3.6', '3.7', '3.8', '3.9'],
                 'max_tested_version': '3.14'},
             nag_over_update={
                     'nag_days_after_release': 60,
