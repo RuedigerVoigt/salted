@@ -16,7 +16,7 @@ class FakeUrlCheck:
 
     last_ignore = None
 
-    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls, domain_delay):  # noqa: D401 - constructor
+    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls, domain_delay, quiet=False):  # noqa: D401 - constructor
         FakeUrlCheck.last_ignore = ignore_urls
         self.cnt = {
             'checked_urls': 0,
