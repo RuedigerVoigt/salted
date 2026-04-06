@@ -6,6 +6,7 @@
 * Security:
   * Updated dependencies
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
+  * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
 
 ## Version 1.0.1 (2025-11-04)
 

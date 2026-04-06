@@ -219,7 +219,9 @@ class ReportGenerator:
 
         if template['name'] in ('default.cli.jinja', 'default.md.jinja'):
             # built-in template
-            jinja_env = Environment(loader=PackageLoader('salted', 'templates'))
+            jinja_env = Environment(  # nosec B701 - built-in templates output plain text/markdown, not HTML
+                loader=PackageLoader('salted', 'templates'),
+                autoescape=False)
             builtin_template = jinja_env.get_template(template['name'])
             rendered_report = builtin_template.render(
                 statistics=statistics,
@@ -229,8 +231,9 @@ class ReportGenerator:
                 exceptions=crawl_exceptions)
         else:
             # external template from file system
-            jinja_env = Environment(loader=FileSystemLoader(
-                searchpath=template['searchpath']))
+            jinja_env = Environment(
+                loader=FileSystemLoader(searchpath=template['searchpath']),
+                autoescape=True)
             user_template = jinja_env.get_template(template['name'])
             rendered_report = user_template.render(
                 statistics=statistics,
