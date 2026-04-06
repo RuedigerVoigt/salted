@@ -18,7 +18,7 @@ from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
-from importlib.metadata import version as pkg_version
+from importlib.metadata import version as pkg_version, PackageNotFoundError
 
 
 class DoiCheck:
@@ -40,8 +40,12 @@ class DoiCheck:
         # with an user agent, a project URL and a mailto address.
         # Requests of polite bots get directed to a separate pool of machines.
         # See: https://github.com/CrossRef/rest-api-doc
+        try:
+            _version = pkg_version('salted')
+        except PackageNotFoundError:
+            _version = "unknown"
         self.headers = {'User-Agent': (
-            f"salted/{pkg_version('salted')} "
+            f"salted/{_version} "
             "(https://github.com/RuedigerVoigt/salted; "
             "mailto:projects@ruediger-voigt.eu)")}
 

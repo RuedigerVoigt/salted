@@ -9,7 +9,7 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
-from importlib.metadata import version as pkg_version
+from importlib.metadata import version as pkg_version, PackageNotFoundError
 
 from salted.user_agents import get_user_agent, list_presets
 
@@ -17,7 +17,10 @@ NAME = "salted"
 __author__ = "Rüdiger Voigt"
 
 # Single source of truth: pyproject.toml (via installed package metadata)
-__version__ = pkg_version("salted")
+try:
+    __version__ = pkg_version("salted")
+except PackageNotFoundError:
+    __version__ = "unknown"
 
 __all__ = ['get_user_agent', 'list_presets']
 

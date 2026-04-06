@@ -16,7 +16,7 @@ import pathlib
 import time
 from typing import Optional, Union, Set
 
-from importlib.metadata import version as pkg_version
+from importlib.metadata import version as pkg_version, PackageNotFoundError
 
 import compatibility
 from salted import cache_reader
@@ -63,7 +63,10 @@ class Salted:
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-instance-attributes
 
-    VERSION = pkg_version("salted")
+    try:
+        VERSION = pkg_version("salted")
+    except PackageNotFoundError:
+        VERSION = "unknown"
     CONFIG_NAME = 'salted-linkcheck.ini'
     # Release date kept for compatibility dependency, not exposed
     RELEASE_DATE = datetime.date(2026, 4, 6)
