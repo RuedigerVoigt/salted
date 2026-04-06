@@ -3,6 +3,9 @@
 ## Version 1.1.0 (upcoming)
 
 * Improved documentation
+* Security:
+  * Updated dependencies
+  * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
 
 ## Version 1.0.1 (2025-11-04)
 
