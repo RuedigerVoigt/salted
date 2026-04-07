@@ -47,8 +47,13 @@ class InputHandler:
         """
         content: Optional[str] = None
         try:
-            with open(path_to_file, 'r') as code:
-                content = code.read()
+            try:
+                with open(path_to_file, 'r', encoding='utf-8') as code:
+                    content = code.read()
+            except UnicodeDecodeError:
+                logging.warning("File %s is not UTF-8, retrying with latin-1", path_to_file)
+                with open(path_to_file, 'r', encoding='latin-1') as code:
+                    content = code.read()
         except FileNotFoundError:
             self.db.log_file_access_error(
                 str(path_to_file), 'file not found')

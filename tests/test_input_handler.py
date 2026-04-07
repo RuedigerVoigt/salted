@@ -45,6 +45,26 @@ class TestReadFileContent:
         assert content == test_content
         db_mock.log_file_access_error.assert_not_called()
 
+    def test_read_file_content_utf8(self, tmp_path):
+        """A valid UTF-8 file is read correctly."""
+        f = tmp_path / "test.html"
+        f.write_bytes("Héllo Wörld".encode('utf-8'))
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+        content = handler.read_file_content(f)
+        assert content == "Héllo Wörld"
+        db_mock.log_file_access_error.assert_not_called()
+
+    def test_read_file_content_latin1_fallback(self, tmp_path):
+        """A Latin-1 encoded file is read via fallback without logging an error."""
+        f = tmp_path / "test.html"
+        f.write_bytes("Héllo Wörld".encode('latin-1'))
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+        content = handler.read_file_content(f)
+        assert content == "Héllo Wörld"
+        db_mock.log_file_access_error.assert_not_called()
+
     def test_read_file_content_file_not_found(self):
         """Test handling FileNotFoundError"""
         db_mock = Mock(spec=database_io.DatabaseIO)
