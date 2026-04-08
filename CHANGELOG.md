@@ -1,19 +1,18 @@
 # Changelog for salted
 
-## Version 1.1.0 (2026-04-07)
+## Version 1.1.0 (2026-04-09)
 
-* Security:
-  * Add basic SSRF preflight check: any URL whose host resolves to a loopback address (127.0.0.0/8, ::1, `localhost`), an RFC1918 private range (10.x, 172.16.x, 192.168.x), or a link-local address (169.254.0.0/16 including the cloud-metadata endpoint, fe80::/10, `.local` hostnames) is blocked before a network request is made and logged as an exception in the report. (Requires userprovided ≥ 2.3.0).
 * Breaking Changes:
   * `--raise_for_dead_links` no longer accepts a string argument (`True`/`False`/`yes`/`no`). Use the bare flag `--raise_for_dead_links` to enable and `--no-raise_for_dead_links` to explicitly disable. Default is off (no exception raised). Scripts using `--raise_for_dead_links True` must be updated.
 * New features:
   * Add `-q`/`--quiet` flag to suppress progress messages — useful for CI pipelines where only the final report should appear on stdout
   * BibTeX (`.bib`) support now fully working — URL and DOI fields are extracted and checked; `.bib` files are included under `--file_types tex`
   * Mailto links are now parsed and listed in the report. Each address is checked for basic format validity (not empty, has email address format), but no DNS lookup or delivery verification is performed. The mailto section only appears in the report when mailto links are actually present.
-* Improved documentation
+  * Improved documentation
 * Security:
   * Updated dependencies
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
+  * Add basic SSRF preflight check: any URL whose host resolves to a loopback address (127.0.0.0/8, ::1, `localhost`), an RFC1918 private range (10.x, 172.16.x, 192.168.x), or a link-local address (169.254.0.0/16 including the cloud-metadata endpoint, fe80::/10, `.local` hostnames) is blocked before a network request is made and logged as an exception in the report. (Requires userprovided ≥ 2.3.0).
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
 * Bug Fixes:
   * Fix files with non-UTF-8 encoding (e.g. Latin-1) causing a file access error on Windows — salted now tries UTF-8 first and falls back to Latin-1
