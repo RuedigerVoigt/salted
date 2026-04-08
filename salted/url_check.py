@@ -12,6 +12,7 @@ import asyncio
 from collections import Counter
 import logging
 from typing import Optional, Union
+import urllib.parse
 
 import aiohttp
 import sys
@@ -34,6 +35,7 @@ class UrlCheck:
                  timeout_sec: int = 5,
                  ignore_urls: Optional[set] = None,
                  domain_delay: float = 0.25,
+                 ignore_domains: Optional[set] = None,
                  quiet: bool = False
                  ) -> None:
         # pylint: disable=too-many-arguments
@@ -44,6 +46,7 @@ class UrlCheck:
         self.db = db
         self.timeout = int(timeout_sec)
         self.ignore_urls = ignore_urls if ignore_urls else set()
+        self.ignore_domains = ignore_domains if ignore_domains else set()
 
         self.num_workers: Union[int, str] = workers
         self.quiet = quiet
@@ -148,6 +151,10 @@ class UrlCheck:
         """
         if url in self.ignore_urls:
             self.cnt['ignored_urls'] += 1
+            return
+
+        if urllib.parse.urlparse(url).hostname in self.ignore_domains:
+            self.cnt['ignored_domains'] += 1
             return
 
         if ip_check.is_potential_ssrf_target(url):

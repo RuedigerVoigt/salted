@@ -16,6 +16,7 @@ All versions of salted use the same parameters. Their categories are only import
   * `user_agent`: sets the 'User-Agent' field of the HTTP header. This defaults to 'salted/version' if not set. You can use predefined browser presets (`chrome`, `firefox`, `edge`, `safari`, `chrome-mac`, `chrome-linux`) or provide a custom user agent string. Providing a browser user agent might help to avoid being wrongfully blocked.
   * `domain_delay`: minimum delay in seconds between requests to the same domain (default: 0.25). This prevents hammering servers with too many requests. Set to 0 to disable rate limiting. The rate limiter operates at the domain level (e.g., `example.com`), so `www.example.com` and `api.example.com` share the same rate limit.
   * `ignore_urls`: accepts a string with comma separated URLs (like `https://www.example.com/1.html, https://www.example.com/2.html`). Those will not be checked.
+  * `ignore_domains`: accepts a comma-separated list of hostnames (like `example.com, skip.org`). All URLs on those domains will not be checked. Matching is exact: `example.com` does not match `sub.example.com`. Full URLs are also accepted and normalized to just the hostname.
 * **Category "CACHE":**
   * `cache_file`: Path to the cache file. Default is `salted-cache.sqlite3` in the current working directory.
   * `dont_check_again_within_hours`: The cache lifetime in full hours. If a link was valid this number of hours ago, salted assumes it is still valid and will not check it again. This defaults to 24 hours.

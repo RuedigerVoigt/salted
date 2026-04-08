@@ -16,7 +16,7 @@ class FakeUrlCheck:
 
     last_urls = None
 
-    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls, domain_delay, quiet=False):
+    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls, domain_delay, ignore_domains=None, quiet=False):
         # Store db handle so check_urls can inspect queued URLs
         self.db = db
         self.cnt = {

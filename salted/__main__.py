@@ -99,6 +99,7 @@ class Salted:
         self.raise_for_dead_links = False
         self.user_agent = f"salted/{self.VERSION}"
         self.ignore_urls: set = set()
+        self.ignore_domains: set = set()
         self.domain_delay: float = 0.25
         # Cache
         self.cache_file: Union[pathlib.Path, str] = 'salted-cache.sqlite3'
@@ -114,6 +115,30 @@ class Salted:
         self.__parse_configfile()
 
         self.cnt: Counter = Counter()
+
+    @staticmethod
+    def _validate_domains(raw: Optional[Set[str]]) -> Set[str]:
+        """Normalize and validate domain entries, returning only valid hostnames.
+
+        Accepts plain hostnames (e.g. 'example.com') or full URLs
+        (e.g. 'https://example.com/path') — extract_domain normalizes both
+        to bare hostnames. Entries that cannot be parsed are logged as
+        warnings and dropped.
+        """
+        if not raw:
+            return set()
+        valid: Set[str] = set()
+        for entry in raw:
+            entry = entry.strip()
+            if not entry:
+                continue
+            try:
+                url_to_parse = entry if '://' in entry else f'https://{entry}'
+                domain = user_url.extract_domain(url_to_parse)
+                valid.add(domain)
+            except ValueError:
+                logging.warning("'%s' is not a valid domain — ignored.", entry)
+        return valid
 
     def __parse_configfile(self) -> None:
         """Parse configuration file and overwrite defaults with its settings.
@@ -148,6 +173,9 @@ class Salted:
             parsed_ignores = separated_string_to_set(behavior.get('ignore_urls'))
             if parsed_ignores is not None:
                 self.ignore_urls = parsed_ignores
+            parsed_domains = separated_string_to_set(behavior.get('ignore_domains'))
+            if parsed_domains is not None:
+                self.ignore_domains = self._validate_domains(parsed_domains)
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
             self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
@@ -257,6 +285,7 @@ class Salted:
             self.timeout,
             normalized_ignores,
             self.domain_delay,
+            ignore_domains=self.ignore_domains,
             quiet=self.quiet)
         urls.check_urls()
 

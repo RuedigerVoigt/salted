@@ -82,6 +82,12 @@ def main() -> None:
         metavar="<str,str,str>"
     )
     parser.add_argument(
+        "--ignore_domains",
+        type=str,
+        help="Comma-separated list of domain names whose URLs will not be checked (e.g. example.com,skip.org).",
+        metavar="<domain,domain>"
+    )
+    parser.add_argument(
         "--domain_delay",
         type=float,
         help="Minimum delay in seconds between requests to the same domain (default: 0.25). Set to 0 to disable rate limiting.",
@@ -158,6 +164,10 @@ def main() -> None:
         parsed_ignores = separated_string_to_set(args.ignore_urls)
         if parsed_ignores is not None:
             checker.ignore_urls = parsed_ignores
+    if args.ignore_domains:
+        parsed_domains = separated_string_to_set(args.ignore_domains)
+        if parsed_domains is not None:
+            checker.ignore_domains = checker._validate_domains(parsed_domains)
     if args.domain_delay is not None:
         checker.domain_delay = args.domain_delay
 

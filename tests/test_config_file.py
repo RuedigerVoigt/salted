@@ -68,6 +68,30 @@ ignore_urls = http://example.com,http://test.com
         assert 'http://example.com' in checker.ignore_urls
         assert 'http://test.com' in checker.ignore_urls
 
+    def test_config_file_with_ignore_domains(self, tmp_path, monkeypatch):
+        """Test loading ignore_domains from BEHAVIOR section."""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[BEHAVIOR]
+ignore_domains = example.com,skip.org
+""")
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert 'example.com' in checker.ignore_domains
+        assert 'skip.org' in checker.ignore_domains
+
+    def test_config_file_ignore_domains_full_url_normalized(self, tmp_path, monkeypatch):
+        """Full URLs in ignore_domains are normalized to bare hostnames."""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[BEHAVIOR]
+ignore_domains = https://example.com/some/path,skip.org
+""")
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert 'example.com' in checker.ignore_domains
+        assert 'skip.org' in checker.ignore_domains
+
     def test_config_file_with_cache_section(self, tmp_path, monkeypatch):
         """Test loading CACHE section from config"""
         config_file = tmp_path / "salted-linkcheck.ini"

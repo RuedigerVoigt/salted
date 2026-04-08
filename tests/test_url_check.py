@@ -423,5 +423,46 @@ class TestCheckUrlsAsync:
         url_checker._UrlCheck__distribute_work.assert_called_once()
 
 
+class TestIgnoreDomains:
+    """Test that URLs whose hostname is in ignore_domains are skipped."""
+
+    @pytest.mark.asyncio
+    async def test_url_on_ignored_domain_is_skipped(self, mock_db):
+        """URL whose hostname matches ignore_domains must not be checked."""
+        checker = url_check.UrlCheck(
+            user_agent="test/1.0",
+            db=mock_db,
+            ignore_domains={"example.com"}
+        )
+        with patch.object(checker, 'head_request') as mock_req:
+            await checker.validate_url("https://example.com/page")
+            mock_req.assert_not_called()
+        assert checker.cnt['ignored_domains'] == 1
+
+    @pytest.mark.asyncio
+    async def test_url_on_other_domain_is_not_skipped(self, mock_db):
+        """URL on a different domain must still be checked."""
+        checker = url_check.UrlCheck(
+            user_agent="test/1.0",
+            db=mock_db,
+            ignore_domains={"example.com"}
+        )
+        with patch.object(checker, 'head_request', return_value=200):
+            await checker.validate_url("https://other.com/page")
+        assert checker.cnt['ignored_domains'] == 0
+
+    @pytest.mark.asyncio
+    async def test_subdomain_not_matched_by_parent_domain(self, mock_db):
+        """Exact hostname match: sub.example.com is not ignored by example.com."""
+        checker = url_check.UrlCheck(
+            user_agent="test/1.0",
+            db=mock_db,
+            ignore_domains={"example.com"}
+        )
+        with patch.object(checker, 'head_request', return_value=200):
+            await checker.validate_url("https://sub.example.com/page")
+        assert checker.cnt['ignored_domains'] == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

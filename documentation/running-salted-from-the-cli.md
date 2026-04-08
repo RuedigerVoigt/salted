@@ -13,9 +13,10 @@ On the command line salted supports all parameters. To get an overview, simply t
 ```
 usage: salted [-h] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>] [--timeout <seconds>]
               [--raise_for_dead_links | --no-raise_for_dead_links] [--user_agent <preset or custom string>]
-              [--ignore_urls <str,str,str>] [--domain_delay <seconds>] [--cache_file <path>]
-              [--dont_check_again_within_hours <hours>] [--template_searchpath <path to folder>]
-              [--template_name <filename>] [--write_to <path>] [--base_url https://www.example.com] [-q]
+              [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>] [--domain_delay <seconds>]
+              [--cache_file <path>] [--dont_check_again_within_hours <hours>]
+              [--template_searchpath <path to folder>] [--template_name <filename>]
+              [--write_to <path>] [--base_url https://www.example.com] [-q]
 
 Salted is an extremely fast link checker. It works with HTML, Markdown, TeX and BibTeX files.
 Currently it only checks external links.
@@ -36,6 +37,10 @@ options:
                         chrome-mac, chrome-linux) or provide a custom string. (Default: salted / version)
   --ignore_urls <str,str,str>
                         String with URLs that will not be checked. Separate them with commas.
+  --ignore_domains <domain,domain>
+                        Comma-separated list of hostnames whose URLs will not be checked
+                        (e.g. example.com,skip.org). Matching is exact: example.com does not
+                        match sub.example.com. Full URLs are accepted and normalized to the hostname.
   --domain_delay <seconds>
                         Minimum delay in seconds between requests to the same domain (default: 0.25).
                         Set to 0 to disable rate limiting.

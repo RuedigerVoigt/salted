@@ -14,6 +14,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 from salted import command_line
+from salted import Salted
 import salted
 
 
@@ -129,6 +130,21 @@ class TestCommandLineArguments:
                 command_line.main()
                 
                 assert mock_checker.ignore_urls == {'https://skip1.com', 'https://skip2.com'}
+
+    def test_main_with_ignore_domains_argument(self):
+        """Test CLI with --ignore_domains argument."""
+        test_args = ['salted', '--ignore_domains', 'example.com,skip.org']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_checker._validate_domains.return_value = {'example.com', 'skip.org'}
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                mock_checker._validate_domains.assert_called_once()
+                assert mock_checker.ignore_domains == {'example.com', 'skip.org'}
 
     def test_main_with_ignore_urls_trims_and_drops_empty(self):
         """Test CLI cleaning of --ignore_urls (trims whitespace, drops empties)."""
