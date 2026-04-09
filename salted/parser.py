@@ -9,10 +9,20 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
+import logging
 import re
 
 from bs4 import BeautifulSoup  # type: ignore
 from pybtex.database import parse_string # type: ignore
+
+try:
+    import lxml  # noqa: F401
+    _BS_PARSER = 'lxml'
+    logging.info("lxml %s available — using it as HTML parser backend.", lxml.__version__)
+except ImportError:
+    _BS_PARSER = 'html.parser'
+    logging.warning("lxml not installed — falling back to html.parser. "
+                    "Install salted[lxml] for faster HTML parsing.")
 # a future version of pybtex might get type hints, see:
 # https://bitbucket.org/pybtex-devs/pybtex/issues/141/type-annotations
 
@@ -52,7 +62,7 @@ class Parser():
             List of [url, linktext] pairs extracted from anchor tags.
         """
         matches = []
-        soup = BeautifulSoup(file_content, 'html.parser')
+        soup = BeautifulSoup(file_content, _BS_PARSER)
         for link in soup.find_all('a'):
             if hasattr(link, 'get'):
                 href = link.get('href')
