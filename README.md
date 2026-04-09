@@ -1,5 +1,3 @@
-![Salted v2 logo](documentation/salted-v2-logo.png)
-
 # SALTED — Python Link Checker for HTML, Markdown & TeX
 
 ![Supported Python Versions](https://img.shields.io/pypi/pyversions/salted)
@@ -7,6 +5,8 @@
 ![pypi version](https://img.shields.io/pypi/v/salted)
 [![Downloads](https://pepy.tech/badge/salted)](https://pepy.tech/project/salted)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](https://www.ruediger-voigt.eu/coverage/salted/index.html)
+
+![Salted v2 logo](documentation/salted-v2-logo.png)
 
 SALTED is a fast, async Python link checker for HTML, Markdown, TeX, and BibTeX files. It detects broken hyperlinks, uses a local cache to avoid rechecking. It is a command line application and integrates into CI/CD pipelines. It can be run on Windows, Linux and Mac.
 
@@ -51,13 +51,6 @@ Two runs in a row (i.e. one full check and one using the cache):
 Salted automatically recognizes supported file formats by their extension (i.e. `htm`, `html`, `md`, and `tex`).
 
 ## Installation
-
-Python 3.10 or newer is required. You can check your Python version:
-```bash
-python3 --version
-# or depending on your system:
-python --version
-```
 
 Installation is straightforward using pip:
 
