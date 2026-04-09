@@ -10,6 +10,7 @@ Released under the Apache License 2.0
 """
 import asyncio
 import logging
+import re
 from typing import Final, Optional
 
 import aiohttp
@@ -56,6 +57,14 @@ class DoiCheck:
 
         self.valid_doi_list: list = list()
         self.invalid_doi_list: list = list()
+
+    # DOI format: prefix 10.NNNN[NN...] / suffix (at least one non-whitespace char)
+    _DOI_PATTERN: Final = re.compile(r'^10\.\d{4,}/\S+$')
+
+    @staticmethod
+    def _is_valid_doi_format(doi: str) -> bool:
+        """Return True if doi matches the basic DOI format 10.NNNN/suffix."""
+        return bool(DoiCheck._DOI_PATTERN.match(doi.strip()))
 
     async def __create_session(self) -> None:
         # Create a client session bound to the current running loop
@@ -171,7 +180,11 @@ class DoiCheck:
         """
         queue: asyncio.Queue = asyncio.Queue()
         for entry in doi_list:
-            queue.put_nowait(entry)
+            if self._is_valid_doi_format(entry):
+                queue.put_nowait(entry)
+            else:
+                logging.warning("DOI '%s' fails basic format check — skipping API call.", entry)
+                self.invalid_doi_list.append(entry)
 
         await self.__create_session()
 

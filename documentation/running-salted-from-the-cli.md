@@ -47,6 +47,7 @@ options:
   --cache_file <path>   Path to the cache file (default: salted-cache.sqlite3 in the current working directory)
   --dont_check_again_within_hours <hours>
                         Number of hours an already verified URL is considered valid (default: 24).
+                        Note: validated DOIs are cached permanently and are never re-checked.
   --template_searchpath <path to folder>
                         Path to *folder* in which the template file can be found.
   --template_name <filename>

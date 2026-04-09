@@ -19,7 +19,7 @@ All versions of salted use the same parameters. Their categories are only import
   * `ignore_domains`: accepts a comma-separated list of hostnames (like `example.com, skip.org`). All URLs on those domains will not be checked. Matching is exact: `example.com` does not match `sub.example.com`. Full URLs are also accepted and normalized to just the hostname.
 * **Category "CACHE":**
   * `cache_file`: Path to the cache file. Default is `salted-cache.sqlite3` in the current working directory.
-  * `dont_check_again_within_hours`: The cache lifetime in full hours. If a link was valid this number of hours ago, salted assumes it is still valid and will not check it again. This defaults to 24 hours.
+  * `dont_check_again_within_hours`: The cache lifetime in full hours for **URLs**. If a URL was valid this number of hours ago, salted assumes it is still valid and will not check it again. This defaults to 24 hours. Note: validated DOIs are cached permanently and are never re-checked — DOIs are persistent identifiers by design.
 * **Category "TEMPLATE":**
   * `template_searchpath`: In case you want to use a custom template, this has to be the path to the *folder* in which the template file can be found.
   * `template_name`: The name of the template file. Built-In templates are `default.md.jinja` (for markdown output) and `default.cli.jinja` (for text output on the command line).

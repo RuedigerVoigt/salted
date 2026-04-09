@@ -139,8 +139,7 @@ class TestLoadDiskCache:
             ''')
             cache_cursor.execute('''
                 CREATE TABLE validDois (
-                    doi text,
-                    lastSeen integer
+                    doi text
                 )
             ''')
             # Insert a URL with current timestamp (within cache lifetime)
@@ -181,13 +180,12 @@ class TestLoadDiskCache:
             ''')
             cache_cursor.execute('''
                 CREATE TABLE validDois (
-                    doi text,
-                    lastSeen integer
+                    doi text
                 )
             ''')
             # Insert a DOI
             cache_cursor.execute('''
-                INSERT INTO validDois VALUES (?, strftime('%s', 'now'))
+                INSERT INTO validDois VALUES (?)
             ''', ['10.1234/test'])
             cache_conn.commit()
             cache_conn.close()
@@ -223,8 +221,7 @@ class TestLoadDiskCache:
             ''')
             cache_cursor.execute('''
                 CREATE TABLE validDois (
-                    doi text,
-                    lastSeen integer
+                    doi text
                 )
             ''')
             # Insert a URL with old timestamp (expired)

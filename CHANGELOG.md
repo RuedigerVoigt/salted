@@ -1,12 +1,13 @@
 # Changelog for salted
 
-## Version 1.1.0 (2026-04-09)
+## Version 2.0.0 (upcoming)
 
 * Breaking Changes:
   * `--raise_for_dead_links` no longer accepts a string argument (`True`/`False`/`yes`/`no`). Use the bare flag `--raise_for_dead_links` to enable and `--no-raise_for_dead_links` to explicitly disable. Default is off (no exception raised). Scripts using `--raise_for_dead_links True` must be updated.
 * New features:
   * Add `-q`/`--quiet` flag to suppress progress messages — useful for CI pipelines where only the final report should appear on stdout
   * Add `--ignore_domains` CLI argument and `ignore_domains` config key (under `[BEHAVIOR]`): comma-separated list of hostnames whose URLs are skipped without checking. Invalid entries are logged as warnings and dropped. Matching is exact (e.g. `example.com` does not match `sub.example.com`).
+  * Invalid DOIs (CrossRef returns 404) are now stored and shown in reports under a dedicated "INVALID DOIs" section, grouped by source file. A basic preflight format check (`10.NNNN/suffix`) is applied before any API call is made, so obviously malformed entries (typos, broken strings) are flagged immediately without hitting the network. Validated DOIs are cached permanently — `dont_check_again_within_hours` applies to URLs only.
   * BibTeX (`.bib`) support now fully working — URL and DOI fields are extracted and checked; `.bib` files are included under `--file_types tex`
   * Mailto links are now parsed and listed in the report. Each address is checked for basic format validity (not empty, has email address format), but no DNS lookup or delivery verification is performed. The mailto section only appears in the report when mailto links are actually present.
   * Improved documentation

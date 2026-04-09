@@ -205,6 +205,36 @@ class ReportGenerator:
             })
         return result
 
+    def generate_invalid_doi_list(self) -> Optional[list]:
+        """Generate a list of invalid DOIs and the files that reference them.
+
+        Joins the invalidDois table with queue_doi to find which files
+        contain each invalid DOI.
+
+        Returns:
+            List of dicts with keys 'doi', 'path', 'description',
+            or None if no invalid DOIs were found.
+        """
+        cursor = self.db.get_cursor()
+        cursor.execute('''
+            SELECT invalidDois.doi, queue_doi.filePath, queue_doi.description
+            FROM invalidDois
+            INNER JOIN queue_doi ON invalidDois.doi = queue_doi.doi
+            ORDER BY queue_doi.filePath, invalidDois.doi;''')
+        rows = cursor.fetchall()
+        if not rows:
+            return None
+        result = []
+        for doi, file_path, description in rows:
+            if self.replace_path_by_url:
+                file_path = self.rewrite_path(file_path)
+            result.append({
+                'doi': doi,
+                'path': file_path,
+                'description': description,
+            })
+        return result
+
     def generate_report(self,
                         statistics: dict,
                         template: dict,
@@ -235,6 +265,7 @@ class ReportGenerator:
 
         access_errors = self.generate_access_error_list()
         mailto_links = self.generate_mailto_list()
+        invalid_dois = self.generate_invalid_doi_list()
 
         permanent_errors = self.generate_error_list()
 
@@ -260,7 +291,8 @@ class ReportGenerator:
                 permanent=permanent_errors,
                 redirects=permanent_redirects,
                 exceptions=crawl_exceptions,
-                mailto_links=mailto_links)
+                mailto_links=mailto_links,
+                invalid_dois=invalid_dois)
         else:
             # external template from file system
             jinja_env = Environment(
@@ -273,7 +305,8 @@ class ReportGenerator:
                 permanent=permanent_errors,
                 redirects=permanent_redirects,
                 exceptions=crawl_exceptions,
-                mailto_links=mailto_links)
+                mailto_links=mailto_links,
+                invalid_dois=invalid_dois)
 
         if write_to == 'cli':
             print(rendered_report)

@@ -354,6 +354,70 @@ class TestGenerateMailtoList:
         mem_inst.tear_down_in_memory_db()
 
 
+class TestGenerateInvalidDoiList:
+    """Test generate_invalid_doi_list."""
+
+    def test_no_invalid_dois_returns_none(self):
+        """Returns None when no invalid DOIs were recorded."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        assert gen.generate_invalid_doi_list() is None
+        mem_inst.tear_down_in_memory_db()
+
+    def test_invalid_doi_joined_with_source_file(self):
+        """Invalid DOI is joined with queue_doi to find its source file."""
+        mem_inst = memory_instance.MemoryInstance()
+        cursor = mem_inst.get_cursor()
+        cursor.execute(
+            'INSERT INTO queue_doi (filePath, doi, description) VALUES (?, ?, ?)',
+            ('refs.bib', '10.1234/bad', 'Smith2020'))
+        cursor.execute(
+            'INSERT INTO invalidDois (doi) VALUES (?)',
+            ('10.1234/bad',))
+        gen = report_generator.ReportGenerator(mem_inst)
+        result = gen.generate_invalid_doi_list()
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]['doi'] == '10.1234/bad'
+        assert result[0]['path'] == 'refs.bib'
+        assert result[0]['description'] == 'Smith2020'
+        mem_inst.tear_down_in_memory_db()
+
+    def test_invalid_doi_appears_in_multiple_files(self):
+        """Same invalid DOI in two files produces one entry per file."""
+        mem_inst = memory_instance.MemoryInstance()
+        cursor = mem_inst.get_cursor()
+        cursor.execute(
+            'INSERT INTO queue_doi VALUES (?, ?, ?)', ('file1.bib', '10.1234/bad', 'A'))
+        cursor.execute(
+            'INSERT INTO queue_doi VALUES (?, ?, ?)', ('file2.bib', '10.1234/bad', 'B'))
+        cursor.execute('INSERT INTO invalidDois (doi) VALUES (?)', ('10.1234/bad',))
+        gen = report_generator.ReportGenerator(mem_inst)
+        result = gen.generate_invalid_doi_list()
+        assert result is not None
+        assert len(result) == 2
+        paths = {r['path'] for r in result}
+        assert paths == {'file1.bib', 'file2.bib'}
+        mem_inst.tear_down_in_memory_db()
+
+    def test_path_rewriting_applied(self):
+        """File paths are rewritten when replace_path_by_url is set."""
+        mem_inst = memory_instance.MemoryInstance()
+        cursor = mem_inst.get_cursor()
+        cursor.execute(
+            'INSERT INTO queue_doi VALUES (?, ?, ?)',
+            ('/local/refs.bib', '10.1234/bad', 'X'))
+        cursor.execute('INSERT INTO invalidDois (doi) VALUES (?)', ('10.1234/bad',))
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.replace_path_by_url = {
+            'path_to_be_replaced': '/local',
+            'replace_with_url': 'https://example.com',
+        }
+        result = gen.generate_invalid_doi_list()
+        assert result[0]['path'] == 'https://example.com/refs.bib'
+        mem_inst.tear_down_in_memory_db()
+
+
 class TestGenerateReport:
     """Test report generation with different templates and outputs"""
 

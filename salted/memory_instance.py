@@ -91,11 +91,10 @@ class MemoryInstance():
             CREATE TABLE IF NOT EXISTS validUrls (
             normalizedUrl text,
             lastValid integer);''')
-        # table 'validDois': cache for DOI
+        # table 'validDois': cache for DOIs — no expiry, DOIs are permanent identifiers
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS validDois (
-            doi text,
-            lastSeen integer);''')
+            doi text);''')
         # table 'mailtoLinks': mailto links found in files
         # valid = 1 means is_email() returned True; 0 means malformed/empty
         self.cursor.execute('''
@@ -104,6 +103,10 @@ class MemoryInstance():
             url      text,
             address  text,
             valid    integer);''')
+        # table 'invalidDois': DOIs that returned 404 from the CrossRef API
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS invalidDois (
+            doi text);''')
 
         logging.debug("Created database schema.")
 

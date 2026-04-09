@@ -62,6 +62,14 @@ No exceptions during the crawl!
 {% endfor %}
 {% endif %}
 
+{% if invalid_dois %}
+########## INVALID DOIs ##########
+The following DOIs returned 404 from the CrossRef API and do not appear to exist:
+{% for entry in invalid_dois %}
+* {{ entry.path }}: {{ entry.doi }} ({{ entry.description }})
+{% endfor %}
+{% endif %}
+
 {% if mailto_links %}
 ########## MAILTO LINKS (NOT CHECKED) ##########
 Note: salted only checks HTTP/HTTPS links. Mailto links are listed here for

@@ -108,7 +108,7 @@ class CacheReader:
                 [self.dont_check_again_within_hours])
             valid_urls = disk_cache_cursor.fetchall()
 
-            disk_cache_cursor.execute('SELECT doi, lastSeen FROM validDois;')
+            disk_cache_cursor.execute('SELECT doi FROM validDois;')
             valid_dois = disk_cache_cursor.fetchall()
 
         except Exception:
@@ -128,7 +128,7 @@ class CacheReader:
 
         if valid_dois:
             self.cursor.executemany(
-                'INSERT INTO validDois (doi, lastSeen) VALUES (?, ?);',
+                'INSERT INTO validDois (doi) VALUES (?);',
                 valid_dois)
 
     def overwrite_cache_file(self) -> None:

@@ -136,13 +136,16 @@ class DatabaseIO:
 
     def log_invalid_dois(self,
                          invalid_dois: list) -> None:
-        """Log an invalid DOI.
+        """Log invalid DOIs (those that returned 404 from the CrossRef API).
 
         Args:
-            invalid_dois: List of invalid DOI strings to log.
+            invalid_dois: List of (doi,) tuples to log.
         """
-        # TO DO
-        pass
+        if not invalid_dois:
+            return
+        self.cursor.executemany('''
+            INSERT INTO invalidDois (doi)
+            VALUES (?);''', invalid_dois)
 
     def log_error(self,
                   url: str,

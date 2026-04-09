@@ -579,3 +579,64 @@ class TestDistributeWork:
 
         # Should complete without errors even with task cancellation
         assert len(doi_checker.valid_doi_list) == 1
+
+
+class TestDoiFormatCheck:
+    """Test the preflight DOI format check."""
+
+    def test_valid_doi_passes(self):
+        """Standard DOIs pass the format check."""
+        valid = [
+            '10.1234/something',
+            '10.12345/suffix',
+            '10.1000/xyz123',
+            '10.1038/nature12345',
+        ]
+        for doi in valid:
+            assert DoiCheck._is_valid_doi_format(doi), f"Expected valid: {doi}"
+
+    def test_invalid_doi_rejected(self):
+        """Malformed DOIs are rejected before hitting the API."""
+        invalid = [
+            '',
+            'not-a-doi',
+            '10.123/too-short-registrant',  # registrant must be ≥4 digits
+            '10.1234',                       # missing slash and suffix
+            '10.1234/',                      # missing suffix
+            'doi:10.1234/something',         # has prefix that breaks the pattern
+        ]
+        for doi in invalid:
+            assert not DoiCheck._is_valid_doi_format(doi), f"Expected invalid: {doi}"
+
+    @pytest.mark.asyncio
+    async def test_malformed_doi_skips_api(self):
+        """A malformed DOI is added to invalid_doi_list without any API call."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+        doi_checker.pbar_doi = Mock()
+        doi_checker.pbar_doi.update = Mock()
+
+        with patch.object(doi_checker, '_DoiCheck__api_send_head_request') as mock_api:
+            await doi_checker._DoiCheck__distribute_work(['not-a-doi'])
+
+        mock_api.assert_not_called()
+        assert 'not-a-doi' in doi_checker.invalid_doi_list
+
+    @pytest.mark.asyncio
+    async def test_valid_doi_reaches_api(self):
+        """A well-formed DOI is sent to the CrossRef API."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+        doi_checker.pbar_doi = Mock()
+        doi_checker.pbar_doi.update = Mock()
+
+        async def mock_api(doi):
+            return {'status': 200, 'max_queries': '50', 'seconds': '1'}
+
+        doi_checker._DoiCheck__api_send_head_request = mock_api
+        doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
+
+        await doi_checker._DoiCheck__distribute_work(['10.1234/valid'])
+
+        assert '10.1234/valid' in doi_checker.valid_doi_list
+        assert doi_checker.invalid_doi_list == []

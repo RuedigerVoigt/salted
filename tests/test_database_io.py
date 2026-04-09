@@ -270,12 +270,30 @@ class TestLogInvalidDois:
     """Test logging invalid DOIs"""
 
     def test_log_invalid_dois(self):
-        """Test logging invalid DOIs (currently not implemented)"""
+        """Test that invalid DOIs are stored in the invalidDois table."""
         mem_inst = memory_instance.MemoryInstance()
         db_io = database_io.DatabaseIO(mem_inst)
 
-        # This method currently does nothing (pass)
-        db_io.log_invalid_dois(['10.1234/invalid'])
+        db_io.log_invalid_dois([('10.1234/invalid',), ('10.5678/also-bad',)])
+
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT doi FROM invalidDois ORDER BY doi;')
+        rows = cursor.fetchall()
+        assert len(rows) == 2
+        assert rows[0][0] == '10.1234/invalid'
+        assert rows[1][0] == '10.5678/also-bad'
+        mem_inst.tear_down_in_memory_db()
+
+    def test_log_invalid_dois_empty_list(self):
+        """Empty list must not insert any rows."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+
+        db_io.log_invalid_dois([])
+
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT COUNT(*) FROM invalidDois;')
+        assert cursor.fetchone()[0] == 0
         mem_inst.tear_down_in_memory_db()
 
 
