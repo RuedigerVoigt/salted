@@ -1,3 +1,5 @@
+![Salted v2 logo](documentation/salted-v2-logo.png)
+
 # SALTED — Python Link Checker for HTML, Markdown & TeX
 
 ![Supported Python Versions](https://img.shields.io/pypi/pyversions/salted)
