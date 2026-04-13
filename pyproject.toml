@@ -46,14 +46,14 @@ tqdm = ">=4.67.2"
 userprovided = ">=2.3.0"
 
 [tool.poetry.group.test.dependencies]
-pytest = ">=7.0.0"
+pytest = ">=9.0.3"
 pytest-asyncio = ">=0.21.0"
 pytest-mock = ">=3.10.0"
 pyfakefs = ">=5.0.0"
 pytest-cov = "*"
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=7.0.0"
+pytest = ">=9.0.3"
 pytest-asyncio = ">=0.21.0"
 pytest-mock = ">=3.10.0"
 pyfakefs = ">=5.0.0"
