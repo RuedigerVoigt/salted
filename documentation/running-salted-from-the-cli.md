@@ -12,9 +12,10 @@ On the command line salted supports all parameters. To get an overview, simply t
 
 ```
 usage: salted [-h] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>] [--timeout <seconds>]
-              [--raise_for_dead_links | --no-raise_for_dead_links] [--user_agent <preset or custom string>]
-              [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>] [--domain_delay <seconds>]
-              [--cache_file <path>] [--dont_check_again_within_hours <hours>]
+              [--raise_for_dead_links | --no-raise_for_dead_links] [--check_dois | --no-check_dois]
+              [--user_agent <preset or custom string>] [--mailto <email>]
+              [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>]
+              [--domain_delay <seconds>] [--cache_file <path>] [--dont_check_again_within_hours <hours>]
               [--template_searchpath <path to folder>] [--template_name <filename>]
               [--write_to <path>] [--base_url https://www.example.com] [-q]
 
@@ -35,6 +36,12 @@ options:
   --user_agent <preset or custom string>
                         User agent to identify itself. Use a preset (chrome, firefox, edge, safari,
                         chrome-mac, chrome-linux) or provide a custom string. (Default: salted / version)
+  --check_dois, --no-check_dois
+                        Check DOIs via the CrossRef API (default: True). Use --no-check_dois
+                        to skip DOI validation entirely.
+  --mailto <email>      A contact e-mail address included in the CrossRef API User-Agent to opt
+                        into the polite pool (higher rate limits). Optional but recommended if
+                        you check DOIs.
   --ignore_urls <str,str,str>
                         String with URLs that will not be checked. Separate them with commas.
   --ignore_domains <domain,domain>

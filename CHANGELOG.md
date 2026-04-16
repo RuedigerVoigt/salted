@@ -10,6 +10,8 @@
   * `lxml` is now an optional dependency (`pip install salted[lxml]`). If installed, it is used as the BeautifulSoup HTML parser backend (faster, more lenient with malformed HTML). Falls back to Python's built-in `html.parser` if not available. salted logs which parser is active at startup.
   * Invalid DOIs (CrossRef returns 404) are now stored and shown in reports under a dedicated "INVALID DOIs" section, grouped by source file. A basic preflight format check (`10.NNNN/suffix`) is applied before any API call is made, so obviously malformed entries (typos, broken strings) are flagged immediately without hitting the network. Validated DOIs are cached permanently — `dont_check_again_within_hours` applies to URLs only.
   * BibTeX (`.bib`) support now fully working — URL and DOI fields are extracted and checked; `.bib` files are included under `--file_types tex`
+  * Add `--check_dois` / `--no-check_dois` CLI flag and `check_dois` config key (under `[BEHAVIOR]`): set to `False` to skip DOI validation entirely (default: `True`).
+  * Add `--mailto` CLI argument and `mailto` config key (under `[BEHAVIOR]`): a contact e-mail address included in the CrossRef API User-Agent to opt into the polite pool (higher rate limits, dedicated infrastructure). Optional but recommended when checking DOIs. A warning is logged if no address is configured.
   * Mailto links are now parsed and listed in the report. Each address is checked for basic format validity (not empty, has email address format), but no DNS lookup or delivery verification is performed. The mailto section only appears in the report when mailto links are actually present.
   * Improved documentation
 * Security:

@@ -101,6 +101,8 @@ class Salted:
         self.ignore_urls: set = set()
         self.ignore_domains: set = set()
         self.domain_delay: float = 0.25
+        self.mailto: Optional[str] = None
+        self.check_dois: bool = True
         # Cache
         self.cache_file: Union[pathlib.Path, str] = 'salted-cache.sqlite3'
         self.dont_check_again_within_hours: int = 24
@@ -176,6 +178,10 @@ class Salted:
             parsed_domains = separated_string_to_set(behavior.get('ignore_domains'))
             if parsed_domains is not None:
                 self.ignore_domains = self._validate_domains(parsed_domains)
+            mailto = behavior.get('mailto')
+            if mailto:
+                self.mailto = mailto.strip()
+            self.check_dois = behavior.getboolean('check_dois', self.check_dois)
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
             self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
@@ -270,6 +276,8 @@ class Salted:
 
         file_io.scan_files(files_to_check)
         mem_instance.generate_indices()
+        if self.check_dois:
+            db.convert_doi_urls_to_dois()
         db.del_links_that_can_be_skipped()
         db.del_dois_that_can_be_skipped()
 
@@ -289,8 +297,13 @@ class Salted:
             quiet=self.quiet)
         urls.check_urls()
 
-        doi = doi_check.DoiCheck(db, quiet=self.quiet)
-        doi.check_dois()
+        num_valid_dois = 0
+        num_invalid_dois = 0
+        if self.check_dois:
+            doi = doi_check.DoiCheck(db, quiet=self.quiet, mailto=self.mailto)
+            doi.check_dois()
+            num_valid_dois = len(doi.valid_doi_list)
+            num_invalid_dois = len(doi.invalid_doi_list)
 
         # ##### END CHECKS #####
 
@@ -320,7 +333,10 @@ class Salted:
                 'percentage_full_request': (
                     round((urls.cnt['neededFullRequest'] / urls.cnt['checked_urls']) * 100, 2)
                     if urls.cnt['checked_urls'] > 0 else 0
-                )
+                ),
+                'check_dois': self.check_dois,
+                'num_valid_dois': num_valid_dois,
+                'num_invalid_dois': num_invalid_dois,
                           },
             template={
                 'searchpath': self.template_searchpath,

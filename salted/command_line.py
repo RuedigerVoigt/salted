@@ -76,6 +76,16 @@ def main() -> None:
         metavar="<preset or custom string>"
     )
     parser.add_argument(
+        "--check_dois",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Check DOIs via the CrossRef API (default: True). Use --no-check_dois to skip DOI validation.")
+    parser.add_argument(
+        "--mailto",
+        type=str,
+        help="Contact e-mail address included in the CrossRef API User-Agent to opt into the polite pool (faster, less rate-limited).",
+        metavar="<email>")
+    parser.add_argument(
         "--ignore_urls",
         type=str,
         help="String with URLs that will not be checked. Separate them with commas.",
@@ -159,6 +169,10 @@ def main() -> None:
         except ValueError:
             # Not a preset, treat as custom user agent string
             checker.user_agent = args.user_agent
+    if args.check_dois is not None:
+        checker.check_dois = args.check_dois
+    if args.mailto:
+        checker.mailto = args.mailto
     if args.ignore_urls:
         # Parse comma-separated values into a clean set using userprovided helper
         parsed_ignores = separated_string_to_set(args.ignore_urls)

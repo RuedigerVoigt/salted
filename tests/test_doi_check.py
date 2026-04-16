@@ -38,7 +38,7 @@ class TestDoiCheckInitialization:
         assert 'User-Agent' in doi_checker.headers
         assert 'salted' in doi_checker.headers['User-Agent']
         assert 'github.com' in doi_checker.headers['User-Agent']
-        assert 'mailto:' in doi_checker.headers['User-Agent']
+        assert 'mailto:' not in doi_checker.headers['User-Agent']  # mailto is optional; omitted when not configured
 
     def test_api_base_url_constant(self):
         """Test API base URL is set correctly"""
@@ -64,15 +64,16 @@ class TestRateLimitWait:
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
 
-        # Test with 50 queries per second (standard rate)
-        # With 5 workers and 90% of limit: (1 / (50 * 0.9)) * 5 = 0.111 seconds
+        # Simulate a request was just sent so the full interval is slept.
+        doi_checker._last_send = asyncio.get_event_loop().time()
+
+        # With 50 req/s at 90%: interval = 1 / round(45) ≈ 0.022s
         import time
         start = time.time()
         await doi_checker._DoiCheck__rate_limit_wait(50, 1)
         elapsed = time.time() - start
 
-        # Should wait approximately 0.111 seconds
-        assert 0.08 < elapsed < 0.15
+        assert 0.01 < elapsed < 0.05
 
     @pytest.mark.asyncio
     async def test_rate_limit_wait_invalid_max_queries_zero(self):
@@ -102,14 +103,16 @@ class TestRateLimitWait:
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
 
-        # With 100 queries/second, should use 90
-        # Wait time = (1 / 90) * 5 workers = 0.0556 seconds
+        # Simulate a request was just sent so the full interval is slept.
+        doi_checker._last_send = asyncio.get_event_loop().time()
+
+        # With 100 req/s at 90%: interval = 1 / round(90) ≈ 0.011s
         import time
         start = time.time()
         await doi_checker._DoiCheck__rate_limit_wait(100, 1)
         elapsed = time.time() - start
 
-        assert 0.04 < elapsed < 0.08
+        assert 0.005 < elapsed < 0.03
 
 
 class TestSessionManagement:

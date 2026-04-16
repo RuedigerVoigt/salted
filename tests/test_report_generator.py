@@ -461,7 +461,10 @@ class TestGenerateReport:
                 'checks_per_second': 5.0,
                 'num_fine': 5,
                 'needed_full_request': 0,
-                'percentage_full_request': 0
+                'percentage_full_request': 0,
+                'check_dois': True,
+                'num_valid_dois': 0,
+                'num_invalid_dois': 0,
             },
             template={'name': 'default.cli.jinja'},
             write_to=str(output_file),
@@ -485,6 +488,9 @@ class TestGenerateReport:
             'time_to_check': 1, 'checks_per_second': 0.0,
             'num_fine': 0, 'needed_full_request': 0,
             'percentage_full_request': 0,
+            'check_dois': True,
+            'num_valid_dois': 0,
+            'num_invalid_dois': 0,
         }
 
         with patch('builtins.open', mock_open()) as mocked_open:

@@ -11,7 +11,11 @@ Released under the Apache License 2.0
 
 import logging
 import pathlib
+import re
+import urllib.parse
 from typing import Optional, Union
+
+_DOI_PATTERN = re.compile(r'^10\.\d{4,}/\S+$')
 
 from salted import memory_instance
 
@@ -201,6 +205,47 @@ class DatabaseIO:
         self.cursor.execute(
             'INSERT INTO fileAccessErrors VALUES (?, ?);',
             [file_path, reason])
+
+    def convert_doi_urls_to_dois(self) -> int:
+        """Move doi.org and dx.doi.org URLs from the URL queue to the DOI queue.
+
+        URLs like https://doi.org/10.1234/suffix are better validated via the
+        CrossRef API than via an HTTP redirect chain. This method extracts the
+        DOI from the URL path, inserts it into queue_doi, and removes the
+        original URL from queue.
+
+        Returns:
+            Number of URLs converted.
+        """
+        self.cursor.execute('''
+            SELECT filePath, url, normalizedUrl, linktext
+            FROM queue
+            WHERE hostname IN ('doi.org', 'dx.doi.org')''')
+        rows = self.cursor.fetchall()
+        if not rows:
+            return 0
+
+        to_insert = []
+        to_delete = []
+        for file_path, url, normalized_url, linktext in rows:
+            doi = urllib.parse.urlparse(url).path.lstrip('/')
+            if _DOI_PATTERN.match(doi):
+                description = linktext if linktext else url
+                to_insert.append((file_path, doi, description))
+                to_delete.append((normalized_url,))
+            else:
+                logging.warning("doi.org URL has unexpected path, leaving in URL queue: %s", url)
+
+        if to_insert:
+            self.cursor.executemany('''
+                INSERT INTO queue_doi (filePath, doi, description)
+                VALUES (?, ?, ?)''', to_insert)
+            self.cursor.executemany(
+                'DELETE FROM queue WHERE normalizedUrl = ?', to_delete)
+            count = len(to_insert)
+            if not self.quiet:
+                print(f"Rerouted {count} doi.org URL{'s' if count != 1 else ''} to CrossRef API check")
+        return len(to_insert)
 
     def del_links_that_can_be_skipped(self) -> int:
         """Delete links from the check queue that are still valid in the cache.

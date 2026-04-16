@@ -24,8 +24,9 @@ class StubUrlCheck:
 
 
 class NoopDoiCheck:
-    def __init__(self, db, quiet=False):
-        pass
+    def __init__(self, db, quiet=False, mailto=None):
+        self.valid_doi_list = []
+        self.invalid_doi_list = []
 
     def check_dois(self):
         return None
