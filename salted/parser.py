@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup  # type: ignore
 from pybtex.database import parse_string # type: ignore
 
 try:
-    import lxml  # noqa: F401
+    import lxml  # type: ignore[import-untyped]  # noqa: F401
     _BS_PARSER = 'lxml'
     logging.info("lxml %s available — using it as HTML parser backend.", lxml.__version__)
 except ImportError:
