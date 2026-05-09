@@ -152,14 +152,9 @@ class InputHandler:
         # So feed it to sqlite in little pieces
         first = 0
         step = 50
-        last = first + step
-        if len(dois_found) < step:
-            self.db.save_found_dois(dois_found)
-        else:
-            while last <= (len(dois_found) - 1):
-                self.db.save_found_dois(dois_found[first:last])
-                first += step
-                last += step
+        while first < len(dois_found):
+            self.db.save_found_dois(dois_found[first:first + step])
+            first += step
         return None
 
     def scan_files(self,

@@ -233,8 +233,10 @@ class DoiCheck:
         if not self.quiet:
             print(f"{num_doi} DOI{'s' if num_doi != 1 else ''} to check:")
         self.pbar_doi = tqdm(total=num_doi, disable=self.quiet or not sys.stdout.isatty())
-
-        asyncio.run(self.__distribute_work(dois_to_check))
+        try:
+            asyncio.run(self.__distribute_work(dois_to_check))
+        finally:
+            self.pbar_doi.close()
         # executemany needs a list of tuples:
         if self.valid_doi_list:
             self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])

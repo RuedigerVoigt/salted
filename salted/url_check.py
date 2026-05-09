@@ -258,11 +258,10 @@ class UrlCheck:
         if not self.quiet:
             print(f"{num_checks} URLs to check with {self.num_workers} workers:")
         self.pbar_links = tqdm(total=num_checks, disable=self.quiet or not sys.stdout.isatty())
-
-        # Synchronous wrapper for environments without an event loop
-        asyncio.run(self.__distribute_work(urls_to_check))
-
-        self.pbar_links.close()
+        try:
+            asyncio.run(self.__distribute_work(urls_to_check))
+        finally:
+            self.pbar_links.close()
 
     async def check_urls_async(self) -> None:
         """Check URLs asynchronously.
