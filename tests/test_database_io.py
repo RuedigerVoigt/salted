@@ -507,6 +507,102 @@ class TestCountErrors:
         mem_inst.tear_down_in_memory_db()
 
 
+class TestConvertDoiUrlsToDois:
+    """Test converting doi.org URLs from the URL queue to the DOI queue."""
+
+    def test_convert_doi_urls_no_doi_urls(self):
+        """Returns 0 when no doi.org URLs are in the queue."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_found_links([
+            ('test.html', 'example.com', 'http://example.com', 'http://example.com', 'Link')
+        ])
+        result = db_io.convert_doi_urls_to_dois()
+        assert result == 0
+        mem_inst.tear_down_in_memory_db()
+
+    def test_convert_doi_urls_valid_doi(self):
+        """Valid doi.org URL is moved to queue_doi and removed from queue."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_found_links([
+            ('refs.bib', 'doi.org', 'https://doi.org/10.1234/test', 'https://doi.org/10.1234/test', 'Smith2020')
+        ])
+        result = db_io.convert_doi_urls_to_dois()
+        assert result == 1
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT doi, filePath, description FROM queue_doi')
+        row = cursor.fetchone()
+        assert row[0] == '10.1234/test'
+        assert row[1] == 'refs.bib'
+        assert row[2] == 'Smith2020'
+        cursor.execute("SELECT COUNT(*) FROM queue WHERE hostname = 'doi.org'")
+        assert cursor.fetchone()[0] == 0
+        mem_inst.tear_down_in_memory_db()
+
+    def test_convert_doi_urls_invalid_doi_path(self):
+        """doi.org URL with non-DOI path is left in queue and triggers a warning."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_found_links([
+            ('page.html', 'doi.org', 'https://doi.org/not-a-doi', 'https://doi.org/not-a-doi', 'Bad')
+        ])
+        result = db_io.convert_doi_urls_to_dois()
+        assert result == 0
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT COUNT(*) FROM queue_doi')
+        assert cursor.fetchone()[0] == 0
+        cursor.execute("SELECT COUNT(*) FROM queue WHERE hostname = 'doi.org'")
+        assert cursor.fetchone()[0] == 1
+        mem_inst.tear_down_in_memory_db()
+
+    def test_convert_doi_urls_linktext_fallback(self):
+        """Uses URL as description when linktext is None."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_found_links([
+            ('refs.bib', 'doi.org', 'https://doi.org/10.5678/abc', 'https://doi.org/10.5678/abc', None)
+        ])
+        db_io.convert_doi_urls_to_dois()
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT description FROM queue_doi')
+        row = cursor.fetchone()
+        assert row[0] == 'https://doi.org/10.5678/abc'
+        mem_inst.tear_down_in_memory_db()
+
+
+class TestDelLinksThatCanBeSkippedQuiet:
+    """Test quiet=True suppresses output in del_links_that_can_be_skipped."""
+
+    def test_quiet_true_suppresses_print(self):
+        """No output when quiet=True even if URLs are skipped."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst, quiet=True)
+        db_io.save_found_links([
+            ('test.html', 'example.com', 'http://example.com', 'http://example.com', 'Link')
+        ])
+        db_io.log_url_is_fine('http://example.com')
+        result = db_io.del_links_that_can_be_skipped()
+        assert result == 0
+        mem_inst.tear_down_in_memory_db()
+
+
+class TestDelDoisThatCanBeSkippedQuiet:
+    """Test quiet=True suppresses output in del_dois_that_can_be_skipped."""
+
+    def test_quiet_true_suppresses_print(self):
+        """No output when quiet=True even if DOIs are skipped."""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst, quiet=True)
+        db_io.save_found_dois([('refs.bib', '10.1234/test', 'Test')])
+        db_io.save_valid_dois([('10.1234/test',)])
+        db_io.del_dois_that_can_be_skipped()
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT COUNT(*) FROM queue_doi')
+        assert cursor.fetchone()[0] == 0
+        mem_inst.tear_down_in_memory_db()
+
+
 class TestListErrors:
     """Test listing errors"""
 
