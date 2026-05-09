@@ -71,7 +71,9 @@ class DoiCheck:
         # together respect the API rate limit without per-worker multiplication.
         self._rate_lock = asyncio.Lock()
         self._last_send: float = 0.0
-        self._min_interval: float = 0.0
+        # Conservative default (public pool: 5 req/s). Overwritten after the
+        # first response arrives with the actual X-Rate-Limit-* headers.
+        self._min_interval: float = 0.2
 
     # DOI format: prefix 10.NNNN[NN...] / suffix (at least one non-whitespace char)
     _DOI_PATTERN: Final = re.compile(r'^10\.\d{4,}/\S+$')
