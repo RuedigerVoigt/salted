@@ -40,6 +40,13 @@ class TestHtmlParsing:
         links = parser.extract_links_from_html(html)
         assert links == []
 
+    def test_extract_links_from_html_uppercase_tags(self):
+        """Uppercase <A HREF=...> tags (e.g. Chrome bookmark exports) are matched."""
+        parser = Parser()
+        html = '<A HREF="https://example.com/">link</A>'
+        links = parser.extract_links_from_html(html)
+        assert links == [['https://example.com/', 'link']]
+
 
 class TestBibtexParsing:
     """Test BibTeX parsing with missing fields"""
