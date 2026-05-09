@@ -29,17 +29,21 @@ def main() -> None:
 
     logging.debug('salted called via the CLI')
 
-    # Create an instance of the main application.
-    # This already sets default values and reads an existent config file
-    checker = salted.Salted()
-
     parser = argparse.ArgumentParser(
         prog='salted',
         description=f"""Salted is an extremely fast link checker.
         It works with HTML, Markdown and TeX files.
         Currently it only checks external links.
-        You are using version {checker.VERSION}.""",
+        You are using version {salted.__version__}.""",
         epilog="For more information see: https://github.com/RuedigerVoigt/salted"
+    )
+
+    parser.add_argument(
+        "--config",
+        type=pathlib.Path,
+        default=None,
+        help="Path to an alternative config file (default: salted-linkcheck.ini in the current directory)",
+        metavar='<path>'
     )
 
     # Set no defaults in the arguments as they are already set:
@@ -145,6 +149,9 @@ def main() -> None:
         help="Suppress all progress messages. Only the final report is written to output. Useful for CI pipelines.")
 
     args = parser.parse_args()
+
+    # Create the application instance after parsing so --config is known.
+    checker = salted.Salted(config_path=args.config)
 
     # Settings on the command line interface shall override any setting in a
     # configfile and defaults. So if anything was set here, use it to override:

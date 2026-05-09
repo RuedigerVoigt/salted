@@ -72,7 +72,7 @@ class Salted:
     # Release date kept for compatibility dependency, not exposed
     RELEASE_DATE = datetime.date(2026, 4, 7)
 
-    def __init__(self) -> None:
+    def __init__(self, config_path: Optional[pathlib.Path] = None) -> None:
 
         compatibility.Check(
             package_name='salted',
@@ -114,7 +114,7 @@ class Salted:
         self.quiet: bool = False
 
         # If there is a configfile, overwrite defaults with those settings
-        self.__parse_configfile()
+        self.__parse_configfile(config_path)
 
         self.cnt: Counter = Counter()
 
@@ -142,22 +142,34 @@ class Salted:
                 logging.warning("'%s' is not a valid domain — ignored.", entry)
         return valid
 
-    def __parse_configfile(self) -> None:
+    def __parse_configfile(self, config_path: Optional[pathlib.Path] = None) -> None:
         """Parse configuration file and overwrite defaults with its settings.
 
         Reads the config file (if present) and overwrites default values with
         configured values. If a specific parameter is not set in the config,
         falls back to the application default. Config file settings can be
         overwritten through CLI parameters.
+
+        Args:
+            config_path: Explicit path to a config file. If None, looks for
+                CONFIG_NAME in the current working directory.
+
+        Raises:
+            FileNotFoundError: If config_path is given but the file does not exist.
         """
         cfg = configparser.ConfigParser()
 
-        # read does not throw an exception if the file is not there!
-        # However, it returns a list of successfully read files.
-        parsed_files = cfg.read(self.CONFIG_NAME)
-        if len(parsed_files) == 0:
-            logging.info('No configfile found. Using defaults.')
-            return
+        if config_path is not None:
+            if not config_path.is_file():
+                raise FileNotFoundError(
+                    f"Config file not found: {config_path}")
+            cfg.read(config_path)
+        else:
+            # read() does not raise if the file is absent — check the return value.
+            parsed_files = cfg.read(self.CONFIG_NAME)
+            if len(parsed_files) == 0:
+                logging.info('No configfile found. Using defaults.')
+                return
 
         for section in cfg.sections():
             if section not in {'BEHAVIOR', 'CACHE', 'FILES', 'TEMPLATE'}:

@@ -194,3 +194,44 @@ base_url = http://example.com///
         checker.base_url = None
         checker.check_parameters()
         assert checker.base_url is None
+
+
+class TestAlternativeConfigFilePath:
+    """Test loading config from an explicit path via Salted(config_path=...)."""
+
+    def test_explicit_config_path_is_loaded(self, tmp_path):
+        """Settings from an explicitly provided config file are applied."""
+        config_file = tmp_path / "custom.ini"
+        config_file.write_text("[BEHAVIOR]\ntimeout = 42\n")
+
+        checker = Salted(config_path=config_file)
+        assert checker.timeout == 42
+
+    def test_explicit_config_path_overrides_cwd_config(self, tmp_path, monkeypatch):
+        """Explicit config_path takes precedence over salted-linkcheck.ini in cwd."""
+        # Write a config in cwd that would be picked up by default
+        cwd_config = tmp_path / "salted-linkcheck.ini"
+        cwd_config.write_text("[BEHAVIOR]\ntimeout = 1\n")
+        monkeypatch.chdir(tmp_path)
+
+        # Write the explicit config elsewhere with a different value
+        explicit_dir = tmp_path / "subdir"
+        explicit_dir.mkdir()
+        explicit_config = explicit_dir / "other.ini"
+        explicit_config.write_text("[BEHAVIOR]\ntimeout = 99\n")
+
+        checker = Salted(config_path=explicit_config)
+        assert checker.timeout == 99
+
+    def test_nonexistent_explicit_config_raises(self, tmp_path):
+        """FileNotFoundError is raised when the given config path does not exist."""
+        missing = tmp_path / "does_not_exist.ini"
+        with pytest.raises(FileNotFoundError, match="does_not_exist.ini"):
+            Salted(config_path=missing)
+
+    def test_explicit_config_path_invalid_section_raises(self, tmp_path):
+        """ValueError is raised for unknown sections in the explicit config."""
+        config_file = tmp_path / "bad.ini"
+        config_file.write_text("[UNKNOWN_SECTION]\nfoo = bar\n")
+        with pytest.raises(ValueError, match="unknown section"):
+            Salted(config_path=config_file)

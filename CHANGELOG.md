@@ -5,6 +5,7 @@
 * Breaking Changes:
   * `--raise_for_dead_links` no longer accepts a string argument (`True`/`False`/`yes`/`no`). Use the bare flag `--raise_for_dead_links` to enable and `--no-raise_for_dead_links` to explicitly disable. Default is off (no exception raised). Scripts using `--raise_for_dead_links True` must be updated.
 * New features:
+  * Add `--config <path>` CLI argument to load an alternative configuration file instead of the default `salted-linkcheck.ini` in the current working directory.
   * Add `-q`/`--quiet` flag to suppress progress messages — useful for CI pipelines where only the final report should appear on stdout
   * Add `--ignore_domains` CLI argument and `ignore_domains` config key (under `[BEHAVIOR]`): comma-separated list of hostnames whose URLs are skipped without checking. Invalid entries are logged as warnings and dropped. Matching is exact (e.g. `example.com` does not match `sub.example.com`).
   * `lxml` is now an optional dependency (`pip install salted[lxml]`). If installed, it is used as the BeautifulSoup HTML parser backend (faster, more lenient with malformed HTML). Falls back to Python's built-in `html.parser` if not available. salted logs which parser is active at startup.

@@ -354,20 +354,19 @@ class TestArgumentParsingEdgeCases:
     """Test edge cases and error scenarios in argument parsing."""
 
     def test_help_argument_exits_cleanly(self):
-        """Test that --help argument exits without running checker.check()."""
+        """Test that --help exits before the Salted instance is created."""
         test_args = ['salted', '--help']
-        
+
         with patch('sys.argv', test_args):
             with patch('salted.Salted') as mock_salted_class:
                 mock_checker = MagicMock()
                 mock_salted_class.return_value = mock_checker
-                
-                # argparse will call sys.exit() for --help
+
+                # argparse calls sys.exit() during parse_args(), before Salted() is created
                 with pytest.raises(SystemExit):
                     command_line.main()
-                
-                # Salted instance is created for version info, but check() should not be called
-                mock_salted_class.assert_called_once()
+
+                mock_salted_class.assert_not_called()
                 mock_checker.check.assert_not_called()
 
     def test_invalid_file_types_argument(self):
@@ -509,6 +508,38 @@ class TestQuietMode:
 
                 # quiet should not be set on the checker
                 assert mock_checker.quiet != True  # noqa: E712
+
+
+class TestConfigArgument:
+    """Test --config argument for alternative config file path."""
+
+    def test_config_argument_passed_to_salted(self, tmp_path):
+        """--config passes the path to Salted() as config_path."""
+        config_file = tmp_path / "my.ini"
+        config_file.write_text("[BEHAVIOR]\ntimeout = 99\n")
+        test_args = ['salted', '--config', str(config_file)]
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                mock_salted_class.assert_called_once_with(config_path=config_file)
+
+    def test_no_config_argument_passes_none(self):
+        """Without --config, Salted() is called with config_path=None."""
+        test_args = ['salted']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                mock_salted_class.assert_called_once_with(config_path=None)
 
 
 if __name__ == "__main__":
