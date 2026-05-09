@@ -312,7 +312,7 @@ class ReportGenerator:
             print(rendered_report)
             return
         try:
-            with open(write_to, 'w') as file:
+            with open(write_to, 'w', encoding='utf-8') as file:
                 file.write(rendered_report)
             logging.info("Wrote report to file: %s",
                          pathlib.Path(write_to).resolve())

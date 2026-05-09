@@ -128,7 +128,7 @@ def main() -> None:
         "--template_name",
         type=str,
         help="Name of the template file.",
-        default='default.cli.jinja',
+        default=None,
         metavar='<filename>')
 
     parser.add_argument(
