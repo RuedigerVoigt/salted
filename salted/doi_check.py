@@ -171,21 +171,25 @@ class DoiCheck:
         # after the first iteration.
         while True:
             doi = await queue.get()
-            api_response = await self.__api_send_head_request(doi)
-            if api_response['status'] == 200:
-                logging.debug("DOI %s is valid", doi)
-                self.valid_doi_list.append(doi)
-            elif api_response['status'] == 404:
-                logging.debug("DOI %s does not exist!", doi)
-                self.invalid_doi_list.append(doi)
-            else:
-                if not self.quiet:
-                    print(f"Unexpected API response: {api_response['status']}")
-            await self.__rate_limit_wait(
-                int(api_response['max_queries']),
-                int(api_response['seconds']))
-            self.pbar_doi.update(1)
-            queue.task_done()
+            try:
+                api_response = await self.__api_send_head_request(doi)
+                if api_response['status'] == 200:
+                    logging.debug("DOI %s is valid", doi)
+                    self.valid_doi_list.append(doi)
+                elif api_response['status'] == 404:
+                    logging.debug("DOI %s does not exist!", doi)
+                    self.invalid_doi_list.append(doi)
+                else:
+                    if not self.quiet:
+                        print(f"Unexpected API response: {api_response['status']}")
+                await self.__rate_limit_wait(
+                    int(api_response['max_queries']),
+                    int(api_response['seconds']))
+            except Exception:
+                logging.exception("Failed to check DOI %s", doi)
+            finally:
+                self.pbar_doi.update(1)
+                queue.task_done()
 
     async def __distribute_work(self,
                                 doi_list: list) -> None:
