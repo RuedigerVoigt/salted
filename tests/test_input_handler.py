@@ -363,6 +363,53 @@ class TestScanFiles:
         mock_extract.assert_called_once()
 
     @patch('salted.input_handler.tqdm')
+    def test_scan_files_bib_parse_error_is_logged(self, mock_tqdm):
+        """BibTeX parse failure logs a file access error with a clear message."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        mock_tqdm.return_value = [pathlib.Path('broken.bib')]
+
+        with patch.object(handler, 'read_file_content', return_value='not valid bibtex @@@'):
+            with patch.object(handler.parser, 'extract_links_from_bib',
+                              side_effect=Exception('unexpected EOF')):
+                handler.scan_files([pathlib.Path('broken.bib')])
+
+        db_mock.log_file_access_error.assert_called_once()
+        call_args = str(db_mock.log_file_access_error.call_args)
+        assert 'broken.bib' in call_args
+        assert 'BibTeX parse error' in call_args
+
+    @patch('salted.input_handler.tqdm')
+    def test_scan_files_bib_parse_error_continues_to_next_file(self, mock_tqdm):
+        """Scanning continues to the next file after a BibTeX parse error."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        mock_tqdm.return_value = [
+            pathlib.Path('broken.bib'),
+            pathlib.Path('good.bib'),
+        ]
+
+        good_content = '@article{ok, url={http://example.com}}'
+
+        def fake_read(path):
+            return 'bad content' if path.name == 'broken.bib' else good_content
+
+        def fake_parse(content):
+            if content == 'bad content':
+                raise Exception('unexpected EOF')
+            return ([['http://example.com', 'ok']], [])
+
+        with patch.object(handler, 'read_file_content', side_effect=fake_read):
+            with patch.object(handler.parser, 'extract_links_from_bib',
+                              side_effect=fake_parse):
+                handler.scan_files([pathlib.Path('broken.bib'), pathlib.Path('good.bib')])
+
+        db_mock.log_file_access_error.assert_called_once()
+        db_mock.save_found_links.assert_called_once()
+
+    @patch('salted.input_handler.tqdm')
     def test_scan_files_unreadable_file(self, mock_tqdm):
         """Test scanning when file cannot be read"""
         db_mock = Mock(spec=database_io.DatabaseIO)

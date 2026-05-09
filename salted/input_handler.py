@@ -198,7 +198,11 @@ class InputHandler:
             elif file_path.suffix in {".tex"}:
                 url_list = self.parser.extract_links_from_tex(content)
             elif file_path.suffix in {".bib"}:
-                url_list, doi_list = self.parser.extract_links_from_bib(content)
+                try:
+                    url_list, doi_list = self.parser.extract_links_from_bib(content)
+                except Exception as e:
+                    self.db.log_file_access_error(str(file_path), f'BibTeX parse error: {e}')
+                    continue
             else:
                 raise RuntimeError('Invalid extension. Should never happen.')
 
