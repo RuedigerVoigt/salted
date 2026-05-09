@@ -11,9 +11,9 @@ salted -i ./
 On the command line salted supports all parameters. To get an overview, simply type `salted -h` and it will display this help message with all available options.
 
 ```
-usage: salted [-h] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>] [--timeout <seconds>]
-              [--raise_for_dead_links | --no-raise_for_dead_links] [--check_dois | --no-check_dois]
-              [--user_agent <preset or custom string>] [--mailto <email>]
+usage: salted [-h] [--config <path>] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>]
+              [--timeout <seconds>] [--raise_for_dead_links | --no-raise_for_dead_links]
+              [--check_dois | --no-check_dois] [--user_agent <preset or custom string>] [--mailto <email>]
               [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>]
               [--domain_delay <seconds>] [--cache_file <path>] [--dont_check_again_within_hours <hours>]
               [--template_searchpath <path to folder>] [--template_name <filename>]
@@ -24,6 +24,8 @@ Currently it only checks external links.
 
 options:
   -h, --help            show this help message and exit
+  --config <path>       Path to an alternative config file (default: salted-linkcheck.ini in the
+                        current directory). Raises an error if the specified file does not exist.
   -i, --searchpath <path>
                         File or Folder to check (default: current working directory)
   --file_types {supported,html,tex,markdown}

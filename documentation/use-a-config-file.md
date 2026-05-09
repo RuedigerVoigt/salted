@@ -2,6 +2,18 @@
 
 For repeated runs you should create a configuration file.
 
+## Config File Location
+
+By default, salted looks for a file named `salted-linkcheck.ini` in the **current working directory**. If no file is found, salted starts with built-in defaults.
+
+To use a config file in a different location, pass its path with `--config`:
+
+```bash
+salted --config /path/to/my-config.ini -i ./docs
+```
+
+This is useful when you want to share a single config file across multiple projects, or when running salted from a CI pipeline where the working directory does not contain the config file. Salted raises an error with a clear message if the specified file does not exist.
+
 ## Parameters / Initializing
 
 All versions of salted use the same parameters. Their categories are only important for config files:
