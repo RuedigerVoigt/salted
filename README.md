@@ -48,7 +48,7 @@ linkcheck.check('./homepage/')
 Two runs in a row (i.e. one full check and one using the cache):
 ![SALTED link checker running two passes: first full check, then cache hit](https://github.com/RuedigerVoigt/salted/raw/main/documentation/salted-0.5.2.gif)
 
-Salted automatically recognizes supported file formats by their extension (i.e. `htm`, `html`, `md`, and `tex`).
+Salted automatically recognizes supported file formats by their extension (i.e. `htm`, `html`, `md`, `tex`, and `bib`).
 
 ## Installation
 
@@ -67,7 +67,7 @@ SALTED does support the following file-formats:
 * **HTML** :
   * Standard hyperlinks / anchors are checked.
   * Salted does not yet check relative links or `src` attributes of pictures.
-  * Mailto links are not yet checked.
+  * Mailto links are parsed and listed in the report with basic format validation (no DNS lookup or delivery check).
 * **Markdown** : The pandoc version as well as GitHub flavored markdown are supported.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
 * **BibTeX** : URL and DOI fields are extracted and checked. BibTeX files are included when using `--file_types tex` or `--file_types supported`.

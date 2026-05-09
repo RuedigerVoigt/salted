@@ -10,7 +10,7 @@ You can choose between those two templates by setting the parameter `template_na
 
 The parameter `write_to` defaults to `cli` (command line interface). If you want to write the result to a file, set the value of `write_to` to the path of that file including the filename. Existing files will be overwritten.
 
-The parameter `template_searchpath` defaults to `salted/templates`. This tells salted to use the builtin templates. If you want to use your own template, set this to the path **to the folder** on your file-system that has your template in it. Its name must be given with the `write_to` parameter!
+The parameter `template_searchpath` defaults to `salted/templates`. This tells salted to use the builtin templates. If you want to use your own template, set this to the path **to the folder** on your file-system that has your template in it. Its name must be given with the `template_name` parameter!
 
 Salted uses [Jinja2 templates](https://jinja.palletsprojects.com/en/2.11.x/).
 
