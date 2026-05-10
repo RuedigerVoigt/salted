@@ -39,8 +39,11 @@ class TestReadFileContent:
 
         test_content = "<html><a href='http://example.com'>link</a></html>"
 
-        with patch('builtins.open', mock_open(read_data=test_content)):
-            content = handler.read_file_content(pathlib.Path('test.html'))
+        mock_stat = Mock()
+        mock_stat.st_size = 1024
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            with patch('builtins.open', mock_open(read_data=test_content)):
+                content = handler.read_file_content(pathlib.Path('test.html'))
 
         assert content == test_content
         db_mock.log_file_access_error.assert_not_called()
@@ -70,7 +73,7 @@ class TestReadFileContent:
         db_mock = Mock(spec=database_io.DatabaseIO)
         handler = InputHandler(db_mock)
 
-        with patch('builtins.open', side_effect=FileNotFoundError()):
+        with patch.object(pathlib.Path, 'stat', side_effect=FileNotFoundError()):
             content = handler.read_file_content(pathlib.Path('missing.html'))
 
         assert content is None
@@ -82,8 +85,11 @@ class TestReadFileContent:
         db_mock = Mock(spec=database_io.DatabaseIO)
         handler = InputHandler(db_mock)
 
-        with patch('builtins.open', side_effect=PermissionError()):
-            content = handler.read_file_content(pathlib.Path('forbidden.html'))
+        mock_stat = Mock()
+        mock_stat.st_size = 1024
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            with patch('builtins.open', side_effect=PermissionError()):
+                content = handler.read_file_content(pathlib.Path('forbidden.html'))
 
         assert content is None
         db_mock.log_file_access_error.assert_called_once()
@@ -94,8 +100,11 @@ class TestReadFileContent:
         db_mock = Mock(spec=database_io.DatabaseIO)
         handler = InputHandler(db_mock)
 
-        with patch('builtins.open', side_effect=TimeoutError()):
-            content = handler.read_file_content(pathlib.Path('slow.html'))
+        mock_stat = Mock()
+        mock_stat.st_size = 1024
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            with patch('builtins.open', side_effect=TimeoutError()):
+                content = handler.read_file_content(pathlib.Path('slow.html'))
 
         assert content is None
         db_mock.log_file_access_error.assert_called_once()
@@ -106,8 +115,11 @@ class TestReadFileContent:
         db_mock = Mock(spec=database_io.DatabaseIO)
         handler = InputHandler(db_mock)
 
-        with patch('builtins.open', side_effect=BlockingIOError()):
-            content = handler.read_file_content(pathlib.Path('blocked.html'))
+        mock_stat = Mock()
+        mock_stat.st_size = 1024
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            with patch('builtins.open', side_effect=BlockingIOError()):
+                content = handler.read_file_content(pathlib.Path('blocked.html'))
 
         assert content is None
         db_mock.log_file_access_error.assert_called_once()
@@ -118,8 +130,11 @@ class TestReadFileContent:
         db_mock = Mock(spec=database_io.DatabaseIO)
         handler = InputHandler(db_mock)
 
-        with patch('builtins.open', side_effect=RuntimeError('Unexpected error')):
-            content = handler.read_file_content(pathlib.Path('error.html'))
+        mock_stat = Mock()
+        mock_stat.st_size = 1024
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            with patch('builtins.open', side_effect=RuntimeError('Unexpected error')):
+                content = handler.read_file_content(pathlib.Path('error.html'))
 
         assert content is None
         db_mock.log_file_access_error.assert_called_once()
@@ -446,6 +461,23 @@ class TestScanFiles:
                 handler.scan_files([pathlib.Path('test.xyz')])
 
     @patch('salted.input_handler.tqdm')
+    def test_scan_files_oversized_file_is_skipped(self, mock_tqdm, tmp_path):
+        """scan_files skips files that exceed the size limit."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock, max_file_size_mb=1)
+
+        large_file = tmp_path / "large.html"
+        large_file.write_bytes(b'x' * (2 * 1024 * 1024))  # 2 MB > 1 MB limit
+
+        mock_tqdm.return_value = [large_file]
+        handler.scan_files([large_file])
+
+        db_mock.log_file_access_error.assert_called_once()
+        error_msg = db_mock.log_file_access_error.call_args[0][1]
+        assert 'file too large' in error_msg
+        db_mock.save_found_links.assert_not_called()
+
+    @patch('salted.input_handler.tqdm')
     def test_scan_files_resets_counter(self, mock_tqdm):
         """Test that link counter is reset on each scan"""
         db_mock = Mock(spec=database_io.DatabaseIO)
@@ -466,3 +498,69 @@ class TestScanFiles:
 
         # Should be reset to 0 (counter starts fresh for each scan)
         assert handler.cnt['links_found'] == 0
+
+
+class TestFileSizeLimit:
+    """Test configurable file size limit in read_file_content."""
+
+    def test_default_limit_is_20mb(self):
+        """Default max_file_size_mb must be 20."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+        assert handler.max_file_size_mb == 20
+
+    def test_custom_limit_is_stored(self):
+        """A custom max_file_size_mb value is stored correctly."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock, max_file_size_mb=5)
+        assert handler.max_file_size_mb == 5
+
+    def test_oversized_file_returns_none_and_logs_error(self):
+        """File exceeding the limit returns None and logs a descriptive error."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock, max_file_size_mb=1)
+
+        mock_stat = Mock()
+        mock_stat.st_size = 2 * 1024 * 1024  # 2 MB > 1 MB limit
+
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            content = handler.read_file_content(pathlib.Path('large.html'))
+
+        assert content is None
+        db_mock.log_file_access_error.assert_called_once()
+        error_msg = db_mock.log_file_access_error.call_args[0][1]
+        assert 'file too large' in error_msg
+        assert '2.0 MB' in error_msg
+        assert 'limit 1 MB' in error_msg
+
+    def test_file_within_limit_is_read(self):
+        """File under the size limit is read and returned normally."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock, max_file_size_mb=10)
+
+        mock_stat = Mock()
+        mock_stat.st_size = 1024  # 1 KB, well under limit
+        test_content = "<html></html>"
+
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            with patch('builtins.open', mock_open(read_data=test_content)):
+                content = handler.read_file_content(pathlib.Path('small.html'))
+
+        assert content == test_content
+        db_mock.log_file_access_error.assert_not_called()
+
+    def test_file_at_exact_limit_is_read(self):
+        """File exactly at the limit is read (limit is exclusive — > not >=)."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock, max_file_size_mb=1)
+
+        mock_stat = Mock()
+        mock_stat.st_size = 1 * 1024 * 1024  # exactly 1 MB
+        test_content = "content"
+
+        with patch.object(pathlib.Path, 'stat', return_value=mock_stat):
+            with patch('builtins.open', mock_open(read_data=test_content)):
+                content = handler.read_file_content(pathlib.Path('exact.html'))
+
+        assert content == test_content
+        db_mock.log_file_access_error.assert_not_called()

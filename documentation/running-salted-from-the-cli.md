@@ -15,7 +15,8 @@ usage: salted [-h] [--config <path>] [-i <path>] [--file_types {supported,html,t
               [--timeout <seconds>] [--raise_for_dead_links | --no-raise_for_dead_links]
               [--check_dois | --no-check_dois] [--user_agent <preset or custom string>] [--mailto <email>]
               [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>]
-              [--domain_delay <seconds>] [--cache_file <path>] [--dont_check_again_within_hours <hours>]
+              [--domain_delay <seconds>] [--max_file_size_mb <MB>]
+              [--cache_file <path>] [--dont_check_again_within_hours <hours>]
               [--template_searchpath <path to folder>] [--template_name <filename>]
               [--write_to <path>] [--base_url https://www.example.com] [-q]
 
@@ -53,6 +54,9 @@ options:
   --domain_delay <seconds>
                         Minimum delay in seconds between requests to the same domain (default: 0.25).
                         Set to 0 to disable rate limiting.
+  --max_file_size_mb <MB>
+                        Maximum file size in MB to read. Files larger than this are skipped and logged
+                        as errors (default: 20).
   --cache_file <path>   Path to the cache file (default: salted-cache.sqlite3 in the current working directory)
   --dont_check_again_within_hours <hours>
                         Number of hours an already verified URL is considered valid (default: 24).

@@ -107,6 +107,12 @@ def main() -> None:
         help="Minimum delay in seconds between requests to the same domain (default: 0.25). Set to 0 to disable rate limiting.",
         metavar="<seconds>"
     )
+    parser.add_argument(
+        "--max_file_size_mb",
+        type=int,
+        help="Maximum file size in MB to read. Files larger than this are skipped (default: 20).",
+        metavar="<MB>"
+    )
 
     parser.add_argument(
         "--cache_file",
@@ -191,6 +197,8 @@ def main() -> None:
             checker.ignore_domains = checker._validate_domains(parsed_domains)
     if args.domain_delay is not None:
         checker.domain_delay = args.domain_delay
+    if args.max_file_size_mb is not None:
+        checker.max_file_size_mb = args.max_file_size_mb
 
     if args.cache_file:
         checker.cache_file = args.cache_file

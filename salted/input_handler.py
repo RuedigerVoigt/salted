@@ -29,9 +29,11 @@ class InputHandler:
 
     def __init__(self,
                  db: database_io.DatabaseIO,
-                 quiet: bool = False):
+                 quiet: bool = False,
+                 max_file_size_mb: int = 20):
         self.db = db
         self.quiet = quiet
+        self.max_file_size_mb = max_file_size_mb
         self.cnt: Counter = Counter()
         self.parser = parser.Parser()
 
@@ -47,6 +49,14 @@ class InputHandler:
         """
         content: Optional[str] = None
         try:
+            size_bytes = path_to_file.stat().st_size
+            limit_bytes = self.max_file_size_mb * 1024 * 1024
+            if size_bytes > limit_bytes:
+                size_mb = size_bytes / (1024 * 1024)
+                self.db.log_file_access_error(
+                    str(path_to_file),
+                    f'file too large ({size_mb:.1f} MB, limit {self.max_file_size_mb} MB)')
+                return None
             try:
                 with open(path_to_file, 'r', encoding='utf-8') as code:
                     content = code.read()

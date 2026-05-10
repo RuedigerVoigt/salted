@@ -103,6 +103,7 @@ class Salted:
         self.domain_delay: float = 0.25
         self.mailto: Optional[str] = None
         self.check_dois: bool = True
+        self.max_file_size_mb: int = 20
         # Cache
         self.cache_file: Union[pathlib.Path, str] = 'salted-cache.sqlite3'
         self.dont_check_again_within_hours: int = 24
@@ -194,6 +195,7 @@ class Salted:
             if mailto:
                 self.mailto = mailto.strip()
             self.check_dois = behavior.getboolean('check_dois', self.check_dois)
+            self.max_file_size_mb = behavior.getint('max_file_size_mb', self.max_file_size_mb)
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
             self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
@@ -261,7 +263,7 @@ class Salted:
             raise FileNotFoundError(msg)
 
         filesearch = file_finder.FileFinder()
-        file_io = input_handler.InputHandler(db, quiet=self.quiet)
+        file_io = input_handler.InputHandler(db, quiet=self.quiet, max_file_size_mb=self.max_file_size_mb)
 
         FILE_TYPE_SUFFIXES = {
             'html': {'.htm', '.html'},
