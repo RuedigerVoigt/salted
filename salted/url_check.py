@@ -223,6 +223,7 @@ class UrlCheck:
         while True:
             url = await queue.get()
             await self.validate_url(url)
+            assert self.pbar_links is not None
             self.pbar_links.update(1)
             queue.task_done()
 
