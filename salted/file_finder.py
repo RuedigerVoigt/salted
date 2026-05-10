@@ -20,6 +20,7 @@ class FileFinder:
     SUPPORTED_SUFFIX: Final[set] = {".htm", ".html", '.md', '.tex', '.bib'}
 
     def __init__(self) -> None:
+        """Initialize the FileFinder with the set of supported file suffixes."""
         return
 
     def is_supported_format(self,

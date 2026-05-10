@@ -31,6 +31,14 @@ class InputHandler:
                  db: database_io.DatabaseIO,
                  quiet: bool = False,
                  max_file_size_mb: int = 20):
+        """Initialize the InputHandler.
+
+        Args:
+            db: Database I/O handler for storing found links and errors.
+            quiet: If True, suppress progress messages.
+            max_file_size_mb: Maximum file size in megabytes to process.
+                Files exceeding this limit are skipped. Default: 20 MB.
+        """
         self.db = db
         self.quiet = quiet
         self.max_file_size_mb = max_file_size_mb

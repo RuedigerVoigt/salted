@@ -27,6 +27,13 @@ class ReportGenerator:
                  mem_instance: memory_instance.MemoryInstance,
                  show_redirects: bool = True,
                  show_exceptions: bool = True):
+        """Initialize the ReportGenerator.
+
+        Args:
+            mem_instance: In-memory database instance containing check results.
+            show_redirects: If True, include permanent redirects in reports.
+            show_exceptions: If True, include network exceptions in reports.
+        """
         self.db = mem_instance
         self.show_redirects = show_redirects
         self.show_exceptions = show_exceptions

@@ -31,7 +31,7 @@ class Parser():
     """Methods to extract hyperlinks and mail addresses from different formats."""
 
     def __init__(self) -> None:
-
+        """Compile regex patterns for URL extraction from all supported formats."""
         # Specification: https://www.ctan.org/pkg/hyperref
         self.pattern_latex_url = re.compile(
             r"\\url\{(?P<url>[^{]*?)\}",

@@ -38,6 +38,20 @@ class UrlCheck:
                  ignore_domains: Optional[set] = None,
                  quiet: bool = False
                  ) -> None:
+        """Initialize the URL checker.
+
+        Args:
+            user_agent: HTTP User-Agent header value to send with requests.
+            db: Database I/O handler for logging results.
+            workers: Number of async worker coroutines, or 'automatic' to
+                auto-size based on URL count.
+            timeout_sec: Request timeout in seconds.
+            ignore_urls: Set of URLs to skip during checking.
+            domain_delay: Minimum delay in seconds between requests to the
+                same domain. Set to 0 to disable.
+            ignore_domains: Set of hostnames to skip entirely.
+            quiet: If True, suppress progress messages.
+        """
         # pylint: disable=too-many-arguments
         self.headers: dict = dict()
         if user_agent:

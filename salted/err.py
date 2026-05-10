@@ -13,6 +13,7 @@ Released under the Apache License 2.0
 class SaltedException(Exception):
     """Base exception for salted-specific errors."""
     def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        """Pass all arguments to the base Exception class."""
         Exception.__init__(self, *args, **kwargs)
 
 
