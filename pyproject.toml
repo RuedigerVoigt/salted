@@ -1,10 +1,12 @@
-[tool.poetry]
+[project]
 name = "salted"
 version = "2.0.0"
 description = "Fast async link checker for HTML, Markdown, TeX, and BibTeX files. Detects broken hyperlinks, validates DOIs, and uses a local cache to avoid rechecking. Runs as CLI or in CI/CD pipelines on Windows, Linux, and Mac."
-authors = ["Rüdiger Voigt <projects@ruediger-voigt.eu>"]
-license = "Apache-2.0"
 readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    {name = "Rüdiger Voigt", email = "projects@ruediger-voigt.eu"}
+]
 keywords = ["link-checker", "url-validation", "html", "markdown", "latex", "bibtex", "async", "dead-links", "broken-links"]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -13,7 +15,6 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Development Status :: 5 - Production/Stable",
     "Framework :: AsyncIO",
@@ -24,29 +25,33 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Site Management",
     "Topic :: Internet :: WWW/HTTP :: Site Management :: Link Checking"
 ]
-packages = [{include = "salted"}]
-include = ["salted/py.typed", "salted/templates/*.jinja"]
+requires-python = ">=3.10,<4"
+dependencies = [
+    "aiodns>=4.0.0",  # not imported directly; aiohttp uses it for async DNS
+    "aiohttp>=3.13.5",
+    "beautifulsoup4>=4.14.3",
+    "compatibility>=2.0.0",
+    "jinja2>=3.1.6",
+    "pybtex>=0.26.1",
+    "tqdm>=4.67.3",
+    "userprovided>=2.3.0",
+]
 
-[tool.poetry.urls]
+[project.optional-dependencies]
+lxml = ["lxml>=6.1.0"]
+
+[project.urls]
 Homepage = "https://github.com/RuedigerVoigt/salted"
 Repository = "https://github.com/RuedigerVoigt/salted"
 "Bug Tracker" = "https://github.com/RuedigerVoigt/salted/issues"
 Changelog = "https://github.com/RuedigerVoigt/salted/blob/main/CHANGELOG.md"
 
-[tool.poetry.dependencies]
-python = "^3.10"
-aiodns = ">=4.0.0"  # not imported directly; aiohttp uses it automatically for faster async DNS resolution
-aiohttp = ">=3.13.5"
-beautifulsoup4 = ">=4.14.3"
-compatibility = ">=2.0.0"
-jinja2 = ">=3.1.6"
-lxml = {version = ">=6.1.0", optional = true}
-pybtex = ">=0.26.1"
-tqdm = ">=4.67.3"
-userprovided = ">=2.3.0"
+[project.scripts]
+salted = "salted.command_line:main"
 
-[tool.poetry.extras]
-lxml = ["lxml"]
+[tool.poetry]
+packages = [{include = "salted"}]
+include = ["salted/py.typed", "salted/templates/*.jinja"]
 
 [tool.poetry.group.test.dependencies]
 pytest = ">=9.0.3"
@@ -64,9 +69,6 @@ pytest-cov = "*"
 flake8 = ">=7.3.0"
 mypy = ">=2.0.0"
 bandit = ">=1.9.4"
-
-[tool.poetry.scripts]
-salted = "salted.command_line:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
