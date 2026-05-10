@@ -5,6 +5,7 @@
 * Breaking Changes:
   * `--raise_for_dead_links` no longer accepts a string argument (`True`/`False`/`yes`/`no`). Use the bare flag `--raise_for_dead_links` to enable and `--no-raise_for_dead_links` to explicitly disable. Default is off (no exception raised). Scripts using `--raise_for_dead_links True` must be updated.
 * New features:
+  * Add configurable file size limit (`--max_file_size_mb`, config key `max_file_size_mb` under `[BEHAVIOR]`, default: 20 MB). Files exceeding the limit are skipped and reported as errors, preventing accidental loading of oversized binary or data files that carry a supported extension.
   * Add `--config <path>` CLI argument to load an alternative configuration file instead of the default `salted-linkcheck.ini` in the current working directory.
   * Add `-q`/`--quiet` flag to suppress progress messages — useful for CI pipelines where only the final report should appear on stdout
   * Add `--ignore_domains` CLI argument and `ignore_domains` config key (under `[BEHAVIOR]`): comma-separated list of hostnames whose URLs are skipped without checking. Invalid entries are logged as warnings and dropped. Matching is exact (e.g. `example.com` does not match `sub.example.com`).
@@ -20,6 +21,7 @@
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
   * Add basic SSRF preflight check: any URL whose host resolves to a loopback address (127.0.0.0/8, ::1, `localhost`), an RFC1918 private range (10.x, 172.16.x, 192.168.x), or a link-local address (169.254.0.0/16 including the cloud-metadata endpoint, fe80::/10, `.local` hostnames) is blocked before a network request is made and logged as an exception in the report. (Requires userprovided ≥ 2.3.0).
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
+  * Limit HTTP GET fallback (triggered on 405 Method Not Allowed) to a maximum of 3 redirects to prevent unbounded redirect chains.
 * Bug Fixes:
   * Fix files with non-UTF-8 encoding (e.g. Latin-1) causing a file access error on Windows — salted now tries UTF-8 first and falls back to Latin-1
   * Fix `--file_types` having no effect on directory scans
