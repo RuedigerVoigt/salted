@@ -62,7 +62,7 @@ class DoiCheck:
         self.session: Optional[aiohttp.ClientSession] = None
         self.timeout_sec = 3
 
-        self.pbar_doi: tqdm = None
+        self.pbar_doi: Optional[tqdm] = None
 
         self.valid_doi_list: list = list()
         self.invalid_doi_list: list = list()
@@ -207,22 +207,17 @@ class DoiCheck:
                 self.invalid_doi_list.append(entry)
 
         await self.__create_session()
-
         tasks = []
-        for i in range(int(self.NUM_API_WORKERS)):
-            task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
-            tasks.append(task)
-        await queue.join()
-
-        # Cancel worker tasks.
-        for task in tasks:
-            task.cancel()
-
-        # Close aiohttp session
-        await self.__close_session()
-
-        # Wait until all worker tasks are cancelled.
-        await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            for i in range(int(self.NUM_API_WORKERS)):
+                task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
+                tasks.append(task)
+            await queue.join()
+        finally:
+            for task in tasks:
+                task.cancel()
+            await self.__close_session()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_dois(self) -> None:
         """Check the DOIs in the queue and show a progress bar.

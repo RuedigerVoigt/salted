@@ -53,7 +53,7 @@ class UrlCheck:
 
         self.cnt: Counter = Counter()
 
-        self.pbar_links: tqdm = None
+        self.pbar_links: Optional[tqdm] = None
 
         self.session: aiohttp.ClientSession = None  # type: ignore
 
@@ -224,22 +224,17 @@ class UrlCheck:
             queue.put_nowait(entry[0])
 
         await self.__create_session()
-
         tasks = []
-        for i in range(int(self.num_workers)):
-            task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
-            tasks.append(task)
-        await queue.join()
-
-        # Cancel worker tasks.
-        for task in tasks:
-            task.cancel()
-
-        # Close aiohttp session
-        await self.__close_session()
-
-        # Wait until all worker tasks are cancelled.
-        await asyncio.gather(*tasks, return_exceptions=True)
+        try:
+            for i in range(int(self.num_workers)):
+                task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
+                tasks.append(task)
+            await queue.join()
+        finally:
+            for task in tasks:
+                task.cancel()
+            await self.__close_session()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_urls(self) -> None:
         """Process all URLs that are not assumed as valid in the cache.

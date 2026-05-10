@@ -77,11 +77,11 @@ class DatabaseIO:
         VALUES (?, ?, ?);''', dois_found)
         return None
 
-    def urls_to_check(self) -> Optional[list]:
+    def urls_to_check(self) -> list:
         """Return a list of all distinct URLs to check.
 
         Returns:
-            List of tuples containing distinct normalized URLs, or None if empty.
+            List of tuples containing distinct normalized URLs; empty list if none.
         """
         self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
         return self.cursor.fetchall()
