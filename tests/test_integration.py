@@ -15,13 +15,14 @@ Unit tests for individual components are in their respective test files:
 
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
-(c) 2020-2025: Released under the Apache License 2.0
+(c) 2020-2026: Released under the Apache License 2.0
 """
 
 import pytest
+from unittest.mock import AsyncMock, patch
 
 import salted
-from salted import err
+from salted import err, file_finder
 
 
 html_example = r"""
@@ -68,7 +69,7 @@ def test_file_discovery(fs):
     fs.create_file('/fake/fake/noextension')
     fs.create_file('/fake/fake/foo.htmlandmore')
     fs.create_file('/fake/fake/fake/foo.bib')
-    filesearch = salted.file_finder.FileFinder()
+    filesearch = file_finder.FileFinder()
     supported_files = filesearch.find_files_by_extensions('/fake')
     assert len(supported_files) == 7
     html_files = filesearch.find_html_files('/fake')
@@ -86,7 +87,8 @@ def test_create_object():
         my_check.check(searchpath='non_existent.tex')
 
 
-def test_actual_run_html(tmp_path):
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_actual_run_html(mock_head, tmp_path):
     """End-to-end test with HTML file"""
     d = tmp_path / "htmltest"
     d.mkdir()
@@ -96,7 +98,8 @@ def test_actual_run_html(tmp_path):
     my_check.check(searchpath=(d / "test.html"))
 
 
-def test_actual_run_markdown(tmp_path):
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_actual_run_markdown(mock_head, tmp_path):
     """End-to-end test with Markdown file"""
     d = tmp_path / "markdowntest"
     d.mkdir()
@@ -106,8 +109,13 @@ def test_actual_run_markdown(tmp_path):
     my_check.check(searchpath=(d / "test.md"))
 
 
-def test_actual_run_bibtex(tmp_path):
-    """End-to-end test with BibTeX file (makes actual API calls)"""
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_actual_run_bibtex(mock_head, tmp_path):
+    """End-to-end test with BibTeX file.
+
+    'invalidDOI' fails the basic DOI format check (10.NNNN/suffix) so no
+    CrossRef API call is made — the test runs entirely offline.
+    """
     d = tmp_path / "bibtextest"
     d.mkdir()
     p = d / "test.bib"
@@ -116,7 +124,8 @@ def test_actual_run_bibtex(tmp_path):
     my_check.check(searchpath=(d / "test.bib"))
 
 
-def test_actual_run_multiple_files(tmp_path):
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_actual_run_multiple_files(mock_head, tmp_path):
     """End-to-end test with multiple files"""
     d = tmp_path / "multifiletest"
     d.mkdir()
@@ -145,12 +154,13 @@ def test_check_empty_folder_returns_early(tmp_path):
     my_check.check(searchpath=d)  # should not raise
 
 
-def test_throw_for_dead_link(tmp_path):
-    """End-to-end test for dead link exception handling"""
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=404)
+def test_throw_for_dead_link(mock_head, tmp_path):
+    """DeadLinksException is raised when raise_for_dead_links is True and a 404 is returned."""
     d = tmp_path / "deadlink"
     d.mkdir()
     p = d / "deadlink.html"
-    p.write_text("<a href='https://www.ruediger-voigt.eu/throw-404.html'>Dead Link</a>")
+    p.write_text("<a href='https://www.example.com/broken'>Dead Link</a>")
     my_check = salted.Salted()
     my_check.raise_for_dead_links = True
     with pytest.raises(err.DeadLinksException):
