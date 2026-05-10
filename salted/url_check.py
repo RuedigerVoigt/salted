@@ -134,6 +134,7 @@ class UrlCheck:
                 async with self.session.get(url,
                                            headers=self.headers,
                                            raise_for_status=False,
+                                           max_redirects=3,
                                            timeout=ClientTimeout(total=self.timeout)) as get_response:
                     return get_response.status
             return response.status
