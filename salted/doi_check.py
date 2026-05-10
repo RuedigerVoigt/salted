@@ -22,6 +22,10 @@ from salted import database_io
 from importlib.metadata import version as pkg_version, PackageNotFoundError
 
 
+# DOI format: prefix 10.NNNN[NN...] / suffix (at least one non-whitespace char)
+_DOI_PATTERN: Final = re.compile(r'^10\.\d{4,}/\S+$')
+
+
 class DoiCheck:
     """Interact with the API to check DOIs."""
     # pylint: disable=too-few-public-methods
@@ -75,13 +79,10 @@ class DoiCheck:
         # first response arrives with the actual X-Rate-Limit-* headers.
         self._min_interval: float = 0.2
 
-    # DOI format: prefix 10.NNNN[NN...] / suffix (at least one non-whitespace char)
-    _DOI_PATTERN: Final = re.compile(r'^10\.\d{4,}/\S+$')
-
     @staticmethod
     def _is_valid_doi_format(doi: str) -> bool:
         """Return True if doi matches the basic DOI format 10.NNNN/suffix."""
-        return bool(DoiCheck._DOI_PATTERN.match(doi.strip()))
+        return bool(_DOI_PATTERN.match(doi.strip()))
 
     async def __create_session(self) -> None:
         # Create a client session bound to the current running loop

@@ -11,11 +11,8 @@ Released under the Apache License 2.0
 
 import logging
 import pathlib
-import re
 import urllib.parse
 from typing import Optional, Union
-
-_DOI_PATTERN = re.compile(r'^10\.\d{4,}/\S+$')
 
 from salted import memory_instance
 
@@ -206,7 +203,8 @@ class DatabaseIO:
             'INSERT INTO fileAccessErrors VALUES (?, ?);',
             [file_path, reason])
 
-    def convert_doi_urls_to_dois(self) -> int:
+    def convert_doi_urls_to_dois(self) -> int:  # noqa: PLC0415
+        from salted.doi_check import _DOI_PATTERN  # local import breaks circular dep
         """Move doi.org and dx.doi.org URLs from the URL queue to the DOI queue.
 
         URLs like https://doi.org/10.1234/suffix are better validated via the
