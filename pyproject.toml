@@ -84,3 +84,6 @@ source = ["salted"]
 
 [tool.coverage.html]
 title = "Coverage Report for the salted Python Package"
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
