@@ -189,8 +189,8 @@ class DoiCheck:
             except Exception:
                 logging.exception("Failed to check DOI %s", doi)
             finally:
-                assert self.pbar_doi is not None
-                self.pbar_doi.update(1)
+                if self.pbar_doi is not None:
+                    self.pbar_doi.update(1)
                 queue.task_done()
 
     async def __distribute_work(self,
