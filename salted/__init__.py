@@ -9,6 +9,8 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
+import pathlib
+import re
 from importlib.metadata import version as pkg_version, PackageNotFoundError
 
 from salted.user_agents import get_user_agent, list_presets
@@ -16,11 +18,17 @@ from salted.user_agents import get_user_agent, list_presets
 NAME = "salted"
 __author__ = "Rüdiger Voigt"
 
-# Single source of truth: pyproject.toml (via installed package metadata)
 try:
     __version__ = pkg_version("salted")
 except PackageNotFoundError:
-    __version__ = "unknown"
+    # Running from source without installation — read directly from pyproject.toml
+    try:
+        _pyproject = pathlib.Path(__file__).parent.parent / "pyproject.toml"
+        _m = re.search(r'^version\s*=\s*"([^"]+)"',
+                       _pyproject.read_text(encoding="utf-8"), re.MULTILINE)
+        __version__ = _m.group(1) if _m else "unknown"
+    except Exception:
+        __version__ = "unknown"
 
 __all__ = ['get_user_agent', 'list_presets']
 
