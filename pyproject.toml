@@ -38,7 +38,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-lxml = ["lxml>=6.1.0"]
+lxml = ["lxml>=6.1.1"]
 
 [project.urls]
 Homepage = "https://github.com/RuedigerVoigt/salted"
