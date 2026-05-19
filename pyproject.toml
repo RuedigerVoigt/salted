@@ -27,7 +27,7 @@ classifiers = [
 ]
 requires-python = ">=3.10,<4"
 dependencies = [
-    "aiodns>=4.0.0",  # not imported directly; aiohttp uses it for async DNS
+    "aiodns>=4.0.3",  # not imported directly; aiohttp uses it for async DNS
     "aiohttp>=3.13.5",
     "beautifulsoup4>=4.14.3",
     "compatibility>=2.0.0",
