@@ -203,8 +203,7 @@ class DatabaseIO:
             'INSERT INTO fileAccessErrors VALUES (?, ?);',
             [file_path, reason])
 
-    def convert_doi_urls_to_dois(self) -> int:  # noqa: PLC0415
-        from salted.doi_check import _DOI_PATTERN  # local import breaks circular dep
+    def convert_doi_urls_to_dois(self) -> int:
         """Move doi.org and dx.doi.org URLs from the URL queue to the DOI queue.
 
         URLs like https://doi.org/10.1234/suffix are better validated via the
@@ -215,6 +214,7 @@ class DatabaseIO:
         Returns:
             Number of URLs converted.
         """
+        from salted.doi_check import _DOI_PATTERN  # noqa: PLC0415  # local import breaks circular dep
         self.cursor.execute('''
             SELECT filePath, url, normalizedUrl, linktext
             FROM queue
