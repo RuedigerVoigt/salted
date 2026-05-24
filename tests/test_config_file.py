@@ -195,6 +195,38 @@ base_url = http://example.com///
         checker.check_parameters()
         assert checker.base_url is None
 
+    def test_base_url_literal_none_string_coerced_to_unset(self, tmp_path, monkeypatch):
+        """A config file with `base_url = None` must be treated as unset.
+
+        ConfigParser returns the literal string "None"; check_parameters()
+        coerces it to a real None so path rewriting stays off.
+        """
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("""
+[TEMPLATE]
+base_url = None
+""")
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        # Parsed as the literal string before normalization.
+        assert checker.base_url == 'None'
+        checker.check_parameters()
+        assert checker.base_url is None
+
+    def test_base_url_empty_or_whitespace_coerced_to_unset(self):
+        """An empty / whitespace base_url is treated as unset."""
+        checker = Salted()
+        checker.base_url = '   '
+        checker.check_parameters()
+        assert checker.base_url is None
+
+    def test_base_url_real_value_preserved(self):
+        """A genuine base_url survives the coercion (trailing slash stripped)."""
+        checker = Salted()
+        checker.base_url = 'https://example.com/'
+        checker.check_parameters()
+        assert checker.base_url == 'https://example.com'
+
 
 class TestAlternativeConfigFilePath:
     """Test loading config from an explicit path via Salted(config_path=...)."""

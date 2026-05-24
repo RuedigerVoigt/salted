@@ -98,6 +98,76 @@ class TestRewritePath:
         mem_inst.tear_down_in_memory_db()
 
 
+class TestDisplayPathRelativeMode:
+    """Path display relative to the search root when no base_url is set."""
+
+    def test_display_path_relative(self):
+        """With path_to_be_replaced set but no URL, paths are made relative."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        base = pathlib.Path('/local/site')
+        gen.replace_path_by_url = {
+            'path_to_be_replaced': str(base),
+            'replace_with_url': None,
+        }
+        fp = base / 'blog' / 'page.html'
+        assert gen._display_path(str(fp)) == str(pathlib.Path('blog/page.html'))
+        mem_inst.tear_down_in_memory_db()
+
+    def test_display_path_url_takes_precedence(self):
+        """When a base_url is set, _display_path rewrites to the URL."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.replace_path_by_url = {
+            'path_to_be_replaced': '/local',
+            'replace_with_url': 'https://example.com',
+        }
+        assert gen._display_path('/local/page.html') == 'https://example.com/page.html'
+        mem_inst.tear_down_in_memory_db()
+
+    def test_display_path_no_mapping_unchanged(self):
+        """No mapping configured → path returned unchanged."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        assert gen._display_path('/local/page.html') == '/local/page.html'
+        mem_inst.tear_down_in_memory_db()
+
+    def test_display_path_outside_base_unchanged(self):
+        """A path not under the base is left untouched (no crash)."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.replace_path_by_url = {
+            'path_to_be_replaced': str(pathlib.Path('/local/site')),
+            'replace_with_url': None,
+        }
+        outside = str(pathlib.Path('/other/place/file.html'))
+        assert gen._display_path(outside) == outside
+        mem_inst.tear_down_in_memory_db()
+
+    def test_error_list_shows_relative_paths(self):
+        """generate_error_list yields relative paths when no base_url is set."""
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        base = pathlib.Path('/local/site')
+        gen.replace_path_by_url = {
+            'path_to_be_replaced': str(base),
+            'replace_with_url': None,
+        }
+        fp = str(base / 'blog' / 'page.html')
+        cursor = mem_inst.get_cursor()
+        cursor.execute(
+            'INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)',
+            [fp, None, 'example.com', 'http://example.com/404',
+             'http://example.com/404', 'Link'])
+        cursor.execute(
+            'INSERT INTO errors VALUES (?, ?)', ['http://example.com/404', 404])
+        result = gen.generate_error_list()
+        assert result is not None
+        assert result[0]['path'] == str(pathlib.Path('blog/page.html'))
+        mem_inst.tear_down_in_memory_db()
+
+
 class TestGenerateAccessErrorList:
     """Test generating access error list"""
 

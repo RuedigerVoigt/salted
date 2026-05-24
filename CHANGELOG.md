@@ -5,6 +5,7 @@
 * Breaking Changes:
   * `--raise_for_dead_links` no longer accepts a string argument (`True`/`False`/`yes`/`no`). Use the bare flag `--raise_for_dead_links` to enable and `--no-raise_for_dead_links` to explicitly disable. Default is off (no exception raised). Scripts using `--raise_for_dead_links True` must be updated.
 * New features:
+  * When `base_url` is not set, report output now shows file paths **relative to the checked folder** (e.g. `blog/post.html`) instead of the full absolute filesystem path. Set `base_url` to rewrite paths to URLs as before.
   * Add configurable file size limit (`--max_file_size_mb`, config key `max_file_size_mb` under `[BEHAVIOR]`, default: 20 MB). Files exceeding the limit are skipped and reported as errors, preventing accidental loading of oversized binary or data files that carry a supported extension.
   * Add `--config <path>` CLI argument to load an alternative configuration file instead of the default `salted-linkcheck.ini` in the current working directory.
   * Add `-q`/`--quiet` flag to suppress progress messages — useful for CI pipelines where only the final report should appear on stdout
@@ -29,6 +30,7 @@
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled
   * Fix DOI checks using GET instead of HEAD against the CrossRef API
   * Fix `base_url` trailing slash not being normalized
+  * Fix a config file setting `base_url = None` being read as the literal string `"None"`, which silently rewrote every report path to `None/…`. The literal `"None"` and empty values are now treated as unset. The example `salted-linkcheck.ini` no longer ships `base_url = None`.
 
 ## Version 1.0.1 (2025-11-04)
 

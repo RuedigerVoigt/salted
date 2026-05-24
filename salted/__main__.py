@@ -217,6 +217,11 @@ class Salted:
 
     def check_parameters(self) -> None:
         # Now the params are fixed => Apply corrections and checks
+        # base_url is optional. A config file or CLI may pass the literal
+        # string "None" (or an empty value) for it — treat those as unset so
+        # path rewriting stays off and paths are shown relative instead.
+        if isinstance(self.base_url, str) and self.base_url.strip().lower() in ('', 'none'):
+            self.base_url = None
         if self.base_url:
             self.base_url = self.base_url.rstrip('/')
 
@@ -334,6 +339,11 @@ class Salted:
 
         display_result = report_generator.ReportGenerator(mem_instance)
 
+        # Base folder used to transform stored (absolute) file paths for the
+        # report: rewritten to base_url when set, otherwise shown relative to
+        # this folder (its parent when a single file was checked).
+        relative_base = path if path.is_dir() else path.parent
+
         display_result.generate_report(
             statistics={
                 'timestamp': '{:%Y-%b-%d %H:%Mh}'.format(datetime.datetime.now()),
@@ -359,7 +369,7 @@ class Salted:
                 'base_url': self.base_url},
             write_to=self.write_to,
             replace_path_by_url={
-                'path_to_be_replaced': str(path),
+                'path_to_be_replaced': str(relative_base),
                 'replace_with_url': self.base_url
             })
         if self.raise_for_dead_links:

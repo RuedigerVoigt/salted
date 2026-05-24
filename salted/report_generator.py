@@ -64,6 +64,34 @@ class ReportGenerator:
             self.replace_path_by_url['replace_with_url'],
             1)
 
+    def _display_path(self, file_path: str) -> str:
+        """Transform a stored (absolute) file path for display in the report.
+
+        The mode is decided by ``self.replace_path_by_url``:
+
+        - base_url set   → rewrite the search-root prefix to that URL.
+        - base_url unset → show the path relative to the search root.
+        - no mapping     → return the path unchanged.
+
+        Args:
+            file_path: The file path as stored in the database.
+
+        Returns:
+            The path rewritten to a URL, made relative, or left unchanged.
+        """
+        if not self.replace_path_by_url:
+            return file_path
+        if self.replace_path_by_url.get('replace_with_url'):
+            return self.rewrite_path(file_path)
+        base = self.replace_path_by_url.get('path_to_be_replaced')
+        if not base:
+            return file_path
+        try:
+            return str(pathlib.Path(file_path).relative_to(base))
+        except ValueError:
+            # file_path is not under base (unexpected) — leave it untouched.
+            return file_path
+
     def generate_access_error_list(self) -> Optional[list]:
         """Generate a list of file access errors.
 
@@ -109,8 +137,7 @@ class ReportGenerator:
                 FROM v_errorsByFile
                 WHERE filePath = ?;''', [file_path])
             defects = cursor.fetchall()
-            if self.replace_path_by_url:
-                file_path = self.rewrite_path(file_path)
+            file_path = self._display_path(file_path)
             result.append({'path': file_path,
                            'num_errors': num_errors,
                            'defects': defects})
@@ -142,8 +169,7 @@ class ReportGenerator:
                 FROM v_redirectsByFile
                 WHERE filePath = ?;''', [file_path])
             redirects = cursor.fetchall()
-            if self.replace_path_by_url:
-                file_path = self.rewrite_path(file_path)
+            file_path = self._display_path(file_path)
             result.append({'path': file_path,
                            'num_redirects': num_redirects,
                            'redirects': redirects})
@@ -175,8 +201,7 @@ class ReportGenerator:
                 FROM v_exceptionsByFile
                 WHERE filePath = ?;''', [file_path])
             exceptions = cursor.fetchall()
-            if self.replace_path_by_url:
-                file_path = self.rewrite_path(file_path)
+            file_path = self._display_path(file_path)
             result.append({'path': file_path,
                            'num_exceptions': num_exceptions,
                            'exceptions': exceptions})
@@ -202,8 +227,7 @@ class ReportGenerator:
             return None
         result = []
         for file_path, url, address, valid in rows:
-            if self.replace_path_by_url:
-                file_path = self.rewrite_path(file_path)
+            file_path = self._display_path(file_path)
             result.append({
                 'path': file_path,
                 'url': url,
@@ -233,8 +257,7 @@ class ReportGenerator:
             return None
         result = []
         for doi, file_path, description in rows:
-            if self.replace_path_by_url:
-                file_path = self.rewrite_path(file_path)
+            file_path = self._display_path(file_path)
             result.append({
                 'doi': doi,
                 'path': file_path,
@@ -263,12 +286,13 @@ class ReportGenerator:
         Raises:
             Exception: If writing to file fails.
         """
-        # The base URL is always given. Invalidate the parameter if no
-        # replacement is provided.
-        if not replace_path_by_url or not replace_path_by_url.get('replace_with_url'):
-            replace_path_by_url = None
-        else:
+        # Keep the path mapping whenever a base path is provided: with a
+        # base_url it rewrites paths to URLs, without one it shows paths
+        # relative to that base. Drop it entirely if no base path is given.
+        if replace_path_by_url and replace_path_by_url.get('path_to_be_replaced'):
             self.replace_path_by_url = replace_path_by_url
+        else:
+            self.replace_path_by_url = None
 
         access_errors = self.generate_access_error_list()
         mailto_links = self.generate_mailto_list()

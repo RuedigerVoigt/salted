@@ -15,4 +15,6 @@ The parameter `template_searchpath` defaults to `salted/templates`. This tells s
 Salted uses [Jinja2 templates](https://jinja.palletsprojects.com/en/2.11.x/).
 
 
-The last optional parameter is `base_url`. Assume all your HTML files will be hosted on `www.example.com`. Salted does not know that. So if it finds a defect link it will tell you it is in `/home/youruser/path_to_your_folder/index.html`. If you set `base_url` to `https://www.example.com/` it will instead tell you the defect link is in `https://www.example.com/index.html`.
+The last optional parameter is `base_url`. Assume all your HTML files will be hosted on `www.example.com`. Salted does not know that. If you set `base_url` to `https://www.example.com/` and it finds a defect link, it will tell you the defect link is in `https://www.example.com/index.html`.
+
+If you leave `base_url` unset, salted shows paths **relative to the checked folder** (e.g. `index.html` or `blog/post.html`) instead of the full filesystem path. `base_url` is genuinely optional — do not set it to the word `None`, which is treated as unset.
