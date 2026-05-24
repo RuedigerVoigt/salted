@@ -169,9 +169,15 @@ def main() -> None:
     if args.file_types:
         checker.file_types = args.file_types
 
-    if args.num_workers:
+    # Use `is not None` (not a truthy check) so an explicit 0 is honored and
+    # only an omitted argument falls back to the config/default value.
+    if args.num_workers is not None:
+        if args.num_workers < 1:
+            parser.error("--num_workers must be a positive integer (>= 1).")
         checker.num_workers = args.num_workers
-    if args.timeout:
+    if args.timeout is not None:
+        if args.timeout < 0:
+            parser.error("--timeout must be >= 0 (0 disables the timeout).")
         checker.timeout = args.timeout
     if args.raise_for_dead_links is not None:
         checker.raise_for_dead_links = args.raise_for_dead_links
@@ -202,7 +208,9 @@ def main() -> None:
 
     if args.cache_file:
         checker.cache_file = args.cache_file
-    if args.dont_check_again_within_hours:
+    if args.dont_check_again_within_hours is not None:
+        if args.dont_check_again_within_hours < 0:
+            parser.error("--dont_check_again_within_hours must be >= 0 (0 forces a recheck).")
         checker.dont_check_again_within_hours = args.dont_check_again_within_hours
 
     if args.template_searchpath:

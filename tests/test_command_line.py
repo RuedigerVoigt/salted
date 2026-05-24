@@ -95,15 +95,48 @@ class TestCommandLineArguments:
     def test_main_with_timeout_argument(self):
         """Test CLI with --timeout argument."""
         test_args = ['salted', '--timeout', '30']
-        
+
         with patch('sys.argv', test_args):
             with patch('salted.Salted') as mock_salted_class:
                 mock_checker = MagicMock()
                 mock_salted_class.return_value = mock_checker
-                
+
                 command_line.main()
-                
+
                 assert mock_checker.timeout == 30
+
+    def test_main_timeout_zero_is_honored(self):
+        """`--timeout 0` (disable timeout) is honored, not silently dropped."""
+        test_args = ['salted', '--timeout', '0']
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.timeout == 0
+
+    def test_main_dont_check_again_zero_is_honored(self):
+        """`--dont_check_again_within_hours 0` (force recheck) is honored."""
+        test_args = ['salted', '--dont_check_again_within_hours', '0']
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.dont_check_again_within_hours == 0
+
+    def test_main_num_workers_zero_is_rejected(self):
+        """`-w 0` is invalid and exits with an error instead of hanging."""
+        test_args = ['salted', '-w', '0']
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_salted_class.return_value = MagicMock()
+                with pytest.raises(SystemExit):
+                    command_line.main()
 
     def test_main_with_user_agent_argument(self):
         """Test CLI with --user_agent argument."""
