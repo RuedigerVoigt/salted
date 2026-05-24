@@ -242,6 +242,29 @@ class Salted:
         # the in memory database has to initialized here instead of on
         # a higher level.
         mem_instance = memory_instance.MemoryInstance()
+        try:
+            self._run_check(mem_instance, searchpath, start_time)
+        finally:
+            # Guarantee the in-memory SQLite connection is closed on every
+            # exit path (early return, DeadLinksException, or an unexpected
+            # error), preventing a leaked connection / ResourceWarning.
+            mem_instance.tear_down_in_memory_db()
+
+    def _run_check(self,
+                   mem_instance: memory_instance.MemoryInstance,
+                   searchpath: Union[str, pathlib.Path],
+                   start_time: float) -> None:
+        """Run the link and DOI checks against an already-open in-memory DB.
+
+        Separated from check() so the caller can guarantee teardown of the
+        in-memory database via try/finally, regardless of how this returns
+        (normal completion, early return, or a raised exception).
+
+        Args:
+            mem_instance: The open in-memory database instance.
+            searchpath: Path to a file or folder to check for links.
+            start_time: Monotonic start timestamp, for runtime statistics.
+        """
         db = database_io.DatabaseIO(mem_instance, self.cache_file, quiet=self.quiet)
 
         cache_handler = cache_reader.CacheReader(
@@ -376,7 +399,6 @@ class Salted:
             if db.count_errors() > 0:
                 raise err.DeadLinksException("Found dead URLs")
         cache_handler.overwrite_cache_file()
-        mem_instance.tear_down_in_memory_db()
 
 
 if __name__ == '__main__':

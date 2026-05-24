@@ -29,6 +29,7 @@
   * Fix BibTeX URL and DOI extraction silently failing due to wrong field name casing (`'Url'`/`'Doi'` → `'url'`/`'doi'`)
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled
   * Fix DOI checks using GET instead of HEAD against the CrossRef API
+  * Fix a leaked in-memory SQLite connection (`ResourceWarning: unclosed database`) when `check()` exited early or raised (e.g. `DeadLinksException` with `raise_for_dead_links`). The database is now always torn down via `try`/`finally`.
   * Fix CLI integer options `--num_workers`, `--timeout`, and `--dont_check_again_within_hours` silently ignoring an explicit `0` (they used a truthy check). `--timeout 0` (disable timeout) and `--dont_check_again_within_hours 0` (force a recheck) are now honored; `--num_workers 0` is rejected with an error instead of being ignored. Negative values are also rejected.
   * Fix DOIs being silently dropped from the report when the CrossRef response lacked the `X-Rate-Limit-*` headers. These headers are now read defensively (with a conservative fallback), so a DOI's 200/404 status is always recorded regardless of rate-limit header presence.
   * HTTP 403 (Forbidden) is no longer reported as a dead link. Because 403 is frequently bot/WAF blocking rather than a broken link, it is now logged as an inconclusive exception ("Forbidden (403) - may be bot detection") instead of a hard error, reducing false positives.

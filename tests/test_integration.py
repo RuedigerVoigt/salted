@@ -22,7 +22,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 
 import salted
-from salted import err, file_finder
+from salted import err, file_finder, memory_instance
 
 
 html_example = r"""
@@ -165,3 +165,32 @@ def test_throw_for_dead_link(mock_head, tmp_path):
     my_check.raise_for_dead_links = True
     with pytest.raises(err.DeadLinksException):
         my_check.check(searchpath=(d))
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=404)
+def test_teardown_runs_when_dead_links_raise(mock_head, tmp_path):
+    """The in-memory DB is torn down even when check() raises DeadLinksException.
+
+    Regression test for the leaked sqlite connection (ResourceWarning) on the
+    raise path: check() must close the connection via try/finally.
+    """
+    d = tmp_path / "deadlink_teardown"
+    d.mkdir()
+    (d / "deadlink.html").write_text(
+        "<a href='https://www.example.com/broken'>Dead Link</a>")
+
+    original = memory_instance.MemoryInstance.tear_down_in_memory_db
+    calls = []
+
+    def spy(self):
+        calls.append(True)
+        return original(self)
+
+    my_check = salted.Salted()
+    my_check.raise_for_dead_links = True
+    with patch.object(memory_instance.MemoryInstance,
+                      'tear_down_in_memory_db', spy):
+        with pytest.raises(err.DeadLinksException):
+            my_check.check(searchpath=d)
+
+    assert calls, "tear_down_in_memory_db was not called on the raise path"
