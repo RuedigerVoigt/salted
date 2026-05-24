@@ -29,6 +29,7 @@
   * Fix BibTeX URL and DOI extraction silently failing due to wrong field name casing (`'Url'`/`'Doi'` → `'url'`/`'doi'`)
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled
   * Fix DOI checks using GET instead of HEAD against the CrossRef API
+  * HTTP 403 (Forbidden) is no longer reported as a dead link. Because 403 is frequently bot/WAF blocking rather than a broken link, it is now logged as an inconclusive exception ("Forbidden (403) - may be bot detection") instead of a hard error, reducing false positives.
   * Fix `base_url` trailing slash not being normalized
   * Fix a config file setting `base_url = None` being read as the literal string `"None"`, which silently rewrote every report path to `None/…`. The literal `"None"` and empty values are now treated as unset. The example `salted-linkcheck.ini` no longer ships `base_url = None`.
 

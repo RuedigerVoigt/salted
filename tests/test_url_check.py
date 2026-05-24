@@ -147,19 +147,29 @@ class TestValidateUrlStatusCodes:
 
     @pytest.mark.asyncio
     async def test_validate_url_client_errors(self, url_checker, mock_db):
-        """Test client error codes (403, 404, 410)."""
+        """Test client error codes that mean a dead link (404, 410)."""
         test_cases = [
-            (403, "Forbidden"),
             (404, "Not Found"),
             (410, "Gone")
         ]
-        
+
         for status_code, description in test_cases:
             with patch.object(url_checker, 'head_request', return_value=status_code):
                 await url_checker.validate_url("https://broken.com")
-                
+
                 mock_db.log_error.assert_called_with("https://broken.com", status_code)
                 mock_db.reset_mock()
+
+    @pytest.mark.asyncio
+    async def test_validate_url_forbidden_is_exception_not_error(self, url_checker, mock_db):
+        """403 is inconclusive (often bot/WAF blocking), so it is logged as an
+        exception rather than a hard dead-link error."""
+        with patch.object(url_checker, 'head_request', return_value=403):
+            await url_checker.validate_url("https://forbidden.com")
+
+            mock_db.log_exception.assert_called_with(
+                "https://forbidden.com", 'Forbidden (403) - may be bot detection')
+            mock_db.log_error.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_validate_url_rate_limit(self, url_checker, mock_db):

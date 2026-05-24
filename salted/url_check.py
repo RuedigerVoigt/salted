@@ -188,8 +188,12 @@ class UrlCheck:
                 self.db.log_url_is_fine(url)
             elif response_code in (301, 308):
                 self.db.log_redirect(url, response_code)
-            elif response_code in (403, 404, 410):
+            elif response_code in (404, 410):
                 self.db.log_error(url, response_code)
+            elif response_code == 403:
+                # 403 is ambiguous: often bot/WAF blocking rather than a dead
+                # link. Report as an inconclusive exception, not a hard error.
+                self.db.log_exception(url, 'Forbidden (403) - may be bot detection')
             elif response_code == 429:
                 self.db.log_exception(url, 'Rate Limit (429)')
             else:
