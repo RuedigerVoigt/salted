@@ -12,3 +12,9 @@ updates:
     allow:
       - dependency-type: direct
     target-branch: "develop"
+  # Keep the GitHub Actions used in .github/workflows/ up to date too.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "develop"
