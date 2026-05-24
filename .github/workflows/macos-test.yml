@@ -1,5 +1,5 @@
-# This workflow runs Unit-Tests for salted on MacOS
-# with the latest supported Python version.
+# Smoke test for salted on MacOS, latest Python only:
+# macOS runners are slow and flaky here. Full matrix runs on Linux.
 
 
 name: MacOS Test
