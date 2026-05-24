@@ -149,11 +149,16 @@ class DoiCheck:
                 headers=self.headers,
                 raise_for_status=False,
                 timeout=ClientTimeout(total=self.timeout_sec)) as response:
-            # format is 'numeric s'
-            timewindow = response.headers['X-Rate-Limit-Interval']
-            timewindow = timewindow.rstrip('s').strip()
+            # CrossRef usually sends these rate-limit headers, but not always
+            # (and not on every response type). Read them defensively so a
+            # missing/odd header never costs us the DOI's status: fall back to
+            # the conservative public-pool default (5 requests / 1 s), matching
+            # the _min_interval set in __init__. Header format is 'numeric s'.
+            limit = response.headers.get('X-Rate-Limit-Limit', '5')
+            timewindow = response.headers.get('X-Rate-Limit-Interval', '1s')
+            timewindow = timewindow.rstrip('s').strip() or '1'
             return {
-                'max_queries':  response.headers['X-Rate-Limit-Limit'],
+                'max_queries':  limit,
                 'seconds':  timewindow,
                 'status': response.status}
 

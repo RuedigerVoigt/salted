@@ -183,6 +183,33 @@ class TestApiSendHeadRequest:
         assert result['seconds'] == '1'
 
     @pytest.mark.asyncio
+    async def test_api_send_head_request_missing_rate_limit_headers(self):
+        """Missing CrossRef rate-limit headers must not lose the DOI status.
+
+        Regression: the headers used to be read with [] indexing, so an absent
+        header raised KeyError before the status was returned, and the worker's
+        broad except silently dropped the DOI. Now they fall back to defaults.
+        """
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+
+        mock_response = AsyncMock()
+        mock_response.status = 200
+        mock_response.headers = {}  # CrossRef omitted the rate-limit headers
+
+        doi_checker.session = AsyncMock()
+        doi_checker.session.head = MagicMock(return_value=mock_response)
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+
+        result = await doi_checker._DoiCheck__api_send_head_request('10.1234/test')
+
+        # Status is still returned; rate-limit values fall back to defaults.
+        assert result['status'] == 200
+        assert result['max_queries'] == '5'
+        assert result['seconds'] == '1'
+
+    @pytest.mark.asyncio
     async def test_api_send_head_request_formats_url_correctly(self):
         """Test that API URL is formatted correctly"""
         db_mock = Mock(spec=database_io.DatabaseIO)
@@ -328,6 +355,39 @@ class TestWorker:
         # Check that unexpected status message was printed
         captured = capsys.readouterr()
         assert 'Unexpected API response: 500' in captured.out
+
+    @pytest.mark.asyncio
+    async def test_worker_classifies_despite_missing_headers(self):
+        """End-to-end: a 404 with no rate-limit headers is still classified
+        invalid via the real __api_send_head_request (not silently dropped)."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        doi_checker = DoiCheck(db_mock)
+        doi_checker.pbar_doi = Mock()
+        doi_checker.pbar_doi.update = Mock()
+
+        mock_response = AsyncMock()
+        mock_response.status = 404
+        mock_response.headers = {}  # no rate-limit headers
+        doi_checker.session = AsyncMock()
+        doi_checker.session.head = MagicMock(return_value=mock_response)
+        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_response.__aexit__ = AsyncMock(return_value=None)
+        # Use the real __api_send_head_request, but skip actual sleeping.
+        doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
+
+        queue = asyncio.Queue()
+        queue.put_nowait('10.1234/missing-headers')
+        worker_task = asyncio.create_task(
+            doi_checker._DoiCheck__worker('test-worker', queue))
+        await queue.join()
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
+
+        assert '10.1234/missing-headers' in doi_checker.invalid_doi_list
+        assert doi_checker.valid_doi_list == []
 
 
 class TestCheckDois:
