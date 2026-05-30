@@ -19,16 +19,56 @@ from userprovided.parameters import separated_string_to_set
 from salted.user_agents import get_user_agent, list_presets
 
 
-def main() -> None:
-    """Provide an entrypoint for the command line interface of salted.
+# ##################### CLI argument -> Salted attribute maps #####################
+#
+# The application defaults live in Salted.__init__ and may be changed by a
+# config file. A CLI value only wins when it was actually supplied, so each
+# table below maps an argparse destination to the attribute it overrides and
+# the override helpers skip anything the user did not set. Adding a new plain
+# option is a one-line entry here — no extra branch in the override logic.
 
-    Parses command line arguments, overrides defaults and config file settings,
-    and runs the link checker.
+# Assigned only when the argument is truthy. An empty/omitted value falls
+# through to the config value or the built-in default.
+_TRUTHY_OVERRIDES = (
+    ('file_types', 'file_types'),
+    ('mailto', 'mailto'),
+    ('cache_file', 'cache_file'),
+    ('template_searchpath', 'template_searchpath'),
+    ('template_name', 'template_name'),
+    ('write_to', 'write_to'),
+    ('base_url', 'base_url'),
+)
+
+# Assigned whenever the argument is not None, so an explicit 0/False is honored;
+# only an omitted argument falls through to the config value or default.
+_NOT_NONE_OVERRIDES = (
+    ('raise_for_dead_links', 'raise_for_dead_links'),
+    ('check_dois', 'check_dois'),
+    ('domain_delay', 'domain_delay'),
+    ('max_file_size_mb', 'max_file_size_mb'),
+)
+
+# Integer options with a lower bound: dest -> (minimum, error message).
+# Assigned when not None (explicit 0 honored); a value below the minimum aborts
+# via parser.error().
+_BOUNDED_INT_OVERRIDES = {
+    'num_workers': (1, '--num_workers must be a positive integer (>= 1).'),
+    'timeout': (0, '--timeout must be >= 0 (0 disables the timeout).'),
+    'dont_check_again_within_hours':
+        (0, '--dont_check_again_within_hours must be >= 0 (0 forces a recheck).'),
+}
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for the salted CLI.
+
+    Defaults are intentionally left unset on the arguments: they are already
+    applied by Salted.__init__ / the config file, and the override helpers only
+    touch an attribute when the matching argument was actually supplied.
+
+    Returns:
+        The configured argument parser.
     """
-    # pylint: disable=too-many-branches
-
-    logging.debug('salted called via the CLI')
-
     parser = argparse.ArgumentParser(
         prog='salted',
         description=f"""Salted is an extremely fast link checker.
@@ -154,74 +194,98 @@ def main() -> None:
         default=False,
         help="Suppress all progress messages. Only the final report is written to output. Useful for CI pipelines.")
 
+    return parser
+
+
+def _apply_mapped_overrides(checker: 'salted.Salted',
+                            args: argparse.Namespace,
+                            parser: argparse.ArgumentParser) -> None:
+    """Apply the table-driven CLI overrides to the checker.
+
+    Handles the plain options described by the override maps: truthy-only
+    assignments, not-None assignments (which honor an explicit 0/False), and
+    bounded integers (which abort via parser.error() when out of range).
+
+    Args:
+        checker: The Salted instance whose attributes are overridden.
+        args: The parsed command line arguments.
+        parser: The parser, used to report invalid values via parser.error().
+    """
+    for dest, attr in _TRUTHY_OVERRIDES:
+        value = getattr(args, dest)
+        if value:
+            setattr(checker, attr, value)
+
+    for dest, attr in _NOT_NONE_OVERRIDES:
+        value = getattr(args, dest)
+        if value is not None:
+            setattr(checker, attr, value)
+
+    for dest, (minimum, message) in _BOUNDED_INT_OVERRIDES.items():
+        value = getattr(args, dest)
+        if value is not None:
+            if value < minimum:
+                parser.error(message)
+            setattr(checker, dest, value)
+
+
+def _apply_special_overrides(checker: 'salted.Salted',
+                             args: argparse.Namespace) -> None:
+    """Apply the CLI overrides that need more than a plain assignment.
+
+    These options require quote stripping, preset resolution, or parsing into
+    a set, so they cannot be expressed in the override maps.
+
+    Args:
+        checker: The Salted instance whose attributes are overridden.
+        args: The parsed command line arguments.
+    """
+    if args.searchpath:
+        # Strip quotes that may be preserved due to trailing backslash escaping
+        # e.g., "C:\path\" becomes "C:\path\"" on Windows
+        searchpath_str = str(args.searchpath).strip('"').strip("'")
+        checker.searchpath = pathlib.Path(searchpath_str)
+
+    if args.user_agent:
+        # A preset name (e.g. "chrome") resolves to a full UA string; anything
+        # else is treated as a custom user agent string verbatim.
+        try:
+            checker.user_agent = get_user_agent(args.user_agent)
+        except ValueError:
+            checker.user_agent = args.user_agent
+
+    if args.ignore_urls:
+        # Parse comma-separated values into a clean set using userprovided helper
+        parsed_ignores = separated_string_to_set(args.ignore_urls)
+        if parsed_ignores is not None:
+            checker.ignore_urls = parsed_ignores
+
+    if args.ignore_domains:
+        parsed_domains = separated_string_to_set(args.ignore_domains)
+        if parsed_domains is not None:
+            checker.ignore_domains = checker._validate_domains(parsed_domains)
+
+    if args.quiet:
+        checker.quiet = True
+
+
+def main() -> None:
+    """Provide an entrypoint for the command line interface of salted.
+
+    Parses command line arguments, overrides defaults and config file settings,
+    and runs the link checker.
+    """
+    logging.debug('salted called via the CLI')
+
+    parser = _build_arg_parser()
     args = parser.parse_args()
 
     # Create the application instance after parsing so --config is known.
     checker = salted.Salted(config_path=args.config)
 
     # Settings on the command line interface shall override any setting in a
-    # configfile and defaults. So if anything was set here, use it to override:
-    if args.searchpath:
-        # Strip quotes that may be preserved due to trailing backslash escaping
-        # e.g., "C:\path\" becomes "C:\path\"" on Windows
-        searchpath_str = str(args.searchpath).strip('"').strip("'")
-        checker.searchpath = pathlib.Path(searchpath_str)
-    if args.file_types:
-        checker.file_types = args.file_types
-
-    # Use `is not None` (not a truthy check) so an explicit 0 is honored and
-    # only an omitted argument falls back to the config/default value.
-    if args.num_workers is not None:
-        if args.num_workers < 1:
-            parser.error("--num_workers must be a positive integer (>= 1).")
-        checker.num_workers = args.num_workers
-    if args.timeout is not None:
-        if args.timeout < 0:
-            parser.error("--timeout must be >= 0 (0 disables the timeout).")
-        checker.timeout = args.timeout
-    if args.raise_for_dead_links is not None:
-        checker.raise_for_dead_links = args.raise_for_dead_links
-    if args.user_agent:
-        # Check if it's a preset or a custom string
-        try:
-            checker.user_agent = get_user_agent(args.user_agent)
-        except ValueError:
-            # Not a preset, treat as custom user agent string
-            checker.user_agent = args.user_agent
-    if args.check_dois is not None:
-        checker.check_dois = args.check_dois
-    if args.mailto:
-        checker.mailto = args.mailto
-    if args.ignore_urls:
-        # Parse comma-separated values into a clean set using userprovided helper
-        parsed_ignores = separated_string_to_set(args.ignore_urls)
-        if parsed_ignores is not None:
-            checker.ignore_urls = parsed_ignores
-    if args.ignore_domains:
-        parsed_domains = separated_string_to_set(args.ignore_domains)
-        if parsed_domains is not None:
-            checker.ignore_domains = checker._validate_domains(parsed_domains)
-    if args.domain_delay is not None:
-        checker.domain_delay = args.domain_delay
-    if args.max_file_size_mb is not None:
-        checker.max_file_size_mb = args.max_file_size_mb
-
-    if args.cache_file:
-        checker.cache_file = args.cache_file
-    if args.dont_check_again_within_hours is not None:
-        if args.dont_check_again_within_hours < 0:
-            parser.error("--dont_check_again_within_hours must be >= 0 (0 forces a recheck).")
-        checker.dont_check_again_within_hours = args.dont_check_again_within_hours
-
-    if args.template_searchpath:
-        checker.template_searchpath = args.template_searchpath
-    if args.template_name:
-        checker.template_name = args.template_name
-    if args.write_to:
-        checker.write_to = args.write_to
-    if args.base_url:
-        checker.base_url = args.base_url
-    if args.quiet:
-        checker.quiet = True
+    # configfile and the defaults.
+    _apply_mapped_overrides(checker, args, parser)
+    _apply_special_overrides(checker, args)
 
     checker.check(checker.searchpath)
