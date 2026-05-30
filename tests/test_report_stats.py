@@ -5,7 +5,6 @@
 Tests that the report receives percentage_full_request derived from counters.
 """
 
-from pathlib import Path
 from unittest.mock import patch
 
 import salted
@@ -54,4 +53,3 @@ def test_percentage_full_request_computed(tmp_path):
 
     assert 'percentage_full_request' in captured_stats
     assert captured_stats['percentage_full_request'] == 30.0
-

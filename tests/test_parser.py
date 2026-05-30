@@ -9,7 +9,6 @@ Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2025: Released under the Apache License 2.0
 """
 
-import pytest
 from salted.parser import Parser
 
 

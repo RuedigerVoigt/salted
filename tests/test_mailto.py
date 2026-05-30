@@ -5,10 +5,8 @@
 Tests for mailto link handling.
 """
 
-from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 
 from salted.parser import Parser
 import salted
@@ -75,7 +73,6 @@ class NoopDoiCheck:
         return None
 
 
-
 def test_empty_mailto_flagged_as_invalid(tmp_path):
     """A bare mailto: with no address hits the empty-address branch."""
     d = tmp_path / 'site'
@@ -85,7 +82,7 @@ def test_empty_mailto_flagged_as_invalid(tmp_path):
     report_data = {}
 
     def fake_generate_report(self, statistics, template, write_to,
-                              replace_path_by_url=None):
+                             replace_path_by_url=None):
         report_data['mailto'] = self.generate_mailto_list()
 
     with patch('salted.__main__.url_check.UrlCheck', StubUrlCheck), \
@@ -111,7 +108,7 @@ def test_valid_mailto_stored(tmp_path):
     report_data = {}
 
     def fake_generate_report(self, statistics, template, write_to,
-                              replace_path_by_url=None):
+                             replace_path_by_url=None):
         report_data['mailto'] = self.generate_mailto_list()
 
     with patch('salted.__main__.url_check.UrlCheck', StubUrlCheck), \
@@ -138,7 +135,7 @@ def test_malformed_mailto_flagged(tmp_path):
     report_data = {}
 
     def fake_generate_report(self, statistics, template, write_to,
-                              replace_path_by_url=None):
+                             replace_path_by_url=None):
         report_data['mailto'] = self.generate_mailto_list()
 
     with patch('salted.__main__.url_check.UrlCheck', StubUrlCheck), \
@@ -163,7 +160,7 @@ def test_no_mailto_returns_none(tmp_path):
     report_data = {}
 
     def fake_generate_report(self, statistics, template, write_to,
-                              replace_path_by_url=None):
+                             replace_path_by_url=None):
         report_data['mailto'] = self.generate_mailto_list()
 
     with patch('salted.__main__.url_check.UrlCheck', StubUrlCheck), \
@@ -186,7 +183,7 @@ def test_mailto_not_counted_as_checked_url(tmp_path):
     stats_data = {}
 
     def fake_generate_report(self, statistics, template, write_to,
-                              replace_path_by_url=None):
+                             replace_path_by_url=None):
         stats_data['num_checked'] = statistics['num_checked']
 
     with patch('salted.__main__.url_check.UrlCheck', StubUrlCheck), \

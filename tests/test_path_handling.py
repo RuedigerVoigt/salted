@@ -5,11 +5,9 @@
 Tests for path handling edge cases, particularly Windows-specific issues.
 """
 
-import pathlib
 import subprocess
 import sys
 from unittest.mock import patch, MagicMock
-import pytest
 
 from salted import command_line
 import salted

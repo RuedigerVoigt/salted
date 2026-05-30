@@ -10,7 +10,6 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 import pytest
-import tempfile
 import pathlib
 
 from salted import report_generator, memory_instance

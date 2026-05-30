@@ -7,7 +7,6 @@ Tests to ensure no Python warnings are raised during normal usage.
 
 import subprocess
 import sys
-import pytest
 
 
 class TestNoWarnings:

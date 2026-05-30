@@ -150,4 +150,3 @@ def test_file_types_supported_scans_all(tmp_path):
     urls = [u[0] for u in FakeUrlCheck.last_urls] if FakeUrlCheck.last_urls else []
     assert any('html-link' in u for u in urls)
     assert any('markdown-link' in u for u in urls)
-

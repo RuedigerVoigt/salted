@@ -8,8 +8,6 @@ Tests that __main__.py correctly invokes the CLI when run as a module.
 
 import subprocess
 import sys
-from pathlib import Path
-import pytest
 
 
 class TestModuleEntryPoint:

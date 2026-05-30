@@ -7,13 +7,12 @@ Focuses on testing previously untested components with mocking.
 """
 
 import asyncio
-import logging
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 import aiohttp
-from aiohttp import ClientSession, ClientResponse, ClientTimeout
+from aiohttp import ClientResponse
 
-from salted import url_check, database_io, memory_instance
+from salted import url_check, database_io
 
 
 @pytest.fixture
@@ -43,12 +42,12 @@ class TestHeadRequestFallback:
         """Test successful HEAD request (no fallback needed)."""
         mock_response = AsyncMock(spec=ClientResponse)
         mock_response.status = 200
-        
+
         with patch.object(url_checker, 'session') as mock_session:
             mock_session.head.return_value.__aenter__.return_value = mock_response
-            
+
             status = await url_checker.head_request("https://example.com")
-            
+
             assert status == 200
             mock_session.head.assert_called_once()
             mock_session.get.assert_not_called()  # No fallback needed
@@ -58,16 +57,16 @@ class TestHeadRequestFallback:
         """Test HEAD returns 405 → falls back to GET (our fix!)."""
         mock_head_response = AsyncMock(spec=ClientResponse)
         mock_head_response.status = 405  # Method Not Allowed
-        
+
         mock_get_response = AsyncMock(spec=ClientResponse)
         mock_get_response.status = 200  # GET works fine
-        
+
         with patch.object(url_checker, 'session') as mock_session:
             mock_session.head.return_value.__aenter__.return_value = mock_head_response
             mock_session.get.return_value.__aenter__.return_value = mock_get_response
-            
+
             status = await url_checker.head_request("https://no-head-support.com")
-            
+
             assert status == 200
             mock_session.head.assert_called_once()
             mock_session.get.assert_called_once()  # Fallback triggered
@@ -79,16 +78,16 @@ class TestHeadRequestFallback:
         """Test HEAD returns 405 → GET fallback also returns error."""
         mock_head_response = AsyncMock(spec=ClientResponse)
         mock_head_response.status = 405
-        
+
         mock_get_response = AsyncMock(spec=ClientResponse)
         mock_get_response.status = 404  # GET also fails
-        
+
         with patch.object(url_checker, 'session') as mock_session:
             mock_session.head.return_value.__aenter__.return_value = mock_head_response
             mock_session.get.return_value.__aenter__.return_value = mock_get_response
-            
+
             status = await url_checker.head_request("https://broken.com")
-            
+
             assert status == 404
             mock_session.head.assert_called_once()
             mock_session.get.assert_called_once()
@@ -98,12 +97,12 @@ class TestHeadRequestFallback:
         """Test HEAD returns non-405 error → no fallback."""
         mock_response = AsyncMock(spec=ClientResponse)
         mock_response.status = 404  # Not found, but not method not allowed
-        
+
         with patch.object(url_checker, 'session') as mock_session:
             mock_session.head.return_value.__aenter__.return_value = mock_response
-            
+
             status = await url_checker.head_request("https://not-found.com")
-            
+
             assert status == 404
             mock_session.head.assert_called_once()
             mock_session.get.assert_not_called()  # No fallback for 404
@@ -121,11 +120,11 @@ class TestValidateUrlStatusCodes:
             (303, "See Other"),
             (307, "Temporary Redirect")
         ]
-        
+
         for status_code, description in test_cases:
             with patch.object(url_checker, 'head_request', return_value=status_code):
                 await url_checker.validate_url("https://example.com")
-                
+
                 mock_db.log_url_is_fine.assert_called_with("https://example.com")
                 assert url_checker.cnt['fine'] > 0
                 mock_db.reset_mock()
@@ -137,11 +136,11 @@ class TestValidateUrlStatusCodes:
             (301, "Moved Permanently"),
             (308, "Permanent Redirect")
         ]
-        
+
         for status_code, description in test_cases:
             with patch.object(url_checker, 'head_request', return_value=status_code):
                 await url_checker.validate_url("https://moved.com")
-                
+
                 mock_db.log_redirect.assert_called_with("https://moved.com", status_code)
                 mock_db.reset_mock()
 
@@ -176,20 +175,20 @@ class TestValidateUrlStatusCodes:
         """Test rate limiting (429)."""
         with patch.object(url_checker, 'head_request', return_value=429):
             await url_checker.validate_url("https://rate-limited.com")
-            
+
             mock_db.log_exception.assert_called_with("https://rate-limited.com", 'Rate Limit (429)')
 
     @pytest.mark.asyncio
     async def test_validate_url_other_status_codes(self, url_checker, mock_db):
         """Test unknown/other status codes (500, 503, etc.)."""
         test_cases = [500, 502, 503, 999]
-        
+
         for status_code in test_cases:
             with patch.object(url_checker, 'head_request', return_value=status_code):
                 await url_checker.validate_url("https://server-error.com")
-                
+
                 mock_db.log_exception.assert_called_with(
-                    "https://server-error.com", 
+                    "https://server-error.com",
                     f"Other ({status_code})"
                 )
                 mock_db.reset_mock()
@@ -198,7 +197,7 @@ class TestValidateUrlStatusCodes:
     async def test_validate_url_ignored_urls(self, url_checker, mock_db):
         """Test that ignored URLs are skipped."""
         await url_checker.validate_url("https://ignored.com")
-        
+
         assert url_checker.cnt['ignored_urls'] == 1
         assert url_checker.cnt['checked_urls'] == 0
         mock_db.log_url_is_fine.assert_not_called()
@@ -212,43 +211,43 @@ class TestNetworkExceptionHandling:
         """Test timeout exception handling."""
         with patch.object(url_checker, 'head_request', side_effect=asyncio.TimeoutError()):
             await url_checker.validate_url("https://slow.com")
-            
+
             mock_db.log_exception.assert_called_with("https://slow.com", 'Timeout')
 
     @pytest.mark.asyncio
     async def test_validate_url_connection_error(self, url_checker, mock_db):
         """Test connection error (DNS failure, etc.)."""
-        with patch.object(url_checker, 'head_request', 
-                         side_effect=aiohttp.client_exceptions.ClientConnectorError("connection", OSError())):
+        with patch.object(url_checker, 'head_request',
+                          side_effect=aiohttp.client_exceptions.ClientConnectorError("connection", OSError())):
             await url_checker.validate_url("https://nonexistent.com")
-            
+
             mock_db.log_exception.assert_called_with("https://nonexistent.com", 'ClientConnectorError')
 
     @pytest.mark.asyncio
     async def test_validate_url_response_error(self, url_checker, mock_db):
         """Test malformed HTTP response."""
-        with patch.object(url_checker, 'head_request', 
-                         side_effect=aiohttp.client_exceptions.ClientResponseError(None, None)):
+        with patch.object(url_checker, 'head_request',
+                          side_effect=aiohttp.client_exceptions.ClientResponseError(None, None)):
             await url_checker.validate_url("https://malformed.com")
-            
+
             mock_db.log_exception.assert_called_with("https://malformed.com", 'ClientResponseError')
 
     @pytest.mark.asyncio
     async def test_validate_url_os_error(self, url_checker, mock_db):
         """Test OS-level network error."""
-        with patch.object(url_checker, 'head_request', 
-                         side_effect=aiohttp.client_exceptions.ClientOSError()):
+        with patch.object(url_checker, 'head_request',
+                          side_effect=aiohttp.client_exceptions.ClientOSError()):
             await url_checker.validate_url("https://os-error.com")
-            
+
             mock_db.log_exception.assert_called_with("https://os-error.com", 'ClientOSError')
 
     @pytest.mark.asyncio
     async def test_validate_url_server_disconnected(self, url_checker, mock_db):
         """Test server disconnection during request."""
-        with patch.object(url_checker, 'head_request', 
-                         side_effect=aiohttp.client_exceptions.ServerDisconnectedError()):
+        with patch.object(url_checker, 'head_request',
+                          side_effect=aiohttp.client_exceptions.ServerDisconnectedError()):
             await url_checker.validate_url("https://disconnects.com")
-            
+
             mock_db.log_exception.assert_called_with("https://disconnects.com", 'Server disconnected')
 
     @pytest.mark.asyncio
@@ -257,7 +256,7 @@ class TestNetworkExceptionHandling:
         with patch.object(url_checker, 'head_request', side_effect=ValueError("Unexpected error")):
             with patch('salted.url_check.logging.exception') as mock_log:
                 await url_checker.validate_url("https://unexpected.com")
-                
+
                 # Should log exception but not crash
                 mock_log.assert_called_once()
                 assert "https://unexpected.com" in str(mock_log.call_args)
@@ -360,9 +359,9 @@ class TestSessionManagement:
         with patch('aiohttp.ClientSession') as mock_session_class:
             mock_session = AsyncMock()
             mock_session_class.return_value = mock_session
-            
+
             await url_checker._UrlCheck__create_session()
-            
+
             assert url_checker.session == mock_session
             mock_session_class.assert_called_once()
 
@@ -371,9 +370,9 @@ class TestSessionManagement:
         """Test session cleanup."""
         mock_session = AsyncMock()
         url_checker.session = mock_session
-        
+
         await url_checker._UrlCheck__close_session()
-        
+
         mock_session.close.assert_called_once()
 
     @pytest.mark.asyncio

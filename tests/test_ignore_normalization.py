@@ -5,7 +5,6 @@
 Tests that ignore_urls are normalized before being used for matching.
 """
 
-from pathlib import Path
 from unittest.mock import patch
 
 import salted
@@ -16,7 +15,8 @@ class FakeUrlCheck:
 
     last_ignore = None
 
-    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls, domain_delay, ignore_domains=None, quiet=False):  # noqa: D401 - constructor
+    def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls,
+                 domain_delay, ignore_domains=None, quiet=False):  # noqa: D401 - constructor
         FakeUrlCheck.last_ignore = ignore_urls
         self.cnt = {
             'checked_urls': 0,
@@ -40,8 +40,7 @@ def test_ignore_urls_are_normalized(tmp_path, monkeypatch):
     cfg.write_text("""
 [BEHAVIOR]
 ignore_urls =  https://example.com/?b=2&a=1 ,
-"""
-    )
+""")
 
     # Act: run check with UrlCheck patched to our fake
     # Change to tmp_path so config file is found
@@ -53,4 +52,3 @@ ignore_urls =  https://example.com/?b=2&a=1 ,
     # Assert: normalization sorts query params
     assert 'https://example.com/?a=1&b=2' in FakeUrlCheck.last_ignore
     assert 'https://example.com/?b=2&a=1' not in FakeUrlCheck.last_ignore
-

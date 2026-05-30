@@ -10,8 +10,6 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 import pathlib
-import tempfile
-import pytest
 
 from salted import database_io, memory_instance
 
