@@ -6,7 +6,9 @@
 [![Downloads](https://pepy.tech/badge/salted)](https://pepy.tech/project/salted)
 [![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](https://www.ruediger-voigt.eu/coverage/salted/index.html)
 
-![Salted v2 logo](documentation/salted-v2-logo.png)
+<p align="center">
+  <img src="documentation/salted-v2-logo.png" alt="Salted v2 logo" width="380">
+</p>
 
 SALTED is a fast, async Python link checker for HTML, Markdown, TeX, and BibTeX files. It detects broken hyperlinks, uses a local cache to avoid rechecking. It is a command line application and integrates into CI/CD pipelines. It can be run on Windows, Linux and Mac.
 
