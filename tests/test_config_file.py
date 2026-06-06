@@ -9,9 +9,12 @@ Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2025: Released under the Apache License 2.0
 """
 
+import pathlib
+
 import pytest
 
 from salted import Salted
+from salted.err import ConfigFileError
 
 
 class TestConfigFileHandling:
@@ -27,7 +30,7 @@ class TestConfigFileHandling:
         assert checker.searchpath is not None
 
     def test_config_file_with_invalid_section(self, tmp_path, monkeypatch):
-        """Test that invalid section in config raises ValueError"""
+        """Test that invalid section in config raises ConfigFileError"""
         # Create a config file with invalid section
         config_file = tmp_path / "salted-linkcheck.ini"
         config_file.write_text("""
@@ -37,7 +40,7 @@ some_setting = value
 
         monkeypatch.chdir(tmp_path)
 
-        with pytest.raises(ValueError, match="unknown section"):
+        with pytest.raises(ConfigFileError, match="unknown section"):
             Salted()
 
     def test_config_file_with_behavior_section(self, tmp_path, monkeypatch):
@@ -253,14 +256,49 @@ class TestAlternativeConfigFilePath:
         assert checker.timeout == 99
 
     def test_nonexistent_explicit_config_raises(self, tmp_path):
-        """FileNotFoundError is raised when the given config path does not exist."""
+        """ConfigFileError is raised when the given config path does not exist."""
         missing = tmp_path / "does_not_exist.ini"
-        with pytest.raises(FileNotFoundError, match="does_not_exist.ini"):
+        with pytest.raises(ConfigFileError, match="not found"):
             Salted(config_path=missing)
 
     def test_explicit_config_path_invalid_section_raises(self, tmp_path):
-        """ValueError is raised for unknown sections in the explicit config."""
+        """ConfigFileError is raised for unknown sections in the explicit config."""
         config_file = tmp_path / "bad.ini"
         config_file.write_text("[UNKNOWN_SECTION]\nfoo = bar\n")
-        with pytest.raises(ValueError, match="unknown section"):
+        with pytest.raises(ConfigFileError, match="unknown section"):
+            Salted(config_path=config_file)
+
+    def test_corrupted_explicit_config_raises(self, tmp_path):
+        """A malformed explicit config (no section header) stops with an error."""
+        config_file = tmp_path / "broken.ini"
+        config_file.write_text("this line has no section header\n")
+        with pytest.raises(ConfigFileError, match="corrupted"):
+            Salted(config_path=config_file)
+
+    def test_corrupted_default_config_raises(self, tmp_path, monkeypatch):
+        """A malformed config found in the working directory stops with an error."""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("garbage without a section header\n")
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ConfigFileError, match="corrupted"):
+            Salted()
+
+    def test_unreadable_explicit_config_raises(self, tmp_path, monkeypatch):
+        """An explicit config that exists but cannot be read stops with an error.
+
+        Permission semantics differ across platforms, so the read failure is
+        simulated by making read_text raise PermissionError.
+        """
+        config_file = tmp_path / "locked.ini"
+        config_file.write_text("[BEHAVIOR]\ntimeout = 5\n")
+
+        original_read_text = pathlib.Path.read_text
+
+        def deny(self, *args, **kwargs):
+            if self == config_file:
+                raise PermissionError("permission denied")
+            return original_read_text(self, *args, **kwargs)
+
+        monkeypatch.setattr(pathlib.Path, "read_text", deny)
+        with pytest.raises(ConfigFileError, match="could not be read"):
             Salted(config_path=config_file)

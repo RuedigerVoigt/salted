@@ -156,25 +156,59 @@ class Salted:
                 CONFIG_NAME in the current working directory.
 
         Raises:
-            FileNotFoundError: If config_path is given but the file does not exist.
+            err.ConfigFileError: If an explicitly provided config file is
+                missing, cannot be read (e.g. a permission error), or is
+                corrupted; or if any config file that is found contains an
+                unknown section or is not valid INI. A missing default config
+                file (none provided, none in the working directory) is not an
+                error — defaults are used.
         """
         cfg = configparser.ConfigParser()
 
         if config_path is not None:
+            # The user explicitly asked for this file. Any problem using it
+            # must stop salted with a clear message rather than silently
+            # falling back to defaults.
+            config_path = pathlib.Path(config_path)
             if not config_path.is_file():
-                raise FileNotFoundError(
-                    f"Config file not found: {config_path}")
-            cfg.read(config_path)
+                msg = (f"Config file not found: {config_path} - check the path "
+                       "passed via --config (or config_path).")
+                logging.error(msg)
+                raise err.ConfigFileError(msg)
+            target = config_path
         else:
-            # read() does not raise if the file is absent — check the return value.
-            parsed_files = cfg.read(self.CONFIG_NAME)
-            if len(parsed_files) == 0:
+            # No explicit path: look for the default in the working directory.
+            # Its absence is fine — fall back to defaults.
+            default = pathlib.Path(self.CONFIG_NAME)
+            if not default.is_file():
                 logging.info('No configfile found. Using defaults.')
                 return
+            target = default
+
+        # Read the file ourselves: ConfigParser.read() silently ignores files
+        # it cannot open, so reading the text here lets a permission problem or
+        # a non-UTF-8 file surface with a clear message instead of being lost.
+        try:
+            config_text = target.read_text(encoding='utf-8')
+        except (OSError, UnicodeDecodeError) as exc:
+            msg = f"Config file could not be read: {target} - {exc}"
+            logging.error(msg)
+            raise err.ConfigFileError(msg) from exc
+
+        try:
+            cfg.read_string(config_text, source=str(target))
+        except configparser.Error as exc:
+            msg = f"Config file is corrupted (not valid INI): {target} - {exc}"
+            logging.error(msg)
+            raise err.ConfigFileError(msg) from exc
 
         for section in cfg.sections():
             if section not in {'BEHAVIOR', 'CACHE', 'FILES', 'TEMPLATE'}:
-                raise ValueError('Configfile contains unknown section!')
+                msg = (f"Config file contains unknown section '{section}': "
+                       f"{target} - allowed sections are BEHAVIOR, CACHE, "
+                       "FILES, TEMPLATE.")
+                logging.error(msg)
+                raise err.ConfigFileError(msg)
 
         if 'BEHAVIOR' in cfg.sections():
             behavior = cfg['BEHAVIOR']

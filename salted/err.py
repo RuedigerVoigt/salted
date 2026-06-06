@@ -23,3 +23,12 @@ class DeadLinksException(SaltedException):
     This exception is raised if dead links are found and the configuration
     requires raising an exception for them (typically in CI/CD pipelines).
     """
+
+
+class ConfigFileError(SaltedException):
+    """Raised when a configuration file cannot be read or is invalid.
+
+    Covers config files that exist but cannot be read (e.g. a permission
+    error) and files that are corrupted / not valid INI (e.g. a missing
+    section header or duplicate keys).
+    """

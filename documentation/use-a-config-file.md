@@ -12,7 +12,9 @@ To use a config file in a different location, pass its path with `--config`:
 salted --config /path/to/my-config.ini -i ./docs
 ```
 
-This is useful when you want to share a single config file across multiple projects, or when running salted from a CI pipeline where the working directory does not contain the config file. Salted raises an error with a clear message if the specified file does not exist.
+This is useful when you want to share a single config file across multiple projects, or when running salted from a CI pipeline where the working directory does not contain the config file.
+
+When you pass a config file with `--config`, salted treats any problem with it as a hard error: if the file is missing, cannot be read (for example a permission error), or is corrupted (not valid INI), salted prints a clear message and stops with a non-zero exit code instead of silently falling back to defaults. The same applies to a `salted-linkcheck.ini` found in the working directory if it is corrupted or contains an unknown section — only a *missing* default file is treated as "use defaults". (When used as a library, these conditions raise `salted.err.ConfigFileError`.)
 
 ## Parameters / Initializing
 

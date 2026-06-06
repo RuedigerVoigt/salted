@@ -13,9 +13,11 @@ Released under the Apache License 2.0
 import argparse
 import logging
 import pathlib
+import sys
 
 import salted
 from userprovided.parameters import separated_string_to_set
+from salted.err import ConfigFileError
 from salted.user_agents import get_user_agent, list_presets
 
 
@@ -281,7 +283,13 @@ def main() -> None:
     args = parser.parse_args()
 
     # Create the application instance after parsing so --config is known.
-    checker = salted.Salted(config_path=args.config)
+    # A bad config file (missing, unreadable, corrupted) is a clear, expected
+    # user error: the message is already logged, so stop with a non-zero exit
+    # code instead of dumping a traceback.
+    try:
+        checker = salted.Salted(config_path=args.config)
+    except ConfigFileError:
+        sys.exit(1)
 
     # Settings on the command line interface shall override any setting in a
     # configfile and the defaults.
