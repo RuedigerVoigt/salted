@@ -1,5 +1,5 @@
-# This workflow runs Unit-Tests for salted on Windows
-# with the oldest and latest supported Python versions.
+# This workflow runs Unit-Tests for salted on Windows with the oldest and
+# latest supported Python versions, plus the Python 3.15 beta (allowed to fail).
 
 
 name: Windows Test
@@ -10,10 +10,19 @@ jobs:
   build:
 
     runs-on: windows-latest
+    # Allow the experimental Python 3.15 beta job to fail without failing CI.
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: true
       matrix:
         python-version: ['3.10', '3.14']
+        experimental: [false]
+        # Also run against the Python 3.15 beta to catch breakage early. This
+        # entry is marked experimental, so via continue-on-error its failure
+        # does not fail the workflow.
+        include:
+          - python-version: '3.15'
+            experimental: true
 
     steps:
     - uses: actions/checkout@v6
@@ -22,6 +31,7 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
+        allow-prereleases: true
 
     - name: Install Poetry
       run: |

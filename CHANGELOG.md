@@ -37,6 +37,7 @@
   * Fix a config file setting `base_url = None` being read as the literal string `"None"`, which silently rewrote every report path to `None/…`. The literal `"None"` and empty values are now treated as unset. The example `salted-linkcheck.ini` no longer ships `base_url = None`.
 * Internal:
   * Refactor `command_line.main()` into a parser builder plus table-driven override helpers (no behavior change).
+  * CI now also tests against the Python 3.15 beta (Linux, Windows, and macOS) as an experimental, allowed-to-fail matrix entry to catch breakage early.
 
 ## Version 1.0.1 (2025-11-04)
 
