@@ -283,24 +283,3 @@ class UrlCheck:
             asyncio.run(self.__distribute_work(urls_to_check))
         finally:
             self.pbar_links.close()
-
-    async def check_urls_async(self) -> None:
-        """Check URLs asynchronously.
-
-        Async variant of check_urls for integration in async applications.
-        """
-        urls_to_check = self.db.urls_to_check()
-        if not urls_to_check:
-            logging.info(
-                "No URLs to check after skipping cached results."
-                "All hyperlinks are considered valid.")
-            return
-        num_checks = len(urls_to_check)
-        self.num_workers = self.__recommend_num_workers(num_checks)
-        if not self.quiet:
-            print(f"{num_checks} URLs to check with {self.num_workers} workers:")
-        self.pbar_links = tqdm(total=num_checks, disable=self.quiet or not sys.stdout.isatty())
-        try:
-            await self.__distribute_work(urls_to_check)
-        finally:
-            self.pbar_links.close()

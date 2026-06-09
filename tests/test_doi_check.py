@@ -489,55 +489,6 @@ class TestCheckDois:
         db_mock.log_invalid_dois.assert_called_once()
 
 
-class TestCheckDoisAsync:
-    """Test async check_dois_async method"""
-
-    @pytest.mark.asyncio
-    async def test_check_dois_async_no_dois(self):
-        """Test check_dois_async when there are no DOIs to check"""
-        db_mock = Mock(spec=database_io.DatabaseIO)
-        db_mock.get_dois_to_check = Mock(return_value=None)
-
-        doi_checker = DoiCheck(db_mock)
-
-        # Should return early without error
-        await doi_checker.check_dois_async()
-
-        # Database should not be called to save anything
-        db_mock.save_valid_dois.assert_not_called()
-        db_mock.log_invalid_dois.assert_not_called()
-
-    @pytest.mark.asyncio
-    @patch('salted.doi_check.tqdm')
-    async def test_check_dois_async_with_dois(self, mock_tqdm):
-        """Test check_dois_async with DOIs to process"""
-        db_mock = Mock(spec=database_io.DatabaseIO)
-        db_mock.get_dois_to_check = Mock(return_value=['10.1234/test1', '10.1234/test2'])
-        db_mock.save_valid_dois = Mock()
-        db_mock.log_invalid_dois = Mock()
-
-        doi_checker = DoiCheck(db_mock)
-
-        # Mock the distribute_work method to avoid actual async execution
-        doi_checker._DoiCheck__distribute_work = AsyncMock()
-
-        # Simulate some valid and invalid DOIs
-        doi_checker.valid_doi_list = ['10.1234/test1']
-        doi_checker.invalid_doi_list = ['10.1234/test2']
-
-        await doi_checker.check_dois_async()
-
-        # Verify progress bar was created
-        assert mock_tqdm.called
-
-        # Verify async distribute_work was called
-        doi_checker._DoiCheck__distribute_work.assert_called_once()
-
-        # Verify database was updated
-        db_mock.save_valid_dois.assert_called_once()
-        db_mock.log_invalid_dois.assert_called_once()
-
-
 class TestDistributeWork:
     """Test __distribute_work method with real async execution"""
 

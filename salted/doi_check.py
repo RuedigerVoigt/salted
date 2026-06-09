@@ -248,25 +248,3 @@ class DoiCheck:
             self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
         if self.invalid_doi_list:
             self.db.log_invalid_dois([(doi, ) for doi in self.invalid_doi_list])
-
-    async def check_dois_async(self) -> None:
-        """Check the DOIs in the queue asynchronously.
-
-        Async variant of check_dois for integration in async applications.
-        """
-        dois_to_check = self.db.get_dois_to_check()
-        if not dois_to_check:
-            logging.debug('No DOIs to check.')
-            return
-        num_doi = len(dois_to_check)
-        if not self.quiet:
-            print(f"{num_doi} DOI{'s' if num_doi != 1 else ''} to check:")
-        self.pbar_doi = tqdm(total=num_doi, disable=self.quiet or not sys.stdout.isatty())
-        try:
-            await self.__distribute_work(dois_to_check)
-        finally:
-            self.pbar_doi.close()
-        if self.valid_doi_list:
-            self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])
-        if self.invalid_doi_list:
-            self.db.log_invalid_dois([(doi, ) for doi in self.invalid_doi_list])
