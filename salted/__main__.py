@@ -143,6 +143,42 @@ class Salted:
                 logging.warning("'%s' is not a valid domain — ignored.", entry)
         return valid
 
+    @staticmethod
+    def _parse_num_workers(raw: str,
+                           source: str) -> Union[int, str]:
+        """Validate a num_workers value coming from a config file.
+
+        The CLI already rejects values below 1; the config file path must
+        enforce the same bound. Zero (or a negative number of) workers would
+        leave the URL queue without consumers and the run would block forever
+        on queue.join().
+
+        Args:
+            raw: The value as read from the config file.
+            source: Path of the config file, used in error messages.
+
+        Returns:
+            The string 'automatic' or a positive integer.
+
+        Raises:
+            err.ConfigFileError: If the value is neither 'automatic' nor an
+                integer >= 1.
+        """
+        value = raw.strip()
+        if value.lower() == 'automatic':
+            return 'automatic'
+        msg = (f"Config file contains invalid num_workers value '{value}': "
+               f"{source} - must be 'automatic' or a positive integer (>= 1).")
+        try:
+            workers = int(value)
+        except ValueError as exc:
+            logging.error(msg)
+            raise err.ConfigFileError(msg) from exc
+        if workers < 1:
+            logging.error(msg)
+            raise err.ConfigFileError(msg)
+        return workers
+
     def __parse_configfile(self, config_path: Optional[pathlib.Path] = None) -> None:
         """Parse configuration file and overwrite defaults with its settings.
 
@@ -212,7 +248,10 @@ class Salted:
 
         if 'BEHAVIOR' in cfg.sections():
             behavior = cfg['BEHAVIOR']
-            self.num_workers = behavior.get('num_workers', self.num_workers)  # type: ignore[arg-type]
+            raw_workers = behavior.get('num_workers')
+            if raw_workers is not None:
+                self.num_workers = self._parse_num_workers(
+                    raw_workers, str(target))
             self.timeout = behavior.getint('timeout', self.timeout)
             self.raise_for_dead_links = behavior.getboolean(
                         'raise_for_dead_links',

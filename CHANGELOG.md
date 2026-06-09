@@ -36,6 +36,7 @@
   * HTTP 403 (Forbidden) is no longer reported as a dead link. Because 403 is frequently bot/WAF blocking rather than a broken link, it is now logged as an inconclusive exception ("Forbidden (403) - may be bot detection") instead of a hard error, reducing false positives.
   * Fix `base_url` trailing slash not being normalized
   * Fix a config file setting `base_url = None` being read as the literal string `"None"`, which silently rewrote every report path to `None/…`. The literal `"None"` and empty values are now treated as unset. The example `salted-linkcheck.ini` no longer ships `base_url = None`.
+  * Fix `num_workers = 0` in a config file hanging salted forever (zero workers, queue never processed). Invalid values (non-numeric, empty, or below 1) now raise `ConfigFileError` at startup; a worker count below 1 set via the library API raises `ValueError`.
 * Internal:
   * Refactor `command_line.main()` into a parser builder plus table-driven override helpers (no behavior change).
   * CI now also tests against the Python 3.15 beta (Linux, Windows, and macOS) as an experimental, allowed-to-fail matrix entry to catch breakage early.

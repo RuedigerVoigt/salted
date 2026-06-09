@@ -98,7 +98,9 @@ class UrlCheck:
             Recommended number of worker coroutines (4-64).
 
         Raises:
-            ValueError: If num_checks is less than 1.
+            ValueError: If num_checks is less than 1, or if a user-set
+                number of workers is below 1. Zero workers would leave the
+                queue without consumers and block forever on queue.join().
         """
 
         if self.num_workers == 'automatic':
@@ -116,6 +118,10 @@ class UrlCheck:
         else:
             # i.e. user set a specific number
             recommendation = int(self.num_workers)
+            if recommendation < 1:
+                raise ValueError(
+                    "num_workers must be a positive integer (>= 1) "
+                    "or 'automatic'.")
         # Set the logging message here to flush the cache. Cannot use
         # flush() as it is unknown which or how many logging methods are used.
         logging.debug("Using %s workers to check %s hyperlinks.",

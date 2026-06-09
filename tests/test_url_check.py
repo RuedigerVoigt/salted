@@ -349,6 +349,22 @@ class TestWorkerRecommendation:
         assert url_checker._UrlCheck__recommend_num_workers(5000) == 32
         assert url_checker._UrlCheck__recommend_num_workers(5001) == 64
 
+    def test_user_set_zero_workers_raises(self, url_checker):
+        """A user-set worker count of 0 must raise instead of hanging.
+
+        Zero workers would leave the queue without consumers and the run
+        would block forever on queue.join().
+        """
+        url_checker.num_workers = 0
+        with pytest.raises(ValueError, match="num_workers"):
+            url_checker._UrlCheck__recommend_num_workers(10)
+
+    def test_user_set_negative_workers_raises(self, url_checker):
+        """A user-set negative worker count must raise instead of hanging."""
+        url_checker.num_workers = -4
+        with pytest.raises(ValueError, match="num_workers"):
+            url_checker._UrlCheck__recommend_num_workers(10)
+
 
 class TestSessionManagement:
     """Test aiohttp session creation and cleanup."""

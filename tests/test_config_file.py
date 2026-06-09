@@ -59,8 +59,8 @@ ignore_urls = http://example.com,http://test.com
         monkeypatch.chdir(tmp_path)
 
         checker = Salted()
-        # Config parser returns strings, not ints
-        assert checker.num_workers == '10'
+        # num_workers is validated and converted to int
+        assert checker.num_workers == 10
         assert checker.timeout == 15
         assert checker.raise_for_dead_links is True
         assert checker.user_agent == 'chrome'
@@ -226,6 +226,70 @@ base_url = None
         checker.base_url = 'https://example.com/'
         checker.check_parameters()
         assert checker.base_url == 'https://example.com'
+
+
+class TestConfigNumWorkersValidation:
+    """Validate num_workers from a config file.
+
+    Regression tests: num_workers = 0 used to pass through unvalidated,
+    spawn zero workers, and hang forever on queue.join(). The CLI rejected
+    such values; the config file path must do the same.
+    """
+
+    @staticmethod
+    def _write_config(tmp_path, value):
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text(f"[BEHAVIOR]\nnum_workers = {value}\n")
+
+    def test_num_workers_zero_raises(self, tmp_path, monkeypatch):
+        """num_workers = 0 must fail loudly instead of hanging the run."""
+        self._write_config(tmp_path, '0')
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ConfigFileError, match="num_workers"):
+            Salted()
+
+    def test_num_workers_negative_raises(self, tmp_path, monkeypatch):
+        """A negative num_workers must fail loudly instead of hanging."""
+        self._write_config(tmp_path, '-3')
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ConfigFileError, match="num_workers"):
+            Salted()
+
+    def test_num_workers_non_numeric_raises(self, tmp_path, monkeypatch):
+        """A non-numeric num_workers must raise ConfigFileError, not ValueError mid-run."""
+        self._write_config(tmp_path, 'abc')
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ConfigFileError, match="num_workers"):
+            Salted()
+
+    def test_num_workers_empty_raises(self, tmp_path, monkeypatch):
+        """An empty num_workers value must raise ConfigFileError."""
+        self._write_config(tmp_path, '')
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ConfigFileError, match="num_workers"):
+            Salted()
+
+    def test_num_workers_automatic_accepted(self, tmp_path, monkeypatch):
+        """The literal 'automatic' is accepted (case-insensitive)."""
+        self._write_config(tmp_path, 'Automatic')
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert checker.num_workers == 'automatic'
+
+    def test_num_workers_positive_int_accepted(self, tmp_path, monkeypatch):
+        """A positive integer is accepted and converted to int."""
+        self._write_config(tmp_path, '32')
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert checker.num_workers == 32
+
+    def test_num_workers_absent_keeps_default(self, tmp_path, monkeypatch):
+        """Without a num_workers key the default 'automatic' is kept."""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text("[BEHAVIOR]\ntimeout = 5\n")
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert checker.num_workers == 'automatic'
 
 
 class TestAlternativeConfigFilePath:
