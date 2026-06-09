@@ -468,10 +468,12 @@ class Salted:
                 'path_to_be_replaced': str(relative_base),
                 'replace_with_url': self.base_url
             })
-        if self.raise_for_dead_links:
-            if db.count_errors() > 0:
-                raise err.DeadLinksException("Found dead URLs")
+        # Persist the cache before potentially raising: URLs validated in
+        # this run must survive a DeadLinksException, otherwise a failing
+        # CI run would recheck everything on the next attempt.
         cache_handler.overwrite_cache_file()
+        if self.raise_for_dead_links and db.count_errors() > 0:
+            raise err.DeadLinksException("Found dead URLs")
 
 
 if __name__ == '__main__':

@@ -18,6 +18,8 @@ Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2026: Released under the Apache License 2.0
 """
 
+import sqlite3
+
 import pytest
 from unittest.mock import AsyncMock, patch
 
@@ -194,3 +196,37 @@ def test_teardown_runs_when_dead_links_raise(mock_head, tmp_path):
             my_check.check(searchpath=d)
 
     assert calls, "tear_down_in_memory_db was not called on the raise path"
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock)
+def test_cache_is_written_when_dead_links_raise(mock_head, tmp_path):
+    """Valid URLs are cached even when check() raises DeadLinksException.
+
+    Regression test: the cache used to be written only after the
+    raise_for_dead_links check, so a failing CI run lost all freshly
+    validated URLs and the next run rechecked everything.
+    """
+    mock_head.side_effect = lambda url: 200 if 'good' in url else 404
+
+    d = tmp_path / "deadlink_cache"
+    d.mkdir()
+    (d / "links.html").write_text(
+        "<a href='https://www.example.com/good'>Fine Link</a>"
+        "<a href='https://www.example.com/broken'>Dead Link</a>")
+    cache_file = tmp_path / "test-cache.sqlite3"
+
+    my_check = salted.Salted()
+    my_check.raise_for_dead_links = True
+    my_check.cache_file = cache_file
+    with pytest.raises(err.DeadLinksException):
+        my_check.check(searchpath=d)
+
+    assert cache_file.exists(), "cache file was not written on the raise path"
+    cache = sqlite3.connect(cache_file)
+    try:
+        rows = cache.execute('SELECT normalizedUrl FROM validUrls;').fetchall()
+    finally:
+        cache.close()
+    cached_urls = {row[0] for row in rows}
+    assert 'https://www.example.com/good' in cached_urls
+    assert 'https://www.example.com/broken' not in cached_urls
