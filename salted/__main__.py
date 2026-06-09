@@ -15,7 +15,7 @@ import datetime
 import logging
 import pathlib
 import time
-from typing import Optional, Union, Set
+from typing import Any, Optional, Union, Set
 
 from importlib.metadata import version as pkg_version, PackageNotFoundError
 
@@ -27,6 +27,7 @@ from salted import err
 from salted import file_finder
 from salted import input_handler
 from salted import memory_instance
+from salted import parameter_rules
 from salted import url_check
 from salted import report_generator
 from userprovided.parameters import separated_string_to_set
@@ -143,41 +144,36 @@ class Salted:
                 logging.warning("'%s' is not a valid domain — ignored.", entry)
         return valid
 
-    @staticmethod
-    def _parse_num_workers(raw: str,
-                           source: str) -> Union[int, str]:
-        """Validate a num_workers value coming from a config file.
+    def _from_config(self,
+                     section: configparser.SectionProxy,
+                     key: str,
+                     target: pathlib.Path) -> Any:
+        """Read a value from a config file section and validate it.
 
-        The CLI already rejects values below 1; the config file path must
-        enforce the same bound. Zero (or a negative number of) workers would
-        leave the URL queue without consumers and the run would block forever
-        on queue.join().
+        Validation uses the central rules in parameter_rules, so the same
+        checks apply to a value no matter whether it was set on the command
+        line or in a config file.
 
         Args:
-            raw: The value as read from the config file.
-            source: Path of the config file, used in error messages.
+            section: The config file section to read from.
+            key: The option name, which is also the attribute name.
+            target: Path to the config file, used in error messages.
 
         Returns:
-            The string 'automatic' or a positive integer.
+            The validated value, or the current default if the key is absent.
 
         Raises:
-            err.ConfigFileError: If the value is neither 'automatic' nor an
-                integer >= 1.
+            err.ConfigFileError: If the value violates the parameter rules.
         """
-        value = raw.strip()
-        if value.lower() == 'automatic':
-            return 'automatic'
-        msg = (f"Config file contains invalid num_workers value '{value}': "
-               f"{source} - must be 'automatic' or a positive integer (>= 1).")
+        raw = section.get(key)
+        if raw is None:
+            return getattr(self, key)
         try:
-            workers = int(value)
+            return parameter_rules.validate(
+                key, raw, f"in config file {target}")
         except ValueError as exc:
-            logging.error(msg)
-            raise err.ConfigFileError(msg) from exc
-        if workers < 1:
-            logging.error(msg)
-            raise err.ConfigFileError(msg)
-        return workers
+            logging.error(str(exc))
+            raise err.ConfigFileError(str(exc)) from exc
 
     def __parse_configfile(self, config_path: Optional[pathlib.Path] = None) -> None:
         """Parse configuration file and overwrite defaults with its settings.
@@ -248,16 +244,12 @@ class Salted:
 
         if 'BEHAVIOR' in cfg.sections():
             behavior = cfg['BEHAVIOR']
-            raw_workers = behavior.get('num_workers')
-            if raw_workers is not None:
-                self.num_workers = self._parse_num_workers(
-                    raw_workers, str(target))
-            self.timeout = behavior.getint('timeout', self.timeout)
-            self.raise_for_dead_links = behavior.getboolean(
-                        'raise_for_dead_links',
-                        self.raise_for_dead_links)
+            self.num_workers = self._from_config(behavior, 'num_workers', target)
+            self.timeout = self._from_config(behavior, 'timeout', target)
+            self.raise_for_dead_links = self._from_config(
+                behavior, 'raise_for_dead_links', target)
             self.user_agent = behavior.get('user_agent', self.user_agent)
-            self.domain_delay = behavior.getfloat('domain_delay', self.domain_delay)
+            self.domain_delay = self._from_config(behavior, 'domain_delay', target)
             parsed_ignores = separated_string_to_set(behavior.get('ignore_urls'))
             if parsed_ignores is not None:
                 self.ignore_urls = parsed_ignores
@@ -267,18 +259,18 @@ class Salted:
             mailto = behavior.get('mailto')
             if mailto:
                 self.mailto = mailto.strip()
-            self.check_dois = behavior.getboolean('check_dois', self.check_dois)
-            self.max_file_size_mb = behavior.getint('max_file_size_mb', self.max_file_size_mb)
+            self.check_dois = self._from_config(behavior, 'check_dois', target)
+            self.max_file_size_mb = self._from_config(
+                behavior, 'max_file_size_mb', target)
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
             self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
-            self.dont_check_again_within_hours = cache.getint(
-                        'dont_check_again_within_hours',
-                        self.dont_check_again_within_hours)
+            self.dont_check_again_within_hours = self._from_config(
+                cache, 'dont_check_again_within_hours', target)
         if 'FILES' in cfg.sections():
             files = cfg['FILES']
             self.searchpath = files.get('searchpath', self.searchpath)  # type: ignore[arg-type]
-            self.file_types = files.get('file_types', self.file_types)
+            self.file_types = self._from_config(files, 'file_types', target)
         if 'TEMPLATE' in cfg.sections():
             template = cfg['TEMPLATE']
             self.template_searchpath = template.get(

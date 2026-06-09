@@ -38,6 +38,7 @@
   * Fix a config file setting `base_url = None` being read as the literal string `"None"`, which silently rewrote every report path to `None/…`. The literal `"None"` and empty values are now treated as unset. The example `salted-linkcheck.ini` no longer ships `base_url = None`.
   * Fix `num_workers = 0` in a config file hanging salted forever (zero workers, queue never processed). Invalid values (non-numeric, empty, or below 1) now raise `ConfigFileError` at startup; a worker count below 1 set via the library API raises `ValueError`.
   * Fix the URL cache not being saved when `raise_for_dead_links` found dead links: the cache is now written before `DeadLinksException` is raised, so a failing CI run no longer rechecks all URLs on the next attempt.
+  * Centralize parameter validation: the same rules now apply whether a value is set on the CLI or in a config file, and error messages name the source. Malformed typed config values (e.g. `timeout = five`) raise `ConfigFileError` instead of a bare traceback. Out-of-range values that previously misbehaved silently are now rejected: negative `timeout` or `dont_check_again_within_hours`, unknown `file_types`, `max_file_size_mb` below 1, and negative `domain_delay`.
 * Internal:
   * Refactor `command_line.main()` into a parser builder plus table-driven override helpers (no behavior change).
   * CI now also tests against the Python 3.15 beta (Linux, Windows, and macOS) as an experimental, allowed-to-fail matrix entry to catch breakage early.

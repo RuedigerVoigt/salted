@@ -17,6 +17,7 @@ import sys
 
 import salted
 from userprovided.parameters import separated_string_to_set
+from salted import parameter_rules
 from salted.err import ConfigFileError
 from salted.user_agents import get_user_agent, list_presets
 
@@ -32,7 +33,6 @@ from salted.user_agents import get_user_agent, list_presets
 # Assigned only when the argument is truthy. An empty/omitted value falls
 # through to the config value or the built-in default.
 _TRUTHY_OVERRIDES = (
-    ('file_types', 'file_types'),
     ('mailto', 'mailto'),
     ('cache_file', 'cache_file'),
     ('template_searchpath', 'template_searchpath'),
@@ -41,24 +41,20 @@ _TRUTHY_OVERRIDES = (
     ('base_url', 'base_url'),
 )
 
-# Assigned whenever the argument is not None, so an explicit 0/False is honored;
-# only an omitted argument falls through to the config value or default.
-_NOT_NONE_OVERRIDES = (
-    ('raise_for_dead_links', 'raise_for_dead_links'),
-    ('check_dois', 'check_dois'),
-    ('domain_delay', 'domain_delay'),
-    ('max_file_size_mb', 'max_file_size_mb'),
+# Options checked by the central rules in parameter_rules — the same rules
+# a config file value passes through. Applied whenever the argument is not
+# None, so an explicit 0/False is honored; an invalid value aborts via
+# parser.error() with a message naming the CLI option.
+_VALIDATED_OVERRIDES = (
+    'num_workers',
+    'timeout',
+    'dont_check_again_within_hours',
+    'max_file_size_mb',
+    'domain_delay',
+    'raise_for_dead_links',
+    'check_dois',
+    'file_types',
 )
-
-# Integer options with a lower bound: dest -> (minimum, error message).
-# Assigned when not None (explicit 0 honored); a value below the minimum aborts
-# via parser.error().
-_BOUNDED_INT_OVERRIDES = {
-    'num_workers': (1, '--num_workers must be a positive integer (>= 1).'),
-    'timeout': (0, '--timeout must be >= 0 (0 disables the timeout).'),
-    'dont_check_again_within_hours':
-        (0, '--dont_check_again_within_hours must be >= 0 (0 forces a recheck).'),
-}
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -96,7 +92,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         metavar='<path>')
     parser.add_argument(
         "--file_types",
-        choices=['supported', 'html', 'tex', 'markdown'],
+        choices=sorted(parameter_rules.FILE_TYPES),
         help="Choose which kind of files will be checked.")
 
     parser.add_argument(
@@ -205,8 +201,9 @@ def _apply_mapped_overrides(checker: 'salted.Salted',
     """Apply the table-driven CLI overrides to the checker.
 
     Handles the plain options described by the override maps: truthy-only
-    assignments, not-None assignments (which honor an explicit 0/False), and
-    bounded integers (which abort via parser.error() when out of range).
+    assignments and validated assignments. The latter go through the central
+    rules in parameter_rules (shared with config file values), honor an
+    explicit 0/False, and abort via parser.error() on an invalid value.
 
     Args:
         checker: The Salted instance whose attributes are overridden.
@@ -218,17 +215,15 @@ def _apply_mapped_overrides(checker: 'salted.Salted',
         if value:
             setattr(checker, attr, value)
 
-    for dest, attr in _NOT_NONE_OVERRIDES:
+    for dest in _VALIDATED_OVERRIDES:
         value = getattr(args, dest)
         if value is not None:
-            setattr(checker, attr, value)
-
-    for dest, (minimum, message) in _BOUNDED_INT_OVERRIDES.items():
-        value = getattr(args, dest)
-        if value is not None:
-            if value < minimum:
-                parser.error(message)
-            setattr(checker, dest, value)
+            try:
+                validated = parameter_rules.validate(
+                    dest, value, f"given on the command line (--{dest})")
+            except ValueError as exc:
+                parser.error(str(exc))
+            setattr(checker, dest, validated)
 
 
 def _apply_special_overrides(checker: 'salted.Salted',

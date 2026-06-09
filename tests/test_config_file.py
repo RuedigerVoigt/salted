@@ -292,6 +292,71 @@ class TestConfigNumWorkersValidation:
         assert checker.num_workers == 'automatic'
 
 
+class TestConfigTypedValueValidation:
+    """Typed config values go through the central parameter rules.
+
+    Regression tests: malformed values used to raise a bare ValueError
+    traceback from the configparser getters, and out-of-range values were
+    accepted silently (e.g. a negative cache lifetime disabled the cache
+    without any message).
+    """
+
+    @staticmethod
+    def _write_config(tmp_path, section, line):
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text(f"[{section}]\n{line}\n")
+
+    @pytest.mark.parametrize('section,line,key', [
+        ('BEHAVIOR', 'timeout = five', 'timeout'),
+        ('BEHAVIOR', 'timeout = -1', 'timeout'),
+        ('BEHAVIOR', 'raise_for_dead_links = maybe', 'raise_for_dead_links'),
+        ('BEHAVIOR', 'check_dois = maybe', 'check_dois'),
+        ('BEHAVIOR', 'domain_delay = fast', 'domain_delay'),
+        ('BEHAVIOR', 'domain_delay = -0.5', 'domain_delay'),
+        ('BEHAVIOR', 'max_file_size_mb = 0', 'max_file_size_mb'),
+        ('CACHE', 'dont_check_again_within_hours = -24',
+         'dont_check_again_within_hours'),
+        ('FILES', 'file_types = htlm', 'file_types'),
+    ])
+    def test_invalid_value_raises_configfileerror(
+            self, tmp_path, monkeypatch, section, line, key):
+        """Invalid values raise ConfigFileError naming the parameter."""
+        self._write_config(tmp_path, section, line)
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ConfigFileError, match=key):
+            Salted()
+
+    def test_error_message_names_the_config_file(self, tmp_path, monkeypatch):
+        """The message must point at the config file as the place to fix."""
+        self._write_config(tmp_path, 'BEHAVIOR', 'timeout = five')
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(ConfigFileError, match='config file'):
+            Salted()
+
+    def test_boolean_spellings_accepted(self, tmp_path, monkeypatch):
+        """ConfigParser-style boolean spellings keep working."""
+        self._write_config(tmp_path, 'BEHAVIOR', 'raise_for_dead_links = yes')
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert checker.raise_for_dead_links is True
+
+    def test_valid_typed_values_accepted(self, tmp_path, monkeypatch):
+        """Valid values are converted to their proper types."""
+        config_file = tmp_path / "salted-linkcheck.ini"
+        config_file.write_text(
+            "[BEHAVIOR]\ntimeout = 0\ndomain_delay = 0.5\n"
+            "max_file_size_mb = 5\n"
+            "[CACHE]\ndont_check_again_within_hours = 0\n"
+            "[FILES]\nfile_types = HTML\n")
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        assert checker.timeout == 0
+        assert checker.domain_delay == 0.5
+        assert checker.max_file_size_mb == 5
+        assert checker.dont_check_again_within_hours == 0
+        assert checker.file_types == 'html'
+
+
 class TestAlternativeConfigFilePath:
     """Test loading config from an explicit path via Salted(config_path=...)."""
 

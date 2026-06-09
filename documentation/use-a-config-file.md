@@ -18,7 +18,9 @@ When you pass a config file with `--config`, salted treats any problem with it a
 
 ## Parameters / Initializing
 
-All versions of salted use the same parameters. Their categories are only important for config files:
+All versions of salted use the same parameters. Their categories are only important for config files.
+
+Values are validated at startup with the same rules regardless of whether they are set on the command line or in a config file. An invalid value in a config file raises a `ConfigFileError` naming the file; on the command line salted exits with a message naming the option.
 
 * **Category "FILES":**
   * `searchpath`: Path to file or folder to check (default: current working directory)

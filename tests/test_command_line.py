@@ -134,6 +134,44 @@ class TestCommandLineArguments:
                 with pytest.raises(SystemExit):
                     command_line.main()
 
+    def test_main_negative_timeout_is_rejected(self):
+        """`--timeout -1` is rejected by the central parameter rules."""
+        test_args = ['salted', '--timeout', '-1']
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_salted_class.return_value = MagicMock()
+                with pytest.raises(SystemExit):
+                    command_line.main()
+
+    def test_main_negative_domain_delay_is_rejected(self):
+        """`--domain_delay -1` is rejected instead of silently accepted."""
+        test_args = ['salted', '--domain_delay', '-1']
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_salted_class.return_value = MagicMock()
+                with pytest.raises(SystemExit):
+                    command_line.main()
+
+    def test_main_max_file_size_zero_is_rejected(self):
+        """`--max_file_size_mb 0` would skip every file and is rejected."""
+        test_args = ['salted', '--max_file_size_mb', '0']
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_salted_class.return_value = MagicMock()
+                with pytest.raises(SystemExit):
+                    command_line.main()
+
+    def test_cli_error_message_names_the_option(self, capsys):
+        """The error must say the bad value came from the command line."""
+        test_args = ['salted', '--timeout', '-1']
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_salted_class.return_value = MagicMock()
+                with pytest.raises(SystemExit):
+                    command_line.main()
+        stderr = capsys.readouterr().err
+        assert 'command line (--timeout)' in stderr
+
     def test_main_with_user_agent_argument(self):
         """Test CLI with --user_agent argument."""
         test_args = ['salted', '--user_agent', 'MyBot/1.0']
