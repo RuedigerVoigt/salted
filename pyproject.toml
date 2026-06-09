@@ -33,7 +33,7 @@ dependencies = [
     "compatibility>=2.0.0",
     "jinja2>=3.1.6",
     "pybtex>=0.26.1",
-    "tqdm>=4.68.1",
+    "tqdm>=4.68.2",
     "userprovided>=2.4.0",
 ]
 
