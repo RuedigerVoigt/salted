@@ -309,6 +309,7 @@ class TestConfigTypedValueValidation:
     @pytest.mark.parametrize('section,line,key', [
         ('BEHAVIOR', 'timeout = five', 'timeout'),
         ('BEHAVIOR', 'timeout = -1', 'timeout'),
+        ('BEHAVIOR', 'timeout = 0', 'timeout'),
         ('BEHAVIOR', 'raise_for_dead_links = maybe', 'raise_for_dead_links'),
         ('BEHAVIOR', 'check_dois = maybe', 'check_dois'),
         ('BEHAVIOR', 'domain_delay = fast', 'domain_delay'),
@@ -344,13 +345,13 @@ class TestConfigTypedValueValidation:
         """Valid values are converted to their proper types."""
         config_file = tmp_path / "salted-linkcheck.ini"
         config_file.write_text(
-            "[BEHAVIOR]\ntimeout = 0\ndomain_delay = 0.5\n"
+            "[BEHAVIOR]\ntimeout = 1\ndomain_delay = 0.5\n"
             "max_file_size_mb = 5\n"
             "[CACHE]\ndont_check_again_within_hours = 0\n"
             "[FILES]\nfile_types = HTML\n")
         monkeypatch.chdir(tmp_path)
         checker = Salted()
-        assert checker.timeout == 0
+        assert checker.timeout == 1
         assert checker.domain_delay == 0.5
         assert checker.max_file_size_mb == 5
         assert checker.dont_check_again_within_hours == 0

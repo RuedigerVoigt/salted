@@ -33,7 +33,7 @@ options:
                         Choose which kind of files will be checked. 'tex' includes BibTeX (.bib) files.
   -w, --num_workers <num>
                         The number of workers to use in parallel (default: automatic)
-  --timeout <seconds>   Number of seconds to wait for an answer of a server (default: 5).
+  --timeout <seconds>   Number of seconds to wait for an answer of a server (default: 5, minimum: 1).
   --raise_for_dead_links, --no-raise_for_dead_links
                         Raise an exception if dead links are found (default: False).
   --user_agent <preset or custom string>

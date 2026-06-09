@@ -26,9 +26,11 @@ _BOOLEAN_STATES: Final[dict] = {
     '0': False, 'no': False, 'false': False, 'off': False}
 
 # Minimum allowed value per integer parameter.
+# timeout must not be 0: that would disable the timeout entirely and a
+# never-responding server could occupy a worker forever.
 _INT_MINIMUMS: Final[dict] = {
     'num_workers': 1,
-    'timeout': 0,
+    'timeout': 1,
     'dont_check_again_within_hours': 0,
     'max_file_size_mb': 1,
 }

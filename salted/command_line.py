@@ -103,7 +103,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout",
         type=int,
-        help="Number of seconds to wait for an answer of a server (default: 5).",
+        help="Number of seconds to wait for an answer of a server (default: 5, minimum: 1).",
         metavar='<seconds>')
     parser.add_argument(
         "--raise_for_dead_links",

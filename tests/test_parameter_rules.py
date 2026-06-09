@@ -60,14 +60,16 @@ class TestNumWorkers:
 class TestIntParameters:
     """Integer parameters enforce their minimum on both input types."""
 
-    def test_timeout_zero_accepted(self):
-        assert parameter_rules.validate('timeout', 0, SRC) == 0
+    def test_timeout_one_accepted(self):
+        assert parameter_rules.validate('timeout', 1, SRC) == 1
 
     def test_timeout_string_converted(self):
         assert parameter_rules.validate('timeout', '15', SRC) == 15
 
-    @pytest.mark.parametrize('bad', [-1, '-1', 'five', '', '5.5', True])
+    @pytest.mark.parametrize('bad', [0, '0', -1, '-1', 'five', '', '5.5', True])
     def test_timeout_invalid_values_raise(self, bad):
+        """Zero is rejected too: it would disable the timeout entirely and
+        a never-responding server could occupy a worker forever."""
         with pytest.raises(ValueError, match='timeout'):
             parameter_rules.validate('timeout', bad, SRC)
 
