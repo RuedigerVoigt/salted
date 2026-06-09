@@ -28,12 +28,12 @@ classifiers = [
 requires-python = ">=3.10,<4"
 dependencies = [
     "aiodns>=4.0.4",  # not imported directly; aiohttp uses it for async DNS
-    "aiohttp>=3.14.0",
-    "beautifulsoup4>=4.14.3",
-    "compatibility>=2.0.0",
+    "aiohttp>=3.14.1",
+    "beautifulsoup4>=4.15.0",
+    "compatibility>=2.1.0",
     "jinja2>=3.1.6",
     "pybtex>=0.26.1",
-    "tqdm>=4.68.1",
+    "tqdm>=4.68.2",
     "userprovided>=2.4.0",
 ]
 
