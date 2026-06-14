@@ -6,6 +6,11 @@ name: MacOS Test
 
 on: [push, pull_request]
 
+# Least privilege: read-only token, no write access, and no secrets are
+# referenced. Publishing/write access lives only in release.yml.
+permissions:
+  contents: read
+
 jobs:
   build:
 

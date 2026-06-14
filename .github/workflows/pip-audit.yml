@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: '0 5 * * 1,5'  # every Monday and Friday at 05:00 UTC
 
+# Least privilege: read-only token, no write access, and no secrets are
+# referenced. Publishing/write access lives only in release.yml.
+permissions:
+  contents: read
+
 jobs:
   selftest:
     runs-on: ubuntu-latest
