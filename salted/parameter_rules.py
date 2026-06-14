@@ -11,18 +11,12 @@ Released under the Apache License 2.0
 
 from typing import Final
 
-from userprovided.parameters import clean_trim
+from userprovided.parameters import clean_trim, parse_boolean
 
 # Allowed values for the file_types parameter. The CLI builds its
 # argparse choices from this set, so both input paths share one definition.
 FILE_TYPES: Final[frozenset] = frozenset(
     {'supported', 'html', 'tex', 'markdown'})
-
-# Accepted spellings for boolean values in config files.
-# Mirrors configparser.ConfigParser.BOOLEAN_STATES.
-_BOOLEAN_STATES: Final[dict] = {
-    '1': True, 'yes': True, 'true': True, 'on': True,
-    '0': False, 'no': False, 'false': False, 'off': False}
 
 # Minimum allowed value per integer parameter.
 # timeout must not be 0: that would disable the timeout entirely and a
@@ -153,15 +147,11 @@ def _validate_bool(name: str,
                    value: str | int | float | bool,
                    source: str) -> bool:
     """Accept a real boolean or one of the config file spellings."""
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        spelling = (clean_trim(value, empty_as='') or '').lower()
-        if spelling in _BOOLEAN_STATES:
-            return _BOOLEAN_STATES[spelling]
-    raise ValueError(_msg(
-        name, value, source,
-        "must be a boolean (true/false, yes/no, on/off, 1/0)"))
+    if not isinstance(value, (bool, str)):
+        raise ValueError(_msg(
+            name, value, source,
+            "must be a boolean (true/false, yes/no, on/off, 1/0)"))
+    return parse_boolean(value, name=name, source=source)
 
 
 def _validate_choice(name: str,
