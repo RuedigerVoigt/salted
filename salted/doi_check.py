@@ -143,7 +143,7 @@ class DoiCheck:
         # The HTTP HEAD method requests the headers, but not the page's body.
         # Requesting this way reduces load on the server and network traffic.
         query_url = self.API_BASE_URL + doi
-        async with self.session.head(  # type: ignore
+        async with self.session.head(  # type: ignore[union-attr]
                 query_url,
                 headers=self.headers,
                 raise_for_status=False,

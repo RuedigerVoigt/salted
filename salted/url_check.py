@@ -71,7 +71,7 @@ class UrlCheck:
 
         self.pbar_links: tqdm | None = None
 
-        self.session: aiohttp.ClientSession = None  # type: ignore
+        self.session: aiohttp.ClientSession | None = None
 
         # Initialize domain-based rate limiter
         self.rate_limiter = DomainRateLimiter(delay_seconds=domain_delay)
@@ -145,7 +145,7 @@ class UrlCheck:
             HTTP status code from the response.
         """
         # Try HEAD first
-        async with self.session.head(url,
+        async with self.session.head(url,  # type: ignore[union-attr]
                                     headers=self.headers,
                                     raise_for_status=False,
                                     timeout=ClientTimeout(total=self.timeout)) as response:
@@ -182,7 +182,7 @@ class UrlCheck:
         """
         current_url = url
         for _ in range(self.MAX_REDIRECTS + 1):
-            async with self.session.get(
+            async with self.session.get(  # type: ignore[union-attr]
                     current_url,
                     headers=self.headers,
                     raise_for_status=False,
