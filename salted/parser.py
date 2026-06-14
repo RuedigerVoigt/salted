@@ -43,8 +43,12 @@ class Parser:
         # https://pandoc.org/MANUAL.html
         # https://daringfireball.net/projects/markdown/syntax
         # https://github.github.com/gfm/
+        # The url group allows balanced parentheses so links such as
+        # Wikipedia's `..._(programming_language)` are not truncated at the
+        # first ')'. It still stops at whitespace (a following "title") or
+        # the link's closing ')'.
         self.pattern_md_link = re.compile(
-            r"\[(?P<linktext>[^\[]*)\]\((?P<url>[^\)]*?)[\s\)]+",
+            r"\[(?P<linktext>[^\[]*)\]\((?P<url>(?:[^\s()]|\([^\s()]*\))*)[\s\)]+",
             flags=re.MULTILINE | re.IGNORECASE)
         self.pattern_md_link_pointy = re.compile(
             r"<(?P<url>[^>]*?)>",

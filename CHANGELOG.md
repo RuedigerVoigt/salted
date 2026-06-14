@@ -26,6 +26,7 @@
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
   * The HTTP GET fallback (triggered on 405 Method Not Allowed) follows at most 3 redirects and now validates every redirect target against the SSRF preflight before requesting it. Redirects to private/internal addresses or non-HTTP schemes are blocked and reported in the results; overlong redirect chains are reported as "Too many redirects".
 * Bug Fixes:
+  * Fix Markdown links whose URL contains balanced parentheses (e.g. Wikipedia `..._(programming_language)`) being truncated at the first `)`, which produced false dead-link reports.
   * Fix URLs raising an unexpected exception being dropped from the report; the `validate_url` catch-all now records them via `log_exception`.
   * Fix files with non-UTF-8 encoding (e.g. Latin-1) causing a file access error on Windows — salted now tries UTF-8 first and falls back to Latin-1
   * Fix `--file_types` having no effect on directory scans

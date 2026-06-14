@@ -170,6 +170,15 @@ class TestMarkdownParsing:
         assert 'http://pointy.com' in urls
         assert 'http://test.com' in urls
 
+    def test_extract_links_from_markdown_url_with_parentheses(self):
+        """A URL containing balanced parentheses (e.g. Wikipedia) must not
+        be truncated at the first ')'."""
+        parser = Parser()
+        url = 'https://en.wikipedia.org/wiki/Python_(programming_language)'
+        links = parser.extract_links_from_markdown(f'[Py]({url})')
+
+        assert links == [[url, 'Py']]
+
 
 class TestTexParsing:
     """Test TeX link extraction edge cases"""
