@@ -12,7 +12,6 @@ Released under the Apache License 2.0
 from collections import Counter
 import logging
 import pathlib
-from typing import List, Optional
 import urllib.parse
 import sys
 
@@ -46,7 +45,7 @@ class InputHandler:
         self.parser = parser.Parser()
 
     def read_file_content(self,
-                          path_to_file: pathlib.Path) -> Optional[str]:
+                          path_to_file: pathlib.Path) -> str | None:
         """Return the file content or log an error if file cannot be accessed.
 
         Args:
@@ -55,7 +54,7 @@ class InputHandler:
         Returns:
             File content as a string, or None if the file could not be read.
         """
-        content: Optional[str] = None
+        content: str | None = None
         try:
             size_bytes = path_to_file.stat().st_size
             limit_bytes = self.max_file_size_mb * 1024 * 1024
@@ -176,7 +175,7 @@ class InputHandler:
         return None
 
     def scan_files(self,
-                   files_to_check: List[pathlib.Path]) -> None:
+                   files_to_check: list[pathlib.Path]) -> None:
         """Scan files for hyperlinks and DOIs.
 
         Scans each file in the provided list, extracts URLs and DOIs,
@@ -202,7 +201,7 @@ class InputHandler:
                 continue
 
             # only one function returns two values
-            doi_list: Optional[list] = None
+            doi_list: list | None = None
 
             if file_path.suffix in {".htm", ".html"}:
                 url_list = self.parser.extract_links_from_html(content)

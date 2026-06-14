@@ -11,7 +11,7 @@ Released under the Apache License 2.0
 import asyncio
 from collections import Counter
 import logging
-from typing import Final, Optional, Union
+from typing import Final
 import urllib.parse
 
 import aiohttp
@@ -35,11 +35,11 @@ class UrlCheck:
     def __init__(self,
                  user_agent: str,
                  db: database_io.DatabaseIO,
-                 workers: Union[int, str] = 'automatic',
+                 workers: int | str = 'automatic',
                  timeout_sec: int = 5,
-                 ignore_urls: Optional[set] = None,
+                 ignore_urls: set | None = None,
                  domain_delay: float = 0.25,
-                 ignore_domains: Optional[set] = None,
+                 ignore_domains: set | None = None,
                  quiet: bool = False
                  ) -> None:
         """Initialize the URL checker.
@@ -66,12 +66,12 @@ class UrlCheck:
         self.ignore_urls = ignore_urls if ignore_urls else set()
         self.ignore_domains = ignore_domains if ignore_domains else set()
 
-        self.num_workers: Union[int, str] = workers
+        self.num_workers: int | str = workers
         self.quiet = quiet
 
         self.cnt: Counter = Counter()
 
-        self.pbar_links: Optional[tqdm] = None
+        self.pbar_links: tqdm | None = None
 
         self.session: aiohttp.ClientSession = None  # type: ignore
 

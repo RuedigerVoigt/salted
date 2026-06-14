@@ -12,7 +12,6 @@ Released under the Apache License 2.0
 import logging
 import pathlib
 import urllib.parse
-from typing import Optional, Union
 
 from salted import memory_instance
 
@@ -26,7 +25,7 @@ class DatabaseIO:
 
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
-                 cache_file: Union[pathlib.Path, str, None] = None,
+                 cache_file: pathlib.Path | str | None = None,
                  quiet: bool = False):
         """Initialize the database I/O handler.
 
@@ -83,7 +82,7 @@ class DatabaseIO:
         self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
         return self.cursor.fetchall()
 
-    def get_dois_to_check(self) -> Optional[list]:
+    def get_dois_to_check(self) -> list | None:
         """Return all DOIs that are not validated yet.
 
         Returns:

@@ -11,7 +11,7 @@ Released under the Apache License 2.0
 
 import logging
 import pathlib
-from typing import Final, List, Optional
+from typing import Final
 
 
 class FileFinder:
@@ -40,7 +40,7 @@ class FileFinder:
     def find_files_by_extensions(
             self,
             path_to_base_folder: pathlib.Path,
-            suffixes: Optional[set] = None) -> List[pathlib.Path]:
+            suffixes: set | None = None) -> list[pathlib.Path]:
         """Find all files with specific file type suffixes.
 
         Searches the base folder and all its subfolders recursively.
@@ -68,7 +68,7 @@ class FileFinder:
 
     def find_html_files(self,
                         path_to_base_folder: pathlib.Path
-                        ) -> List[pathlib.Path]:
+                        ) -> list[pathlib.Path]:
         """Find all HTML files in the base folder and its subfolders.
 
         Args:
@@ -83,7 +83,7 @@ class FileFinder:
 
     def find_markdown_files(self,
                             path_to_base_folder: pathlib.Path
-                            ) -> List[pathlib.Path]:
+                            ) -> list[pathlib.Path]:
         """Find all markdown files in the base folder and its subfolders.
 
         Args:
@@ -98,7 +98,7 @@ class FileFinder:
 
     def find_tex_files(self,
                        path_to_base_folder: pathlib.Path
-                       ) -> List[pathlib.Path]:
+                       ) -> list[pathlib.Path]:
         """Find all TeX files in the base folder and its subfolders.
 
         Args:

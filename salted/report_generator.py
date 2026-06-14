@@ -10,7 +10,6 @@ Released under the Apache License 2.0
 """
 import logging
 import pathlib
-from typing import Optional, Union
 
 from jinja2 import Environment, FileSystemLoader, PackageLoader
 
@@ -37,7 +36,7 @@ class ReportGenerator:
         self.db = mem_instance
         self.show_redirects = show_redirects
         self.show_exceptions = show_exceptions
-        self.replace_path_by_url: Optional[dict] = None
+        self.replace_path_by_url: dict | None = None
 
     def rewrite_path(self,
                      path_to_rewrite: str) -> str:
@@ -92,7 +91,7 @@ class ReportGenerator:
             # file_path is not under base (unexpected) — leave it untouched.
             return file_path
 
-    def generate_access_error_list(self) -> Optional[list]:
+    def generate_access_error_list(self) -> list | None:
         """Generate a list of file access errors.
 
         Returns:
@@ -111,7 +110,7 @@ class ReportGenerator:
             result.append({'path': file_path, 'problem': problem})
         return result
 
-    def generate_error_list(self) -> Optional[list]:
+    def generate_error_list(self) -> list | None:
         """Generate a list of permanent link errors.
 
         Returns:
@@ -143,7 +142,7 @@ class ReportGenerator:
                            'defects': defects})
         return result
 
-    def generate_redirect_list(self) -> Optional[list]:
+    def generate_redirect_list(self) -> list | None:
         """Generate a list of permanent redirects.
 
         Returns:
@@ -175,7 +174,7 @@ class ReportGenerator:
                            'redirects': redirects})
         return result
 
-    def generate_exception_list(self) -> Optional[list]:
+    def generate_exception_list(self) -> list | None:
         """Generate a list of exceptions that occurred during link checking.
 
         Returns:
@@ -207,7 +206,7 @@ class ReportGenerator:
                            'exceptions': exceptions})
         return result
 
-    def generate_mailto_list(self) -> Optional[list]:
+    def generate_mailto_list(self) -> list | None:
         """Generate a list of mailto links found during the scan.
 
         Note: addresses are only checked for basic format validity using
@@ -236,7 +235,7 @@ class ReportGenerator:
             })
         return result
 
-    def generate_invalid_doi_list(self) -> Optional[list]:
+    def generate_invalid_doi_list(self) -> list | None:
         """Generate a list of invalid DOIs and the files that reference them.
 
         Joins the invalidDois table with queue_doi to find which files
@@ -268,8 +267,8 @@ class ReportGenerator:
     def generate_report(self,
                         statistics: dict,
                         template: dict,
-                        write_to: Union[str, pathlib.Path],
-                        replace_path_by_url: Union[dict, None] = None
+                        write_to: str | pathlib.Path,
+                        replace_path_by_url: dict | None = None
                         ) -> None:
         """Generate and output the final report.
 
@@ -300,11 +299,11 @@ class ReportGenerator:
 
         permanent_errors = self.generate_error_list()
 
-        permanent_redirects: Optional[list] = None
+        permanent_redirects: list | None = None
         if self.show_redirects:
             permanent_redirects = self.generate_redirect_list()
 
-        crawl_exceptions: Optional[list] = None
+        crawl_exceptions: list | None = None
         if self.show_exceptions:
             crawl_exceptions = self.generate_exception_list()
 

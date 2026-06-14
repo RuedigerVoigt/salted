@@ -11,7 +11,7 @@ Released under the Apache License 2.0
 import asyncio
 import logging
 import re
-from typing import Final, Optional
+from typing import Final
 
 import aiohttp
 import sys
@@ -36,7 +36,7 @@ class DoiCheck:
     def __init__(self,
                  db_io: database_io.DatabaseIO,
                  quiet: bool = False,
-                 mailto: Optional[str] = None) -> None:
+                 mailto: str | None = None) -> None:
 
         self.db = db_io
         self.quiet = quiet
@@ -63,10 +63,10 @@ class DoiCheck:
               + ")")
         self.headers = {'User-Agent': ua}
 
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
         self.timeout_sec = 3
 
-        self.pbar_doi: Optional[tqdm] = None
+        self.pbar_doi: tqdm | None = None
 
         self.valid_doi_list: list = list()
         self.invalid_doi_list: list = list()

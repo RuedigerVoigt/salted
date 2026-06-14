@@ -15,7 +15,7 @@ import datetime
 import logging
 import pathlib
 import time
-from typing import Any, Optional, Union, Set
+from typing import Any
 
 from importlib.metadata import version as pkg_version, PackageNotFoundError
 
@@ -35,7 +35,7 @@ from userprovided import url as user_url
 from userprovided import err as user_err
 
 
-def _normalize_url_set(raw: Optional[Set[str]]) -> Set[str]:
+def _normalize_url_set(raw: set[str] | None) -> set[str]:
     """Return a set of URLs in a normalized form suitable for matching.
 
     Normalization ensures entries in ignore lists match the same canonical
@@ -43,7 +43,7 @@ def _normalize_url_set(raw: Optional[Set[str]]) -> Set[str]:
     """
     if not raw:
         return set()
-    normalized: Set[str] = set()
+    normalized: set[str] = set()
     for u in raw:
         try:
             normalized.add(user_url.normalize_url(u))
@@ -73,7 +73,7 @@ class Salted:
     # Release date kept for compatibility dependency, not exposed
     RELEASE_DATE = datetime.date(2026, 4, 7)
 
-    def __init__(self, config_path: Optional[pathlib.Path] = None) -> None:
+    def __init__(self, config_path: pathlib.Path | None = None) -> None:
 
         compatibility.Check(
             package_name='salted',
@@ -92,27 +92,27 @@ class Salted:
 
         # #################### Application defaults ####################
         # Files
-        self.searchpath: Union[str, pathlib.Path] = pathlib.Path.cwd()
+        self.searchpath: str | pathlib.Path = pathlib.Path.cwd()
         self.file_types: str = 'supported'
         # Behavior
-        self.num_workers: Union[int, str] = 'automatic'
+        self.num_workers: int | str = 'automatic'
         self.timeout: int = 5
         self.raise_for_dead_links = False
         self.user_agent = f"salted/{self.VERSION}"
         self.ignore_urls: set = set()
         self.ignore_domains: set = set()
         self.domain_delay: float = 0.25
-        self.mailto: Optional[str] = None
+        self.mailto: str | None = None
         self.check_dois: bool = True
         self.max_file_size_mb: int = 20
         # Cache
-        self.cache_file: Union[pathlib.Path, str] = 'salted-cache.sqlite3'
+        self.cache_file: pathlib.Path | str = 'salted-cache.sqlite3'
         self.dont_check_again_within_hours: int = 24
         # Template
         self.template_searchpath: str = 'salted/templates'
         self.template_name: str = 'default.cli.jinja'
-        self.write_to: Union[str, pathlib.Path] = 'cli'
-        self.base_url: Optional[str] = None
+        self.write_to: str | pathlib.Path = 'cli'
+        self.base_url: str | None = None
         self.quiet: bool = False
 
         # If there is a configfile, overwrite defaults with those settings
@@ -121,7 +121,7 @@ class Salted:
         self.cnt: Counter = Counter()
 
     @staticmethod
-    def _validate_domains(raw: Optional[Set[str]]) -> Set[str]:
+    def _validate_domains(raw: set[str] | None) -> set[str]:
         """Normalize and validate domain entries, returning only valid hostnames.
 
         Accepts plain hostnames (e.g. 'example.com') or full URLs
@@ -131,7 +131,7 @@ class Salted:
         """
         if not raw:
             return set()
-        valid: Set[str] = set()
+        valid: set[str] = set()
         for entry in raw:
             entry = entry.strip()
             if not entry:
@@ -175,7 +175,7 @@ class Salted:
             logging.error(str(exc))
             raise err.ConfigFileError(str(exc)) from exc
 
-    def __parse_configfile(self, config_path: Optional[pathlib.Path] = None) -> None:
+    def __parse_configfile(self, config_path: pathlib.Path | None = None) -> None:
         """Parse configuration file and overwrite defaults with its settings.
 
         Reads the config file (if present) and overwrites default values with
@@ -291,7 +291,7 @@ class Salted:
             self.base_url = self.base_url.rstrip('/')
 
     def check(self,
-              searchpath: Union[str, pathlib.Path]) -> None:
+              searchpath: str | pathlib.Path) -> None:
         """Check all links and DOIs found in files.
 
         Validates all links and DOIs found in a specific file or in all supported
@@ -317,7 +317,7 @@ class Salted:
 
     def _run_check(self,
                    mem_instance: memory_instance.MemoryInstance,
-                   searchpath: Union[str, pathlib.Path],
+                   searchpath: str | pathlib.Path,
                    start_time: float) -> None:
         """Run the link and DOI checks against an already-open in-memory DB.
 

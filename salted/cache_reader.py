@@ -12,7 +12,6 @@ Released under the Apache License 2.0
 import logging
 import pathlib
 import sqlite3
-from typing import Optional, Union
 
 from salted import memory_instance
 
@@ -27,7 +26,7 @@ class CacheReader:
     def __init__(self,
                  mem_instance: memory_instance.MemoryInstance,
                  dont_check_again_within_hours: int,
-                 cache_file: Union[pathlib.Path, str, None] = None) -> None:
+                 cache_file: pathlib.Path | str | None = None) -> None:
         """Initialize the cache reader.
 
         Args:
@@ -37,7 +36,7 @@ class CacheReader:
             cache_file: Path to the cache file on disk. If None, caching is disabled.
         """
 
-        self.cache_file_path: Optional[pathlib.Path] = None
+        self.cache_file_path: pathlib.Path | None = None
 
         if not cache_file:
             logging.debug('No path to cache file provided.')

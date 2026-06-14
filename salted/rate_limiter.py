@@ -13,7 +13,6 @@ Released under the Apache License 2.0
 import asyncio
 import logging
 import time
-from typing import Dict
 
 from userprovided.url import extract_domain
 
@@ -42,8 +41,8 @@ class DomainRateLimiter:
         """
         self.delay_seconds = float(delay_seconds)
         self.drop_subdomain = drop_subdomain
-        self.last_request_time: Dict[str, float] = {}
-        self.locks: Dict[str, asyncio.Lock] = {}
+        self.last_request_time: dict[str, float] = {}
+        self.locks: dict[str, asyncio.Lock] = {}
         self.global_lock = asyncio.Lock()
 
     def _get_domain_key(self, url: str) -> str:
@@ -123,7 +122,7 @@ class DomainRateLimiter:
             # Record the request time
             self.last_request_time[domain] = current_time
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """
         Get statistics about tracked domains.
 

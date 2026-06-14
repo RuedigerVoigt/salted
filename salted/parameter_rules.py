@@ -10,7 +10,7 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
-from typing import Final, Union
+from typing import Final
 
 from userprovided.parameters import clean_trim
 
@@ -40,8 +40,8 @@ _BOOL_PARAMETERS: Final[frozenset] = frozenset(
 
 
 def validate(name: str,
-             value: Union[str, int, float, bool],
-             source: str) -> Union[str, int, float, bool]:
+             value: str | int | float | bool,
+             source: str) -> str | int | float | bool:
     """Validate and convert a parameter value, whatever its origin.
 
     The same rules apply to values from the CLI, a config file, or the
@@ -78,14 +78,14 @@ def validate(name: str,
 
 
 def _msg(name: str,
-         value: Union[str, int, float, bool],
+         value: str | int | float | bool,
          source: str,
          requirement: str) -> str:
     """Build a uniform error message naming value, parameter, and origin."""
     return f"Invalid value '{value}' for {name} {source} - {requirement}."
 
 
-def _to_int(value: Union[str, int, float, bool]) -> int:
+def _to_int(value: str | int | float | bool) -> int:
     """Convert to int. Strict: rejects booleans, floats, and bad strings.
 
     Raises:
@@ -100,8 +100,8 @@ def _to_int(value: Union[str, int, float, bool]) -> int:
     raise ValueError('not an integer')
 
 
-def _validate_num_workers(value: Union[str, int, float, bool],
-                          source: str) -> Union[int, str]:
+def _validate_num_workers(value: str | int | float | bool,
+                          source: str) -> int | str:
     """Accept the string 'automatic' or an integer >= 1."""
     if isinstance(value, str):
         value = clean_trim(value, empty_as='') or ''
@@ -119,7 +119,7 @@ def _validate_num_workers(value: Union[str, int, float, bool],
 
 
 def _validate_int(name: str,
-                  value: Union[str, int, float, bool],
+                  value: str | int | float | bool,
                   source: str,
                   minimum: int) -> int:
     """Accept an integer (or integer string) >= minimum."""
@@ -134,7 +134,7 @@ def _validate_int(name: str,
 
 
 def _validate_float(name: str,
-                    value: Union[str, int, float, bool],
+                    value: str | int | float | bool,
                     source: str,
                     minimum: float) -> float:
     """Accept a number (or numeric string) >= minimum."""
@@ -151,7 +151,7 @@ def _validate_float(name: str,
 
 
 def _validate_bool(name: str,
-                   value: Union[str, int, float, bool],
+                   value: str | int | float | bool,
                    source: str) -> bool:
     """Accept a real boolean or one of the config file spellings."""
     if isinstance(value, bool):
@@ -166,7 +166,7 @@ def _validate_bool(name: str,
 
 
 def _validate_choice(name: str,
-                     value: Union[str, int, float, bool],
+                     value: str | int | float | bool,
                      source: str,
                      allowed: frozenset) -> str:
     """Accept one of a fixed set of strings (case-insensitive)."""
