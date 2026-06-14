@@ -212,7 +212,7 @@ class DatabaseIO:
         Returns:
             Number of URLs converted.
         """
-        from salted.doi_check import _DOI_PATTERN  # noqa: PLC0415  # local import breaks circular dep
+        from salted.doi_check import _DOI_PATTERN  # local import breaks circular dep
         self.cursor.execute('''
             SELECT filePath, url, normalizedUrl, linktext
             FROM queue
