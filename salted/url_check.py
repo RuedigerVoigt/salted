@@ -207,6 +207,29 @@ class UrlCheck:
         raise err.TooManyRedirectsException(
             f"More than {self.MAX_REDIRECTS} redirects")
 
+    def __is_ignored(self,
+                     url: str) -> bool:
+        """Return True if the URL or its domain is on an ignore list.
+
+        Counts the skip under the matching reason so callers can simply
+        return early.
+
+        Args:
+            url: The URL to check against the ignore lists.
+
+        Returns:
+            True if the URL should be skipped, False otherwise.
+        """
+        if url in self.ignore_urls:
+            self.cnt['ignored_urls'] += 1
+            return True
+
+        if urllib.parse.urlparse(url).hostname in self.ignore_domains:
+            self.cnt['ignored_domains'] += 1
+            return True
+
+        return False
+
     async def validate_url(self,
                            url: str) -> None:
         """Validate a URL and log the result to the database.
@@ -218,12 +241,7 @@ class UrlCheck:
         Args:
             url: The URL to validate.
         """
-        if url in self.ignore_urls:
-            self.cnt['ignored_urls'] += 1
-            return
-
-        if urllib.parse.urlparse(url).hostname in self.ignore_domains:
-            self.cnt['ignored_domains'] += 1
+        if self.__is_ignored(url):
             return
 
         if ip_check.is_potential_ssrf_target(url):
