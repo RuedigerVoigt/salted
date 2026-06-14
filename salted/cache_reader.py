@@ -130,18 +130,28 @@ class CacheReader:
                 valid_dois)
 
     def overwrite_cache_file(self) -> None:
-        """Persist the in-memory database to disk cache file.
+        """Persist the cache to disk, overwriting any existing file.
 
-        Writes the current in-memory database to the cache file,
-        overwriting any existing file at the given path.
+        Writes only ``validUrls`` and ``validDois`` — the two tables that
+        load_disk_cache() reads back. The other in-memory tables hold local
+        file paths, link text, and e-mail addresses that are never read from
+        disk again, so they are deliberately not persisted.
         """
 
         if not self.cache_file_path:
             return
 
         self.cache_file_path.unlink(missing_ok=True)
-        new_cache_file = sqlite3.connect(self.cache_file_path)
+        conn = self.mem_instance.conn
+        conn.execute('ATTACH DATABASE ? AS disk_cache;',
+                     [str(self.cache_file_path)])
         try:
-            self.mem_instance.conn.backup(new_cache_file, name='main')
+            conn.execute('''CREATE TABLE disk_cache.validUrls (
+                normalizedUrl text, lastValid integer);''')
+            conn.execute('CREATE TABLE disk_cache.validDois (doi text);')
+            conn.execute('''INSERT INTO disk_cache.validUrls
+                SELECT normalizedUrl, lastValid FROM main.validUrls;''')
+            conn.execute('''INSERT INTO disk_cache.validDois
+                SELECT doi FROM main.validDois;''')
         finally:
-            new_cache_file.close()
+            conn.execute('DETACH DATABASE disk_cache;')

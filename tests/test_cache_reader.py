@@ -301,6 +301,51 @@ class TestOverwriteCacheFile:
             conn.close()
         mem_inst.tear_down_in_memory_db()
 
+    def test_overwrite_cache_file_only_persists_cache_tables(self):
+        """Only validUrls/validDois reach disk; tables holding local file
+        paths and e-mail addresses (queue, mailtoLinks) must not leak."""
+        mem_inst = memory_instance.MemoryInstance()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_file = pathlib.Path(tmpdir) / "cache.db"
+
+            reader = cache_reader.CacheReader(
+                mem_instance=mem_inst,
+                dont_check_again_within_hours=24,
+                cache_file=cache_file
+            )
+
+            # Data that should be persisted:
+            mem_inst.cursor.execute(
+                "INSERT INTO validUrls VALUES (?, strftime('%s', 'now'))",
+                ['http://example.com'])
+            mem_inst.cursor.execute(
+                "INSERT INTO validDois VALUES (?)", ['10.1000/xyz'])
+            # Sensitive data that must NOT be written to disk:
+            mem_inst.cursor.execute(
+                "INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)",
+                [r'C:\Users\secret\private.md', None, 'example.com',
+                 'http://example.com', 'http://example.com', 'link'])
+            mem_inst.cursor.execute(
+                "INSERT INTO mailtoLinks VALUES (?, ?, ?, ?)",
+                [r'C:\Users\secret\private.md', 'mailto:a@b.com', 'a@b.com', 1])
+
+            reader.overwrite_cache_file()
+
+            conn = sqlite3.connect(cache_file)
+            try:
+                tables = {row[0] for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table';")}
+                assert tables == {'validUrls', 'validDois'}
+                assert conn.execute(
+                    'SELECT normalizedUrl FROM validUrls').fetchone()[0] == \
+                    'http://example.com'
+                assert conn.execute(
+                    'SELECT doi FROM validDois').fetchone()[0] == '10.1000/xyz'
+            finally:
+                conn.close()
+        mem_inst.tear_down_in_memory_db()
+
     def test_overwrite_cache_file_replaces_existing(self):
         """Test overwriting existing cache file"""
         mem_inst = memory_instance.MemoryInstance()
