@@ -32,3 +32,16 @@ class ConfigFileError(SaltedException):
     error) and files that are corrupted / not valid INI (e.g. a missing
     section header or duplicate keys).
     """
+
+
+class RedirectBlockedException(SaltedException):
+    """Raised when a redirect target must not be requested.
+
+    The GET fallback follows redirects manually and runs each target
+    through the SSRF preflight. Targets that fail that check or use a
+    non-HTTP scheme raise this exception; the message states the reason.
+    """
+
+
+class TooManyRedirectsException(SaltedException):
+    """Raised when a redirect chain exceeds the allowed maximum."""

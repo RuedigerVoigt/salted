@@ -23,7 +23,7 @@
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
   * Add basic SSRF preflight check: any URL whose host resolves to a loopback address (127.0.0.0/8, ::1, `localhost`), an RFC1918 private range (10.x, 172.16.x, 192.168.x), or a link-local address (169.254.0.0/16 including the cloud-metadata endpoint, fe80::/10, `.local` hostnames) is blocked before a network request is made and logged as an exception in the report. (Requires userprovided ≥ 2.3.0).
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
-  * Limit HTTP GET fallback (triggered on 405 Method Not Allowed) to a maximum of 3 redirects to prevent unbounded redirect chains.
+  * The HTTP GET fallback (triggered on 405 Method Not Allowed) follows at most 3 redirects and now validates every redirect target against the SSRF preflight before requesting it. Redirects to private/internal addresses or non-HTTP schemes are blocked and reported in the results; overlong redirect chains are reported as "Too many redirects".
 * Bug Fixes:
   * Fix files with non-UTF-8 encoding (e.g. Latin-1) causing a file access error on Windows — salted now tries UTF-8 first and falls back to Latin-1
   * Fix `--file_types` having no effect on directory scans

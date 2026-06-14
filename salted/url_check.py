@@ -11,7 +11,7 @@ Released under the Apache License 2.0
 import asyncio
 from collections import Counter
 import logging
-from typing import Optional, Union
+from typing import Final, Optional, Union
 import urllib.parse
 
 import aiohttp
@@ -21,12 +21,16 @@ from tqdm.asyncio import tqdm  # type: ignore
 from userprovided import ip as ip_check
 
 from salted import database_io
+from salted import err
 from salted.rate_limiter import DomainRateLimiter
 
 
 class UrlCheck:
     """Interact with the network to check URLs."""
     # pylint: disable=too-many-instance-attributes
+
+    MAX_REDIRECTS: Final[int] = 3
+    REDIRECT_CODES: Final[tuple] = (301, 302, 303, 307, 308)
 
     def __init__(self,
                  user_agent: str,
@@ -151,13 +155,59 @@ class UrlCheck:
             if response.status == 405:
                 # Count how often a full GET was needed
                 self.cnt['neededFullRequest'] += 1
-                async with self.session.get(url,
-                                           headers=self.headers,
-                                           raise_for_status=False,
-                                           max_redirects=3,
-                                           timeout=ClientTimeout(total=self.timeout)) as get_response:
-                    return get_response.status
+                return await self.__get_with_safe_redirects(url)
             return response.status
+
+    async def __get_with_safe_redirects(self,
+                                        url: str) -> int:
+        """Send a GET request, following redirects with a check per hop.
+
+        aiohttp's automatic redirect handling does not re-check redirect
+        targets, so a malicious server could bounce the request to a
+        private or internal address that the SSRF preflight on the
+        original URL never saw. Therefore redirects are followed manually
+        (up to MAX_REDIRECTS) and every target is run through the SSRF
+        preflight before it is requested.
+
+        Args:
+            url: The URL to request.
+
+        Returns:
+            HTTP status code of the final response. A redirect without a
+            Location header returns that redirect's status code.
+
+        Raises:
+            err.RedirectBlockedException: If a redirect target fails the
+                SSRF preflight or uses a non-HTTP scheme.
+            err.TooManyRedirectsException: If the chain exceeds
+                MAX_REDIRECTS redirects.
+        """
+        current_url = url
+        for _ in range(self.MAX_REDIRECTS + 1):
+            async with self.session.get(
+                    current_url,
+                    headers=self.headers,
+                    raise_for_status=False,
+                    allow_redirects=False,
+                    timeout=ClientTimeout(total=self.timeout)) as response:
+                if response.status not in self.REDIRECT_CODES:
+                    return response.status
+                location = response.headers.get('Location')
+                if not location:
+                    # Redirect without a target: report the status itself.
+                    return response.status
+                # Location may be relative (RFC 9110 allows it).
+                next_url = urllib.parse.urljoin(current_url, location)
+                scheme = urllib.parse.urlparse(next_url).scheme
+                if scheme not in ('http', 'https'):
+                    raise err.RedirectBlockedException(
+                        f"Blocked: redirect to unsupported scheme ({scheme})")
+                if ip_check.is_potential_ssrf_target(next_url):
+                    raise err.RedirectBlockedException(
+                        'Blocked: redirect to private/internal target')
+                current_url = next_url
+        raise err.TooManyRedirectsException(
+            f"More than {self.MAX_REDIRECTS} redirects")
 
     async def validate_url(self,
                            url: str) -> None:
@@ -206,6 +256,10 @@ class UrlCheck:
                 self.db.log_exception(url, f"Other ({response_code})")
         # Log but do not raise. Raising leads to the worker not returning
         # and the application does not finish the loop.
+        except err.RedirectBlockedException as exc:
+            self.db.log_exception(url, str(exc))
+        except err.TooManyRedirectsException:
+            self.db.log_exception(url, 'Too many redirects')
         except asyncio.TimeoutError:
             self.db.log_exception(url, 'Timeout')
         except aiohttp.client_exceptions.ClientConnectorError:

@@ -92,6 +92,7 @@ class TestHeadRequestFallback:
             mock_session.head.assert_called_once()
             mock_session.get.assert_called_once()
 
+
     @pytest.mark.asyncio
     async def test_head_request_other_error_no_fallback(self, url_checker):
         """Test HEAD returns non-405 error → no fallback."""
@@ -106,6 +107,128 @@ class TestHeadRequestFallback:
             assert status == 404
             mock_session.head.assert_called_once()
             mock_session.get.assert_not_called()  # No fallback for 404
+
+
+def _response(status, location=None):
+    """Build a mock response with a real headers dict."""
+    response = MagicMock()
+    response.status = status
+    response.headers = {'Location': location} if location else {}
+    return response
+
+
+def _mock_get_sequence(mock_session, responses):
+    """Make consecutive session.get() calls yield the given responses."""
+    managers = []
+    for response in responses:
+        manager = MagicMock()
+        manager.__aenter__ = AsyncMock(return_value=response)
+        manager.__aexit__ = AsyncMock(return_value=False)
+        managers.append(manager)
+    mock_session.get.side_effect = managers
+
+
+class TestSafeRedirects:
+    """The GET fallback follows redirects with an SSRF check per hop."""
+
+    @pytest.mark.asyncio
+    async def test_redirect_chain_followed_to_final_status(self, url_checker):
+        """Redirects are still followed; the final status is returned."""
+        with patch.object(url_checker, 'session') as mock_session:
+            _mock_get_sequence(mock_session, [
+                _response(301, 'https://example.com/new'),
+                _response(200),
+            ])
+            status = await url_checker._UrlCheck__get_with_safe_redirects(
+                'https://example.com/old')
+            assert status == 200
+            assert mock_session.get.call_count == 2
+            # Hops are requested manually, never auto-followed by aiohttp:
+            for call in mock_session.get.call_args_list:
+                assert call.kwargs['allow_redirects'] is False
+
+    @pytest.mark.asyncio
+    async def test_relative_redirect_resolved(self, url_checker):
+        """A relative Location header is resolved against the current URL."""
+        with patch.object(url_checker, 'session') as mock_session:
+            _mock_get_sequence(mock_session, [
+                _response(302, '/new'),
+                _response(200),
+            ])
+            await url_checker._UrlCheck__get_with_safe_redirects(
+                'https://example.com/old')
+            second_call_url = mock_session.get.call_args_list[1].args[0]
+            assert second_call_url == 'https://example.com/new'
+
+    @pytest.mark.asyncio
+    async def test_redirect_to_private_target_blocked(self, url_checker):
+        """A redirect into private/internal address space must be blocked."""
+        with patch.object(url_checker, 'session') as mock_session:
+            _mock_get_sequence(mock_session, [
+                _response(302, 'http://169.254.169.254/latest/meta-data/'),
+            ])
+            with pytest.raises(url_check.err.RedirectBlockedException,
+                               match='private/internal'):
+                await url_checker._UrlCheck__get_with_safe_redirects(
+                    'https://example.com/')
+            # The blocked target must never be requested.
+            assert mock_session.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_redirect_to_non_http_scheme_blocked(self, url_checker):
+        """A redirect to a non-HTTP scheme must be blocked."""
+        with patch.object(url_checker, 'session') as mock_session:
+            _mock_get_sequence(mock_session, [
+                _response(302, 'file:///etc/passwd'),
+            ])
+            with pytest.raises(url_check.err.RedirectBlockedException,
+                               match='scheme'):
+                await url_checker._UrlCheck__get_with_safe_redirects(
+                    'https://example.com/')
+            assert mock_session.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_too_many_redirects_raises(self, url_checker):
+        """A chain longer than MAX_REDIRECTS raises instead of looping."""
+        with patch.object(url_checker, 'session') as mock_session:
+            _mock_get_sequence(mock_session, [
+                _response(301, f'https://example.com/{i}') for i in range(5)
+            ])
+            with pytest.raises(url_check.err.TooManyRedirectsException):
+                await url_checker._UrlCheck__get_with_safe_redirects(
+                    'https://example.com/')
+            assert mock_session.get.call_count == url_check.UrlCheck.MAX_REDIRECTS + 1
+
+    @pytest.mark.asyncio
+    async def test_redirect_without_location_returns_status(self, url_checker):
+        """A redirect without a Location header reports its own status."""
+        with patch.object(url_checker, 'session') as mock_session:
+            _mock_get_sequence(mock_session, [_response(301)])
+            status = await url_checker._UrlCheck__get_with_safe_redirects(
+                'https://example.com/')
+            assert status == 301
+
+    @pytest.mark.asyncio
+    async def test_blocked_redirect_logged_as_exception(self, url_checker, mock_db):
+        """validate_url reports a blocked redirect in the database."""
+        with patch.object(
+                url_checker, 'head_request',
+                side_effect=url_check.err.RedirectBlockedException(
+                    'Blocked: redirect to private/internal target')):
+            await url_checker.validate_url('https://example.com/')
+            mock_db.log_exception.assert_called_with(
+                'https://example.com/',
+                'Blocked: redirect to private/internal target')
+
+    @pytest.mark.asyncio
+    async def test_too_many_redirects_logged_as_exception(self, url_checker, mock_db):
+        """validate_url reports an overlong redirect chain in the database."""
+        with patch.object(
+                url_checker, 'head_request',
+                side_effect=url_check.err.TooManyRedirectsException()):
+            await url_checker.validate_url('https://example.com/')
+            mock_db.log_exception.assert_called_with(
+                'https://example.com/', 'Too many redirects')
 
 
 class TestValidateUrlStatusCodes:
