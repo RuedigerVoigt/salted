@@ -13,7 +13,7 @@ import logging
 import re
 
 from bs4 import BeautifulSoup  # type: ignore
-from pybtex.database import parse_string # type: ignore
+from pybtex.database import parse_string  # type: ignore
 
 try:
     import lxml  # type: ignore[import-untyped]  # noqa: F401

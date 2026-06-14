@@ -9,30 +9,33 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
-from collections import Counter
 import configparser
 import datetime
 import logging
 import pathlib
 import time
+from collections import Counter
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from typing import Any
 
-from importlib.metadata import version as pkg_version, PackageNotFoundError
-
 import compatibility
-from salted import cache_reader
-from salted import database_io
-from salted import doi_check
-from salted import err
-from salted import file_finder
-from salted import input_handler
-from salted import memory_instance
-from salted import parameter_rules
-from salted import url_check
-from salted import report_generator
-from userprovided.parameters import separated_string_to_set
-from userprovided import url as user_url
 from userprovided import err as user_err
+from userprovided import url as user_url
+from userprovided.parameters import separated_string_to_set
+
+from salted import (
+    cache_reader,
+    database_io,
+    doi_check,
+    err,
+    file_finder,
+    input_handler,
+    memory_instance,
+    parameter_rules,
+    report_generator,
+    url_check,
+)
 
 
 def _normalize_url_set(raw: set[str] | None) -> set[str]:

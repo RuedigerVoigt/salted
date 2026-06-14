@@ -9,19 +9,18 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 import asyncio
-from collections import Counter
 import logging
-from typing import Final
+import sys
 import urllib.parse
+from collections import Counter
+from typing import Final
 
 import aiohttp
-import sys
 from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 from userprovided import ip as ip_check
 
-from salted import database_io
-from salted import err
+from salted import database_io, err
 from salted.rate_limiter import DomainRateLimiter
 
 

@@ -11,16 +11,16 @@ Released under the Apache License 2.0
 import asyncio
 import logging
 import re
+import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from typing import Final
 
 import aiohttp
-import sys
 from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
-from importlib.metadata import version as pkg_version, PackageNotFoundError
-
 
 # DOI format: prefix 10.NNNN[NN...] / suffix (at least one non-whitespace char)
 _DOI_PATTERN: Final = re.compile(r'^10\.\d{4,}/\S+$')

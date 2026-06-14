@@ -11,7 +11,8 @@ Released under the Apache License 2.0
 
 import pathlib
 import re
-from importlib.metadata import version as pkg_version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 
 from salted.user_agents import get_user_agent, list_presets
 

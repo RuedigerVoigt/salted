@@ -15,12 +15,12 @@ import logging
 import pathlib
 import sys
 
-import salted
 from userprovided.parameters import separated_string_to_set
+
+import salted
 from salted import parameter_rules
 from salted.err import ConfigFileError
 from salted.user_agents import get_user_agent, list_presets
-
 
 # ##################### CLI argument -> Salted attribute maps #####################
 #

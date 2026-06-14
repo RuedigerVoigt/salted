@@ -9,18 +9,17 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
-from collections import Counter
 import logging
 import pathlib
-import urllib.parse
 import sys
+import urllib.parse
+from collections import Counter
 
 import userprovided
 import userprovided.mail as mail_check
 from tqdm.asyncio import tqdm  # type: ignore
 
-from salted import database_io
-from salted import parser
+from salted import database_io, parser
 
 
 class InputHandler:
