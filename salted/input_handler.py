@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Input Handler for salted
@@ -64,11 +63,11 @@ class InputHandler:
                     f'file too large ({size_mb:.1f} MB, limit {self.max_file_size_mb} MB)')
                 return None
             try:
-                with open(path_to_file, 'r', encoding='utf-8') as code:
+                with open(path_to_file, encoding='utf-8') as code:
                     content = code.read()
             except UnicodeDecodeError:
                 logging.warning("File %s is not UTF-8, retrying with latin-1", path_to_file)
-                with open(path_to_file, 'r', encoding='latin-1') as code:
+                with open(path_to_file, encoding='latin-1') as code:
                     content = code.read()
         except FileNotFoundError:
             self.db.log_file_access_error(

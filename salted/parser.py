@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Input Parser for salted
@@ -27,7 +26,7 @@ except ImportError:
 # https://bitbucket.org/pybtex-devs/pybtex/issues/141/type-annotations
 
 
-class Parser():
+class Parser:
     """Methods to extract hyperlinks and mail addresses from different formats."""
 
     def __init__(self) -> None:

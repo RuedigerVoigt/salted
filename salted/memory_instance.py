@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Provide the sqlite3 in memory instance
@@ -13,7 +12,7 @@ import logging
 import sqlite3
 
 
-class MemoryInstance():
+class MemoryInstance:
     """Handles the in-memory instance of the database."""
 
     def __init__(self) -> None:

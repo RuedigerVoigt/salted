@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Smart, Asynchronous Link Tester with Database backend (SALTED)
@@ -437,7 +436,7 @@ class Salted:
 
         display_result.generate_report(
             statistics={
-                'timestamp': '{:%Y-%b-%d %H:%Mh}'.format(datetime.datetime.now()),
+                'timestamp': f'{datetime.datetime.now():%Y-%b-%d %H:%Mh}',
                 'num_links': file_io.cnt['links_found'],
                 'num_checked': urls.cnt['checked_urls'],
                 'time_to_check': (round(runtime_check)),
