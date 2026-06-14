@@ -34,7 +34,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "pybtex>=0.26.1",
     "tqdm>=4.68.2",
-    "userprovided>=2.4.0",
+    "userprovided>=2.5.0",
 ]
 
 [project.optional-dependencies]
@@ -54,19 +54,19 @@ packages = [{include = "salted"}]
 include = ["salted/py.typed", "salted/templates/*.jinja"]
 
 [tool.poetry.group.test.dependencies]
-pytest = ">=9.0.3"
+pytest = ">=9.1.0"
 pytest-asyncio = ">=1.4.0"
 pytest-mock = ">=3.15.1"
 pyfakefs = ">=6.2.0"
 pytest-cov = "*"
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=9.0.3"
+pytest = ">=9.1.0"
 pytest-asyncio = ">=1.4.0"
 pytest-mock = ">=3.15.1"
 pyfakefs = ">=6.2.0"
 pytest-cov = "*"
-ruff = ">=0.15.15"
+ruff = ">=0.15.17"
 mypy = ">=2.1.0"
 bandit = ">=1.9.4"
 
