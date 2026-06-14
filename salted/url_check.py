@@ -230,6 +230,31 @@ class UrlCheck:
 
         return False
 
+    def __record_response_status(self,
+                                 url: str,
+                                 response_code: int) -> None:
+        """Map an HTTP status code to the matching database record.
+
+        Args:
+            url: The URL that was checked.
+            response_code: HTTP status code returned by the request.
+        """
+        if response_code in (200, 302, 303, 307):
+            self.cnt['fine'] += 1
+            self.db.log_url_is_fine(url)
+        elif response_code in (301, 308):
+            self.db.log_redirect(url, response_code)
+        elif response_code in (404, 410):
+            self.db.log_error(url, response_code)
+        elif response_code == 403:
+            # 403 is ambiguous: often bot/WAF blocking rather than a dead
+            # link. Report as an inconclusive exception, not a hard error.
+            self.db.log_exception(url, 'Forbidden (403) - may be bot detection')
+        elif response_code == 429:
+            self.db.log_exception(url, 'Rate Limit (429)')
+        else:
+            self.db.log_exception(url, f"Other ({response_code})")
+
     async def validate_url(self,
                            url: str) -> None:
         """Validate a URL and log the result to the database.
@@ -255,21 +280,7 @@ class UrlCheck:
 
         try:
             response_code = await self.head_request(url)
-            if response_code in (200, 302, 303, 307):
-                self.cnt['fine'] += 1
-                self.db.log_url_is_fine(url)
-            elif response_code in (301, 308):
-                self.db.log_redirect(url, response_code)
-            elif response_code in (404, 410):
-                self.db.log_error(url, response_code)
-            elif response_code == 403:
-                # 403 is ambiguous: often bot/WAF blocking rather than a dead
-                # link. Report as an inconclusive exception, not a hard error.
-                self.db.log_exception(url, 'Forbidden (403) - may be bot detection')
-            elif response_code == 429:
-                self.db.log_exception(url, 'Rate Limit (429)')
-            else:
-                self.db.log_exception(url, f"Other ({response_code})")
+            self.__record_response_status(url, response_code)
         # Log but do not raise. Raising leads to the worker not returning
         # and the application does not finish the loop.
         except err.RedirectBlockedException as exc:
