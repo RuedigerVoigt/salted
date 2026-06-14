@@ -268,8 +268,9 @@ class UrlCheck:
             self.db.log_exception(url, 'ClientOSError')
         except aiohttp.client_exceptions.ServerDisconnectedError:
             self.db.log_exception(url, 'Server disconnected')
-        except Exception:
-            logging.exception('Exception. URL %s', url,  exc_info=True)
+        except Exception as exc:
+            logging.exception('Exception. URL %s', url, exc_info=True)
+            self.db.log_exception(url, f"Unexpected error ({type(exc).__name__})")
 
     async def __worker(self,
                        name: str,

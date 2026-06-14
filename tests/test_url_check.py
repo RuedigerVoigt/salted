@@ -375,14 +375,18 @@ class TestNetworkExceptionHandling:
 
     @pytest.mark.asyncio
     async def test_validate_url_unexpected_exception(self, url_checker, mock_db):
-        """Test unexpected exception handling (logs but doesn't crash)."""
-        with patch.object(url_checker, 'head_request', side_effect=ValueError("Unexpected error")):
+        """Unexpected exceptions are logged AND recorded so the URL still
+        appears in the report instead of silently vanishing."""
+        with patch.object(url_checker, 'head_request', side_effect=ValueError("boom")):
             with patch('salted.url_check.logging.exception') as mock_log:
                 await url_checker.validate_url("https://unexpected.com")
 
-                # Should log exception but not crash
+                # Logged for debugging (with a traceback) ...
                 mock_log.assert_called_once()
                 assert "https://unexpected.com" in str(mock_log.call_args)
+                # ... and recorded in the database so it shows up in the report.
+                mock_db.log_exception.assert_called_with(
+                    "https://unexpected.com", 'Unexpected error (ValueError)')
 
 
 class TestSsrfPreflight:
