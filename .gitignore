@@ -2,6 +2,10 @@
 salted-cache.sqlite3
 test-cache*.sqlite3
 
+# Claude Code local working files
+CLAUDE.md
+.claude/
+
 # Test/temporary files
 test_report.txt
 cli_output.txt
