@@ -54,14 +54,14 @@ packages = [{include = "salted"}]
 include = ["salted/py.typed", "salted/templates/*.jinja"]
 
 [tool.poetry.group.test.dependencies]
-pytest = ">=9.1.0"
+pytest = ">=9.1.1"
 pytest-asyncio = ">=1.4.0"
 pytest-mock = ">=3.15.1"
 pyfakefs = ">=6.2.0"
 pytest-cov = "*"
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=9.1.0"
+pytest = ">=9.1.1"
 pytest-asyncio = ">=1.4.0"
 pytest-mock = ">=3.15.1"
 pyfakefs = ">=6.2.0"
