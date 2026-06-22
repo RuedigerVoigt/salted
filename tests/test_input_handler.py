@@ -298,6 +298,104 @@ class TestHandleFoundDois:
         db_mock.save_found_dois.assert_not_called()
 
 
+class TestExtractLinksAndDois:
+    """Test the per-file suffix dispatch helper."""
+
+    def test_html_dispatches_to_html_extractor(self):
+        """.html files route to the HTML extractor and return no DOIs."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        with patch.object(handler.parser, 'extract_links_from_html',
+                          return_value=[['http://example.com', 'Link']]) as mock_extract:
+            url_list, doi_list = handler._extract_links_and_dois(
+                pathlib.Path('test.html'), '<a href="http://example.com">Link</a>')
+
+        mock_extract.assert_called_once_with('<a href="http://example.com">Link</a>')
+        assert url_list == [['http://example.com', 'Link']]
+        assert doi_list is None
+
+    def test_htm_dispatches_to_html_extractor(self):
+        """.htm (legacy extension) routes to the same HTML extractor."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        with patch.object(handler.parser, 'extract_links_from_html',
+                          return_value=[]) as mock_extract:
+            url_list, doi_list = handler._extract_links_and_dois(
+                pathlib.Path('legacy.htm'), 'content')
+
+        mock_extract.assert_called_once_with('content')
+        assert doi_list is None
+
+    def test_markdown_dispatches_to_markdown_extractor(self):
+        """.md files route to the Markdown extractor."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        with patch.object(handler.parser, 'extract_links_from_markdown',
+                          return_value=[['http://example.com', 'Link']]) as mock_extract:
+            url_list, doi_list = handler._extract_links_and_dois(
+                pathlib.Path('test.md'), '[Link](http://example.com)')
+
+        mock_extract.assert_called_once()
+        assert url_list == [['http://example.com', 'Link']]
+        assert doi_list is None
+
+    def test_tex_dispatches_to_tex_extractor(self):
+        """.tex files route to the TeX extractor."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        with patch.object(handler.parser, 'extract_links_from_tex',
+                          return_value=[['http://example.com', '']]) as mock_extract:
+            url_list, doi_list = handler._extract_links_and_dois(
+                pathlib.Path('test.tex'), r'\url{http://example.com}')
+
+        mock_extract.assert_called_once()
+        assert doi_list is None
+
+    def test_bib_returns_both_urls_and_dois(self):
+        """.bib files return the (url_list, doi_list) tuple from the parser."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        with patch.object(handler.parser, 'extract_links_from_bib',
+                          return_value=([['http://example.com', 'test']],
+                                        [['10.1234/test', 'test']])) as mock_extract:
+            url_list, doi_list = handler._extract_links_and_dois(
+                pathlib.Path('refs.bib'), '@article{test, url={http://example.com}}')
+
+        mock_extract.assert_called_once()
+        assert url_list == [['http://example.com', 'test']]
+        assert doi_list == [['10.1234/test', 'test']]
+
+    def test_bib_parse_error_returns_none_none_and_logs(self):
+        """A BibTeX parse failure is logged and yields (None, None)."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        with patch.object(handler.parser, 'extract_links_from_bib',
+                          side_effect=Exception('unexpected EOF')):
+            url_list, doi_list = handler._extract_links_and_dois(
+                pathlib.Path('broken.bib'), 'not valid bibtex @@@')
+
+        assert url_list is None
+        assert doi_list is None
+        db_mock.log_file_access_error.assert_called_once()
+        call_args = str(db_mock.log_file_access_error.call_args)
+        assert 'broken.bib' in call_args
+        assert 'BibTeX parse error' in call_args
+
+    def test_unknown_extension_raises_runtime_error(self):
+        """An unregistered suffix raises RuntimeError (should never happen)."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        with pytest.raises(RuntimeError, match='Invalid extension'):
+            handler._extract_links_and_dois(pathlib.Path('test.xyz'), 'content')
+
+
 class TestScanFiles:
     """Test file scanning functionality"""
 

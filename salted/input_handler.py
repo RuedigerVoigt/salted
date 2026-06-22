@@ -42,6 +42,19 @@ class InputHandler:
         self.cnt: Counter = Counter()
         self.parser = parser.Parser()
 
+        # Map a file suffix to the name of the parser method that extracts
+        # its URLs. Names (not bound methods) are stored so the method is
+        # resolved on self.parser at call time. BibTeX is deliberately
+        # absent: it is the only format that also returns a DOI list and
+        # needs its own error handling, so it is dispatched separately in
+        # _extract_links_and_dois().
+        self._url_extractors = {
+            ".htm": "extract_links_from_html",
+            ".html": "extract_links_from_html",
+            ".md": "extract_links_from_markdown",
+            ".tex": "extract_links_from_tex",
+        }
+
     def read_file_content(self,
                           path_to_file: pathlib.Path) -> str | None:
         """Return the file content or log an error if file cannot be accessed.
@@ -172,6 +185,45 @@ class InputHandler:
             first += step
         return None
 
+    def _extract_links_and_dois(self,
+                                file_path: pathlib.Path,
+                                content: str) -> tuple[list | None, list | None]:
+        """Extract URLs (and DOIs for BibTeX) from one file's content.
+
+        Dispatches on the file suffix via self._url_extractors. Every
+        supported format yields a URL list; only BibTeX additionally yields
+        a DOI list and is handled separately because it can fail to parse.
+
+        Args:
+            file_path: Path to the file being scanned (used for the suffix
+                and for error messages).
+            content: The file's text content.
+
+        Returns:
+            A (url_list, doi_list) tuple. doi_list is None for every format
+            except BibTeX, and is also None when a BibTeX file cannot be
+            parsed (the parse error is logged as a file access error).
+
+        Raises:
+            RuntimeError: If the suffix has no registered extractor. This
+                should never happen because callers pre-filter by supported
+                extension.
+        """
+        if file_path.suffix == ".bib":
+            try:
+                url_list, doi_list = self.parser.extract_links_from_bib(content)
+                return url_list, doi_list
+            except Exception as e:
+                self.db.log_file_access_error(
+                    str(file_path), f'BibTeX parse error: {e}')
+                return None, None
+
+        extractor_name = self._url_extractors.get(file_path.suffix)
+        if extractor_name is None:
+            raise RuntimeError('Invalid extension. Should never happen.')
+        extractor = getattr(self.parser, extractor_name)
+        return extractor(content), None
+
     def scan_files(self,
                    files_to_check: list[pathlib.Path]) -> None:
         """Scan files for hyperlinks and DOIs.
@@ -198,23 +250,7 @@ class InputHandler:
                 # If for any reason this file could not be read, try the next.
                 continue
 
-            # only one function returns two values
-            doi_list: list | None = None
-
-            if file_path.suffix in {".htm", ".html"}:
-                url_list = self.parser.extract_links_from_html(content)
-            elif file_path.suffix in {".md"}:
-                url_list = self.parser.extract_links_from_markdown(content)
-            elif file_path.suffix in {".tex"}:
-                url_list = self.parser.extract_links_from_tex(content)
-            elif file_path.suffix in {".bib"}:
-                try:
-                    url_list, doi_list = self.parser.extract_links_from_bib(content)
-                except Exception as e:
-                    self.db.log_file_access_error(str(file_path), f'BibTeX parse error: {e}')
-                    continue
-            else:
-                raise RuntimeError('Invalid extension. Should never happen.')
+            url_list, doi_list = self._extract_links_and_dois(file_path, content)
 
             if url_list:
                 self.handle_found_urls(file_path, url_list)
