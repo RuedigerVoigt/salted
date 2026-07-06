@@ -74,11 +74,11 @@ def test_file_discovery(fs):
     filesearch = file_finder.FileFinder()
     supported_files = filesearch.find_files_by_extensions('/fake')
     assert len(supported_files) == 7
-    html_files = filesearch.find_html_files('/fake')
+    html_files = filesearch.find_files_by_extensions('/fake', {'.htm', '.html'})
     assert len(html_files) == 2
-    md_files = filesearch.find_markdown_files('/fake')
+    md_files = filesearch.find_files_by_extensions('/fake', {'.md'})
     assert len(md_files) == 2
-    tex_files = filesearch.find_tex_files('/fake')
+    tex_files = filesearch.find_files_by_extensions('/fake', {'.tex'})
     assert len(tex_files) == 2
 
 
