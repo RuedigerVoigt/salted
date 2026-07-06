@@ -4,7 +4,7 @@
 Must be run inside the project virtualenv so that pipdeptree sees the correct
 packages. Use:
 
-    poetry run python generate_dependency_graph.py
+    poetry run python scripts/generate_dependency_graph.py
 """
 
 import re
@@ -13,7 +13,7 @@ import sys
 import pathlib
 from importlib.metadata import requires as pkg_requires, version as pkg_version, PackageNotFoundError
 
-ROOT = pathlib.Path(__file__).parent
+ROOT = pathlib.Path(__file__).parent.parent
 OUTPUT_FILE = ROOT / 'documentation' / 'dependency-graph.md'
 
 
@@ -26,7 +26,7 @@ def _check_venv() -> None:
     if not running_inside_venv:
         print(
             "ERROR: This script must be run inside the project virtualenv.\n"
-            "Use:  poetry run python generate_dependency_graph.py",
+            "Use:  poetry run python scripts/generate_dependency_graph.py",
             file=sys.stderr,
         )
         sys.exit(1)
