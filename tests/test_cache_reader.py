@@ -346,6 +346,55 @@ class TestOverwriteCacheFile:
                 conn.close()
         mem_inst.tear_down_in_memory_db()
 
+    def test_overwrite_cache_file_atomic_on_failure(self, monkeypatch):
+        """A failure during the atomic replace must leave the existing cache
+        intact and not leave a stray temp file behind."""
+        mem_inst = memory_instance.MemoryInstance()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_file = pathlib.Path(tmpdir) / "cache.db"
+
+            # Existing cache with known-good content.
+            cache_conn = sqlite3.connect(cache_file)
+            cache_conn.execute(
+                'CREATE TABLE validUrls (normalizedUrl text, lastValid integer);')
+            cache_conn.execute(
+                "INSERT INTO validUrls VALUES (?, strftime('%s', 'now'))",
+                ['http://old.com'])
+            cache_conn.commit()
+            cache_conn.close()
+
+            reader = cache_reader.CacheReader(
+                mem_instance=mem_inst,
+                dont_check_again_within_hours=24,
+                cache_file=cache_file
+            )
+            mem_inst.cursor.execute(
+                "INSERT INTO validUrls VALUES (?, strftime('%s', 'now'))",
+                ['http://new.com'])
+
+            # Force the atomic move to fail after the temp file is built.
+            def boom(src, dst):
+                raise OSError('simulated disk failure')
+            monkeypatch.setattr(cache_reader.os, 'replace', boom)
+
+            with pytest.raises(OSError, match='simulated disk failure'):
+                reader.overwrite_cache_file()
+
+            # The previous cache is untouched (still the old URL, not the new).
+            conn = sqlite3.connect(cache_file)
+            try:
+                urls = [row[0] for row in conn.execute(
+                    'SELECT normalizedUrl FROM validUrls')]
+            finally:
+                conn.close()
+            assert urls == ['http://old.com']
+
+            # No stray temp file left behind.
+            tmp_path = cache_file.with_name(cache_file.name + '.tmp')
+            assert not tmp_path.exists()
+        mem_inst.tear_down_in_memory_db()
+
     def test_overwrite_cache_file_replaces_existing(self):
         """Test overwriting existing cache file"""
         mem_inst = memory_instance.MemoryInstance()

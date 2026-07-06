@@ -9,6 +9,7 @@ Released under the Apache License 2.0
 """
 
 import logging
+import os
 import pathlib
 import sqlite3
 
@@ -136,22 +137,33 @@ class CacheReader:
         load_disk_cache() reads back. The other in-memory tables hold local
         file paths, link text, and e-mail addresses that are never read from
         disk again, so they are deliberately not persisted.
+
+        The new cache is built in a sibling temporary file and then moved into
+        place with os.replace(), which is atomic on the same filesystem. A
+        crash or exception mid-write therefore leaves any existing cache file
+        untouched rather than destroying it before the replacement is ready.
         """
 
         if not self.cache_file_path:
             return
 
-        self.cache_file_path.unlink(missing_ok=True)
+        tmp_path = self.cache_file_path.with_name(
+            self.cache_file_path.name + '.tmp')
+        tmp_path.unlink(missing_ok=True)
         conn = self.mem_instance.conn
-        conn.execute('ATTACH DATABASE ? AS disk_cache;',
-                     [str(self.cache_file_path)])
         try:
-            conn.execute('''CREATE TABLE disk_cache.validUrls (
-                normalizedUrl text, lastValid integer);''')
-            conn.execute('CREATE TABLE disk_cache.validDois (doi text);')
-            conn.execute('''INSERT INTO disk_cache.validUrls
-                SELECT normalizedUrl, lastValid FROM main.validUrls;''')
-            conn.execute('''INSERT INTO disk_cache.validDois
-                SELECT doi FROM main.validDois;''')
-        finally:
-            conn.execute('DETACH DATABASE disk_cache;')
+            conn.execute('ATTACH DATABASE ? AS disk_cache;', [str(tmp_path)])
+            try:
+                conn.execute('''CREATE TABLE disk_cache.validUrls (
+                    normalizedUrl text, lastValid integer);''')
+                conn.execute('CREATE TABLE disk_cache.validDois (doi text);')
+                conn.execute('''INSERT INTO disk_cache.validUrls
+                    SELECT normalizedUrl, lastValid FROM main.validUrls;''')
+                conn.execute('''INSERT INTO disk_cache.validDois
+                    SELECT doi FROM main.validDois;''')
+            finally:
+                conn.execute('DETACH DATABASE disk_cache;')
+            os.replace(tmp_path, self.cache_file_path)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise

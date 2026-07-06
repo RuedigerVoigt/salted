@@ -25,6 +25,8 @@
   * Add basic SSRF preflight check: any URL whose host resolves to a loopback address (127.0.0.0/8, ::1, `localhost`), an RFC1918 private range (10.x, 172.16.x, 192.168.x), or a link-local address (169.254.0.0/16 including the cloud-metadata endpoint, fe80::/10, `.local` hostnames) is blocked before a network request is made and logged as an exception in the report. (Requires userprovided ≥ 2.3.0).
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
   * The HTTP GET fallback (triggered on 405 Method Not Allowed) follows at most 3 redirects and now validates every redirect target against the SSRF preflight before requesting it. Redirects to private/internal addresses or non-HTTP schemes are blocked and reported in the results; overlong redirect chains are reported as "Too many redirects".
+* Robustness:
+  * The disk cache is now written atomically. Previously the existing cache file was deleted and then rebuilt in place, so an interruption mid-write (crash, error, or power loss) could leave no cache at all. The new cache is built in a sibling temporary file and moved into place with `os.replace`, so any existing cache stays intact on failure.
 * Bug Fixes:
   * Fix Markdown links whose URL contains balanced parentheses (e.g. Wikipedia `..._(programming_language)`) being truncated at the first `)`, which produced false dead-link reports.
   * Fix URLs raising an unexpected exception being dropped from the report; the `validate_url` catch-all now records them via `log_exception`.
