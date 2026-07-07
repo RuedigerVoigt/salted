@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import sys
+import urllib.parse
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from typing import Final
@@ -142,7 +143,13 @@ class DoiCheck:
         logging.debug("Sending head request to Crossref API: check %s", doi)
         # The HTTP HEAD method requests the headers, but not the page's body.
         # Requesting this way reduces load on the server and network traffic.
-        query_url = self.API_BASE_URL + doi
+        # Percent-encode the DOI before it goes into the URL: the preflight
+        # regex admits URL-significant characters (?, #, &, spaces), so an
+        # unencoded DOI could inject a query/fragment into the request or make
+        # a legitimate DOI containing such a character resolve to the wrong
+        # resource. safe='/' keeps the slash that separates DOI prefix and
+        # suffix, which CrossRef expects literally in the path.
+        query_url = self.API_BASE_URL + urllib.parse.quote(doi, safe='/')
         async with self.session.head(  # type: ignore[union-attr]
                 query_url,
                 headers=self.headers,

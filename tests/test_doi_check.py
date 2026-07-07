@@ -9,6 +9,7 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 import asyncio
+import aiohttp
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
@@ -126,23 +127,22 @@ class TestSessionManagement:
 
         await doi_checker._DoiCheck__create_session()
 
-        assert doi_checker.session is not None
-        assert isinstance(doi_checker.session, object)  # aiohttp.ClientSession
+        assert isinstance(doi_checker.session, aiohttp.ClientSession)
+        assert not doi_checker.session.closed
 
         # Cleanup
         await doi_checker._DoiCheck__close_session()
 
     @pytest.mark.asyncio
     async def test_close_session_when_exists(self):
-        """Test closing an existing session"""
+        """Test closing an existing session actually closes it"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
 
         await doi_checker._DoiCheck__create_session()
         await doi_checker._DoiCheck__close_session()
 
-        # Session should be closed (we can't easily test this without inspecting internals)
-        # but at least verify it doesn't raise an error
+        assert doi_checker.session.closed
 
     @pytest.mark.asyncio
     async def test_close_session_when_none(self):
@@ -210,8 +210,31 @@ class TestApiSendHeadRequest:
         assert result['seconds'] == '1'
 
     @pytest.mark.asyncio
-    async def test_api_send_head_request_formats_url_correctly(self):
-        """Test that API URL is formatted correctly"""
+    @pytest.mark.parametrize("doi, expected_url", [
+        # A plain DOI is unchanged: the slash and dot are already URL-safe.
+        ('10.1234/test.doi',
+         'https://api.crossref.org/works/10.1234/test.doi'),
+        # '?' would otherwise start a query string on the CrossRef request.
+        ('10.5555/foo?rows=1000',
+         'https://api.crossref.org/works/10.5555/foo%3Frows%3D1000'),
+        # '#' would otherwise be treated as a fragment and dropped, so the
+        # server would look up the wrong (truncated) DOI.
+        ('10.1000/abc#frag',
+         'https://api.crossref.org/works/10.1000/abc%23frag'),
+        # A space and an '&' are encoded rather than passed through raw.
+        ('10.1234/a b&c',
+         'https://api.crossref.org/works/10.1234/a%20b%26c'),
+    ])
+    async def test_api_send_head_request_percent_encodes_doi(
+            self, doi, expected_url):
+        """The DOI is percent-encoded before it goes into the query URL.
+
+        URL-significant characters (?, #, &, spaces) that the preflight regex
+        admits must not be able to inject a query/fragment into the request or
+        make a legitimate DOI resolve to the wrong resource. The slash that
+        separates DOI prefix and suffix is preserved (CrossRef expects it
+        literally in the path).
+        """
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
 
@@ -228,11 +251,9 @@ class TestApiSendHeadRequest:
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
 
-        await doi_checker._DoiCheck__api_send_head_request('10.1234/test.doi')
+        await doi_checker._DoiCheck__api_send_head_request(doi)
 
-        # Check that URL was constructed correctly
-        called_url = mock_head.call_args[0][0]
-        assert called_url == 'https://api.crossref.org/works/10.1234/test.doi'
+        assert mock_head.call_args[0][0] == expected_url
 
 
 class TestWorker:
