@@ -52,7 +52,6 @@ class MemoryInstance:
         self.cursor.execute('''
             CREATE TABLE queue (
             filePath text,
-            doi text,
             hostname text,
             url text,
             normalizedUrl text,

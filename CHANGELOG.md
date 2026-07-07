@@ -49,6 +49,7 @@
   * Replaced flake8 with [ruff](https://docs.astral.sh/ruff/) for linting (config under `[tool.ruff]` in `pyproject.toml`). Keeps the previous coverage (pycodestyle E/W, pyflakes F, mccabe complexity ≤ 10, line length 127) and adds pyupgrade (UP), flake8-bugbear (B), isort (I), flake8-async (ASYNC), and ruff-native (RUF) rules. The CI workflow lints the library only and still hard-fails only on syntax errors and undefined names; everything else is advisory.
   * Modernized all type hints to PEP 604 (`X | Y`) and PEP 585 (`list`/`dict`/`set` builtins), dropping the corresponding `typing.Optional`/`Union`/`List`/`Dict`/`Set` imports. No runtime or API change (Python 3.10+ already required).
   * Removed the unused async variants `UrlCheck.check_urls_async` and `DoiCheck.check_dois_async` — they were never reachable through the documented API.
+  * Removed the dead `doi` column from the in-memory `queue` table — it was never written or read (DOIs live in the separate `queue_doi` table).
   * Refactor `command_line.main()` into a parser builder plus table-driven override helpers (no behavior change).
   * CI now also tests against the Python 3.15 beta (Linux, Windows, and macOS) as an experimental, allowed-to-fail matrix entry to catch breakage early.
 

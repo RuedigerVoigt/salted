@@ -156,8 +156,9 @@ class TestDisplayPathRelativeMode:
         fp = str(base / 'blog' / 'page.html')
         cursor = mem_inst.get_cursor()
         cursor.execute(
-            'INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)',
-            [fp, None, 'example.com', 'http://example.com/404',
+            'INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)'
+            ' VALUES (?, ?, ?, ?, ?)',
+            [fp, 'example.com', 'http://example.com/404',
              'http://example.com/404', 'Link'])
         cursor.execute(
             'INSERT INTO errors VALUES (?, ?)', ['http://example.com/404', 404])
@@ -225,8 +226,9 @@ class TestGenerateErrorList:
         # Add some links to the queue
         cursor = mem_inst.get_cursor()
         cursor.execute('''
-            INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)
-        ''', ['test.html', None, 'example.com', 'http://example.com/404', 'http://example.com/404', 'Link'])
+            INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ['test.html', 'example.com', 'http://example.com/404', 'http://example.com/404', 'Link'])
 
         # Add an error
         cursor.execute('''
@@ -263,8 +265,9 @@ class TestGenerateRedirectList:
         # Add some links to the queue
         cursor = mem_inst.get_cursor()
         cursor.execute('''
-            INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)
-        ''', ['test.html', None, 'example.com', 'http://example.com/old', 'http://example.com/old', 'Link'])
+            INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ['test.html', 'example.com', 'http://example.com/old', 'http://example.com/old', 'Link'])
 
         # Add a redirect
         cursor.execute('''
@@ -292,8 +295,9 @@ class TestGenerateRedirectList:
         # Add some links to the queue
         cursor = mem_inst.get_cursor()
         cursor.execute('''
-            INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)
-        ''', ['test.html', None, 'example.com', 'http://example.com/old', 'http://example.com/old', 'Link'])
+            INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ['test.html', 'example.com', 'http://example.com/old', 'http://example.com/old', 'Link'])
 
         # Add a redirect
         cursor.execute('''
@@ -328,8 +332,9 @@ class TestGenerateExceptionList:
         # Add some links to the queue
         cursor = mem_inst.get_cursor()
         cursor.execute('''
-            INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)
-        ''', ['test.html', None, 'example.com', 'http://example.com/timeout', 'http://example.com/timeout', 'Link'])
+            INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ['test.html', 'example.com', 'http://example.com/timeout', 'http://example.com/timeout', 'Link'])
 
         # Add an exception
         cursor.execute('''
@@ -357,8 +362,9 @@ class TestGenerateExceptionList:
         # Add some links to the queue
         cursor = mem_inst.get_cursor()
         cursor.execute('''
-            INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)
-        ''', ['test.html', None, 'example.com', 'http://example.com/timeout', 'http://example.com/timeout', 'Link'])
+            INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ['test.html', 'example.com', 'http://example.com/timeout', 'http://example.com/timeout', 'Link'])
 
         # Add an exception
         cursor.execute('''
@@ -388,8 +394,9 @@ class TestGenerateErrorListWithPathRewriting:
         # Add some links to the queue
         cursor = mem_inst.get_cursor()
         cursor.execute('''
-            INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)
-        ''', ['test.html', None, 'example.com', 'http://example.com/404', 'http://example.com/404', 'Link'])
+            INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ['test.html', 'example.com', 'http://example.com/404', 'http://example.com/404', 'Link'])
 
         # Add an error
         cursor.execute('''

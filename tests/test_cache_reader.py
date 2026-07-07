@@ -323,8 +323,9 @@ class TestOverwriteCacheFile:
                 "INSERT INTO validDois VALUES (?)", ['10.1000/xyz'])
             # Sensitive data that must NOT be written to disk:
             mem_inst.cursor.execute(
-                "INSERT INTO queue VALUES (?, ?, ?, ?, ?, ?)",
-                [r'C:\Users\secret\private.md', None, 'example.com',
+                "INSERT INTO queue (filePath, hostname, url, normalizedUrl, linktext)"
+                " VALUES (?, ?, ?, ?, ?)",
+                [r'C:\Users\secret\private.md', 'example.com',
                  'http://example.com', 'http://example.com', 'link'])
             mem_inst.cursor.execute(
                 "INSERT INTO mailtoLinks VALUES (?, ?, ?, ?)",
