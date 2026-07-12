@@ -3,6 +3,7 @@
 ## Version 2.0.0 (upcoming)
 
 * Breaking Changes:
+  * Drop support for Python 3.10 (EOL October 2026). Supported versions are now Python 3.11 to 3.14.
   * `--raise_for_dead_links` no longer accepts a string argument (`True`/`False`/`yes`/`no`). Use the bare flag `--raise_for_dead_links` to enable and `--no-raise_for_dead_links` to explicitly disable. Default is off (no exception raised). Scripts using `--raise_for_dead_links True` must be updated.
 * New features:
   * When `base_url` is not set, report output now shows file paths **relative to the checked folder** (e.g. `blog/post.html`) instead of the full absolute filesystem path. Set `base_url` to rewrite paths to URLs as before.

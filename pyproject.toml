@@ -10,7 +10,6 @@ authors = [
 keywords = ["link-checker", "url-validation", "html", "markdown", "latex", "bibtex", "async", "dead-links", "broken-links"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -25,7 +24,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Site Management",
     "Topic :: Internet :: WWW/HTTP :: Site Management :: Link Checking"
 ]
-requires-python = ">=3.10,<4"
+requires-python = ">=3.11,<4"
 dependencies = [
     "aiodns>=4.0.4",  # not imported directly; aiohttp uses it for async DNS
     "aiohttp>=3.14.1",

@@ -20,7 +20,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ['3.10', '3.14']
+        python-version: ['3.11', '3.14']
         experimental: [false]
         # Also run against the Python 3.15 beta to catch breakage early. This
         # entry is marked experimental, so via continue-on-error its failure

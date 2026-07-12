@@ -287,7 +287,7 @@ class UrlCheck:
             self.db.log_exception(url, str(exc))
         except err.TooManyRedirectsException:
             self.db.log_exception(url, 'Too many redirects')
-        except asyncio.TimeoutError:
+        except TimeoutError:
             self.db.log_exception(url, 'Timeout')
         except aiohttp.client_exceptions.ClientConnectorError:
             self.db.log_exception(url, 'ClientConnectorError')
