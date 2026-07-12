@@ -125,13 +125,13 @@ class TestSessionManagement:
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
 
-        await doi_checker._DoiCheck__create_session()
+        await doi_checker._create_session()
 
         assert isinstance(doi_checker.session, aiohttp.ClientSession)
         assert not doi_checker.session.closed
 
         # Cleanup
-        await doi_checker._DoiCheck__close_session()
+        await doi_checker._close_session()
 
     @pytest.mark.asyncio
     async def test_close_session_when_exists(self):
@@ -139,8 +139,8 @@ class TestSessionManagement:
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
 
-        await doi_checker._DoiCheck__create_session()
-        await doi_checker._DoiCheck__close_session()
+        await doi_checker._create_session()
+        await doi_checker._close_session()
 
         assert doi_checker.session.closed
 
@@ -151,7 +151,7 @@ class TestSessionManagement:
         doi_checker = DoiCheck(db_mock)
 
         # Should not raise an error
-        await doi_checker._DoiCheck__close_session()
+        await doi_checker._close_session()
 
 
 class TestApiSendHeadRequest:
@@ -264,8 +264,8 @@ class TestWorker:
         """Test worker processing valid DOI"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         # Mock the API request to return valid DOI
         async def mock_api_request(doi):
@@ -284,7 +284,7 @@ class TestWorker:
 
         # Run worker for one iteration
         worker_task = asyncio.create_task(
-            doi_checker._DoiCheck__worker('test-worker', queue)
+            doi_checker._worker('test-worker', queue)
         )
 
         # Wait for the queue to be processed
@@ -306,8 +306,8 @@ class TestWorker:
         """Test worker processing invalid DOI (404)"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         # Mock the API request to return 404
         async def mock_api_request(doi):
@@ -324,7 +324,7 @@ class TestWorker:
         queue.put_nowait('10.1234/invalid')
 
         worker_task = asyncio.create_task(
-            doi_checker._DoiCheck__worker('test-worker', queue)
+            doi_checker._worker('test-worker', queue)
         )
 
         await queue.join()
@@ -344,8 +344,8 @@ class TestWorker:
         """Test worker handling unexpected API status code"""
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         # Mock the API request to return unexpected status
         async def mock_api_request(doi):
@@ -362,7 +362,7 @@ class TestWorker:
         queue.put_nowait('10.1234/unexpected')
 
         worker_task = asyncio.create_task(
-            doi_checker._DoiCheck__worker('test-worker', queue)
+            doi_checker._worker('test-worker', queue)
         )
 
         await queue.join()
@@ -383,8 +383,8 @@ class TestWorker:
         invalid via the real __api_send_head_request (not silently dropped)."""
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         mock_response = AsyncMock()
         mock_response.status = 404
@@ -399,7 +399,7 @@ class TestWorker:
         queue = asyncio.Queue()
         queue.put_nowait('10.1234/missing-headers')
         worker_task = asyncio.create_task(
-            doi_checker._DoiCheck__worker('test-worker', queue))
+            doi_checker._worker('test-worker', queue))
         await queue.join()
         worker_task.cancel()
         try:
@@ -453,7 +453,7 @@ class TestCheckDois:
         doi_checker = DoiCheck(db_mock)
 
         # Mock the distribute_work method to avoid actual async execution
-        doi_checker._DoiCheck__distribute_work = AsyncMock()
+        doi_checker._distribute_work = AsyncMock()
 
         # Simulate some valid and invalid DOIs
         doi_checker.valid_doi_list = ['10.1234/test1']
@@ -465,7 +465,7 @@ class TestCheckDois:
         assert mock_tqdm.called
 
         # Verify async distribute_work was called
-        doi_checker._DoiCheck__distribute_work.assert_called_once()
+        doi_checker._distribute_work.assert_called_once()
 
         # Verify database was updated
         db_mock.save_valid_dois.assert_called_once()
@@ -481,7 +481,7 @@ class TestCheckDois:
 
         doi_checker = DoiCheck(db_mock)
         # Mock the distribute_work method to avoid actual async execution
-        doi_checker._DoiCheck__distribute_work = AsyncMock()
+        doi_checker._distribute_work = AsyncMock()
         doi_checker.valid_doi_list = ['10.1234/test1']
 
         doi_checker.check_dois()
@@ -500,7 +500,7 @@ class TestCheckDois:
 
         doi_checker = DoiCheck(db_mock)
         # Mock the distribute_work method to avoid actual async execution
-        doi_checker._DoiCheck__distribute_work = AsyncMock()
+        doi_checker._distribute_work = AsyncMock()
         doi_checker.invalid_doi_list = ['10.1234/invalid']
 
         doi_checker.check_dois()
@@ -531,13 +531,13 @@ class TestDistributeWork:
         doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
 
         # Mock tqdm for progress bar
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         # Test with a small list of DOIs
         dois = ['10.1234/test1', '10.1234/test2', '10.1234/test3']
 
-        await doi_checker._DoiCheck__distribute_work(dois)
+        await doi_checker._distribute_work(dois, doi_checker.NUM_API_WORKERS)
 
         # Verify all DOIs were processed
         assert len(doi_checker.valid_doi_list) == 3
@@ -573,12 +573,12 @@ class TestDistributeWork:
         doi_checker._DoiCheck__api_send_head_request = mock_api_request
         doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
 
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         dois = ['10.1234/valid1', '10.1234/notfound', '10.1234/valid2']
 
-        await doi_checker._DoiCheck__distribute_work(dois)
+        await doi_checker._distribute_work(dois, doi_checker.NUM_API_WORKERS)
 
         # Verify results were categorized correctly
         assert len(doi_checker.valid_doi_list) == 2
@@ -604,13 +604,13 @@ class TestDistributeWork:
         doi_checker._DoiCheck__api_send_head_request = mock_api_request
         doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
 
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         # Run with just one DOI to test task cancellation logic
         dois = ['10.1234/test']
 
-        await doi_checker._DoiCheck__distribute_work(dois)
+        await doi_checker._distribute_work(dois, doi_checker.NUM_API_WORKERS)
 
         # Should complete without errors even with task cancellation
         assert len(doi_checker.valid_doi_list) == 1
@@ -648,11 +648,11 @@ class TestDoiFormatCheck:
         """A malformed DOI is added to invalid_doi_list without any API call."""
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         with patch.object(doi_checker, '_DoiCheck__api_send_head_request') as mock_api:
-            await doi_checker._DoiCheck__distribute_work(['not-a-doi'])
+            await doi_checker._distribute_work(['not-a-doi'], doi_checker.NUM_API_WORKERS)
 
         mock_api.assert_not_called()
         assert 'not-a-doi' in doi_checker.invalid_doi_list
@@ -662,8 +662,8 @@ class TestDoiFormatCheck:
         """A well-formed DOI is sent to the CrossRef API."""
         db_mock = Mock(spec=database_io.DatabaseIO)
         doi_checker = DoiCheck(db_mock)
-        doi_checker.pbar_doi = Mock()
-        doi_checker.pbar_doi.update = Mock()
+        doi_checker.pbar = Mock()
+        doi_checker.pbar.update = Mock()
 
         async def mock_api(doi):
             return {'status': 200, 'max_queries': '50', 'seconds': '1'}
@@ -671,7 +671,7 @@ class TestDoiFormatCheck:
         doi_checker._DoiCheck__api_send_head_request = mock_api
         doi_checker._DoiCheck__rate_limit_wait = AsyncMock()
 
-        await doi_checker._DoiCheck__distribute_work(['10.1234/valid'])
+        await doi_checker._distribute_work(['10.1234/valid'], doi_checker.NUM_API_WORKERS)
 
         assert '10.1234/valid' in doi_checker.valid_doi_list
         assert doi_checker.invalid_doi_list == []

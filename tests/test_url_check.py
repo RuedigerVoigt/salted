@@ -503,7 +503,7 @@ class TestSessionManagement:
             mock_session = AsyncMock()
             mock_session_class.return_value = mock_session
 
-            await url_checker._UrlCheck__create_session()
+            await url_checker._create_session()
 
             assert url_checker.session == mock_session
             mock_session_class.assert_called_once()
@@ -514,7 +514,7 @@ class TestSessionManagement:
         mock_session = AsyncMock()
         url_checker.session = mock_session
 
-        await url_checker._UrlCheck__close_session()
+        await url_checker._close_session()
 
         mock_session.close.assert_called_once()
 
@@ -524,7 +524,7 @@ class TestSessionManagement:
         url_checker.session = None
 
         # Should not raise exception
-        await url_checker._UrlCheck__close_session()
+        await url_checker._close_session()
 
 
 class TestIgnoreDomains:

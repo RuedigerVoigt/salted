@@ -20,10 +20,11 @@ from tqdm.asyncio import tqdm  # type: ignore
 from userprovided import ip as ip_check
 
 from salted import database_io, err
+from salted.checker_base import AsyncCheckerBase
 from salted.rate_limiter import DomainRateLimiter
 
 
-class UrlCheck:
+class UrlCheck(AsyncCheckerBase):
     """Interact with the network to check URLs."""
     # pylint: disable=too-many-instance-attributes
 
@@ -55,6 +56,8 @@ class UrlCheck:
             quiet: If True, suppress progress messages.
         """
         # pylint: disable=too-many-arguments
+        super().__init__(quiet=quiet)
+
         self.headers: dict = dict()
         if user_agent:
             self.headers = {'User-Agent': user_agent}
@@ -65,25 +68,11 @@ class UrlCheck:
         self.ignore_domains = ignore_domains if ignore_domains else set()
 
         self.num_workers: int | str = workers
-        self.quiet = quiet
 
         self.cnt: Counter = Counter()
 
-        self.pbar_links: tqdm | None = None
-
-        self.session: aiohttp.ClientSession | None = None
-
         # Initialize domain-based rate limiter
         self.rate_limiter = DomainRateLimiter(delay_seconds=domain_delay)
-
-    async def __create_session(self) -> None:
-        # Create a client session bound to the current running loop
-        self.session = aiohttp.ClientSession()
-
-    async def __close_session(self) -> None:
-        """Close the session object once it is no longer needed."""
-        if self.session:
-            await self.session.close()
 
     def __recommend_num_workers(self,
                                 num_checks: int) -> int:
@@ -301,47 +290,21 @@ class UrlCheck:
             logging.exception('Exception. URL %s', url, exc_info=True)
             self.db.log_exception(url, f"Unexpected error ({type(exc).__name__})")
 
-    async def __worker(self,
-                       name: str,
-                       queue: asyncio.Queue) -> None:
-        """Worker coroutine to process URL checks from the queue.
+    async def _process_item(self, item: str) -> None:
+        """Check a single URL from the queue."""
+        await self.validate_url(item)
+
+    def _fill_queue(self,
+                    items: list,
+                    queue: asyncio.Queue) -> None:
+        """Enqueue the URL from each result tuple.
 
         Args:
-            name: Worker identifier for debugging purposes.
-            queue: Async queue containing URLs to check.
+            items: List of tuples whose first element is the URL to validate.
+            queue: Async queue the workers consume from.
         """
-        # DO NOT REMOVE 'while True'. Without that the queue is stopped
-        # after the first iteration.
-        while True:
-            url = await queue.get()
-            await self.validate_url(url)
-            if self.pbar_links is not None:
-                self.pbar_links.update(1)
-            queue.task_done()
-
-    async def __distribute_work(self,
-                                urls_to_check: list) -> None:
-        """Start a queue and spawn workers to work in parallel.
-
-        Args:
-            urls_to_check: List of tuples containing URLs to validate.
-        """
-        queue: asyncio.Queue = asyncio.Queue()
-        for entry in urls_to_check:
+        for entry in items:
             queue.put_nowait(entry[0])
-
-        await self.__create_session()
-        tasks = []
-        try:
-            for i in range(int(self.num_workers)):
-                task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
-                tasks.append(task)
-            await queue.join()
-        finally:
-            for task in tasks:
-                task.cancel()
-            await self.__close_session()
-            await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_urls(self) -> None:
         """Process all URLs that are not assumed as valid in the cache.
@@ -357,11 +320,12 @@ class UrlCheck:
         num_checks = len(urls_to_check)
         # Set of number of workers here instead of __distribute_work as
         # otherwise the logging message will force the progress bar to repaint.
-        self.num_workers = self.__recommend_num_workers(num_checks)
+        num_workers = self.__recommend_num_workers(num_checks)
+        self.num_workers = num_workers
         if not self.quiet:
-            print(f"{num_checks} URLs to check with {self.num_workers} workers:")
-        self.pbar_links = tqdm(total=num_checks, disable=self.quiet or not sys.stdout.isatty())
+            print(f"{num_checks} URLs to check with {num_workers} workers:")
+        self.pbar = tqdm(total=num_checks, disable=self.quiet or not sys.stdout.isatty())
         try:
-            asyncio.run(self.__distribute_work(urls_to_check))
+            asyncio.run(self._distribute_work(urls_to_check, num_workers))
         finally:
-            self.pbar_links.close()
+            self.pbar.close()

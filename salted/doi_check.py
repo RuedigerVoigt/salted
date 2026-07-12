@@ -16,17 +16,17 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from typing import Final
 
-import aiohttp
 from aiohttp import ClientTimeout
 from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io
+from salted.checker_base import AsyncCheckerBase
 
 # DOI format: prefix 10.NNNN[NN...] / suffix (at least one non-whitespace char)
 _DOI_PATTERN: Final = re.compile(r'^10\.\d{4,}/\S+$')
 
 
-class DoiCheck:
+class DoiCheck(AsyncCheckerBase):
     """Interact with the API to check DOIs."""
     # pylint: disable=too-few-public-methods
 
@@ -38,8 +38,9 @@ class DoiCheck:
                  quiet: bool = False,
                  mailto: str | None = None) -> None:
 
+        super().__init__(quiet=quiet)
+
         self.db = db_io
-        self.quiet = quiet
 
         # Do NOT conceal the user agent for API requests.
         # The providers of the API explicitly ask that bots identify themselves
@@ -63,10 +64,7 @@ class DoiCheck:
               + ")")
         self.headers = {'User-Agent': ua}
 
-        self.session: aiohttp.ClientSession | None = None
         self.timeout_sec = 3
-
-        self.pbar_doi: tqdm | None = None
 
         self.valid_doi_list: list = list()
         self.invalid_doi_list: list = list()
@@ -83,15 +81,6 @@ class DoiCheck:
     def _is_valid_doi_format(doi: str) -> bool:
         """Return True if doi matches the basic DOI format 10.NNNN/suffix."""
         return bool(_DOI_PATTERN.match(doi.strip()))
-
-    async def __create_session(self) -> None:
-        # Create a client session bound to the current running loop
-        self.session = aiohttp.ClientSession()
-
-    async def __close_session(self) -> None:
-        """Close the session object once it is no longer needed."""
-        if self.session:
-            await self.session.close()
 
     async def __rate_limit_wait(self,
                                 max_queries: int,
@@ -168,69 +157,42 @@ class DoiCheck:
                 'seconds':  timewindow,
                 'status': response.status}
 
-    async def __worker(self,
-                       name: str,
-                       queue: asyncio.Queue) -> None:
-        """Worker coroutine to process DOI checks from the queue.
+    async def _process_item(self, item: str) -> None:
+        """Check a single DOI against the API and enforce rate limiting."""
+        try:
+            api_response = await self.__api_send_head_request(item)
+            if api_response['status'] == 200:
+                logging.debug("DOI %s is valid", item)
+                self.valid_doi_list.append(item)
+            elif api_response['status'] == 404:
+                logging.debug("DOI %s does not exist!", item)
+                self.invalid_doi_list.append(item)
+            else:
+                if not self.quiet:
+                    print(f"Unexpected API response: {api_response['status']}")
+            await self.__rate_limit_wait(
+                int(api_response['max_queries']),
+                int(api_response['seconds']))
+        except Exception:
+            logging.exception("Failed to check DOI %s", item)
 
-        Waits for API request results and enforces rate limiting.
+    def _fill_queue(self,
+                    items: list,
+                    queue: asyncio.Queue) -> None:
+        """Enqueue DOIs that pass the basic format preflight.
 
-        Args:
-            name: Worker identifier for debugging purposes.
-            queue: Async queue containing DOIs to check.
-        """
-        # DO NOT REMOVE 'while True'. Without that the queue is stopped
-        # after the first iteration.
-        while True:
-            doi = await queue.get()
-            try:
-                api_response = await self.__api_send_head_request(doi)
-                if api_response['status'] == 200:
-                    logging.debug("DOI %s is valid", doi)
-                    self.valid_doi_list.append(doi)
-                elif api_response['status'] == 404:
-                    logging.debug("DOI %s does not exist!", doi)
-                    self.invalid_doi_list.append(doi)
-                else:
-                    if not self.quiet:
-                        print(f"Unexpected API response: {api_response['status']}")
-                await self.__rate_limit_wait(
-                    int(api_response['max_queries']),
-                    int(api_response['seconds']))
-            except Exception:
-                logging.exception("Failed to check DOI %s", doi)
-            finally:
-                if self.pbar_doi is not None:
-                    self.pbar_doi.update(1)
-                queue.task_done()
-
-    async def __distribute_work(self,
-                                doi_list: list) -> None:
-        """Start a queue and spawn workers to work in parallel.
+        Malformed entries are recorded as invalid without an API call.
 
         Args:
-            doi_list: List of DOI strings to check.
+            items: List of DOI strings to check.
+            queue: Async queue the workers consume from.
         """
-        queue: asyncio.Queue = asyncio.Queue()
-        for entry in doi_list:
+        for entry in items:
             if self._is_valid_doi_format(entry):
                 queue.put_nowait(entry)
             else:
                 logging.warning("DOI '%s' fails basic format check — skipping API call.", entry)
                 self.invalid_doi_list.append(entry)
-
-        await self.__create_session()
-        tasks = []
-        try:
-            for i in range(int(self.NUM_API_WORKERS)):
-                task = asyncio.create_task(self.__worker(f'worker-{i}', queue))
-                tasks.append(task)
-            await queue.join()
-        finally:
-            for task in tasks:
-                task.cancel()
-            await self.__close_session()
-            await asyncio.gather(*tasks, return_exceptions=True)
 
     def check_dois(self) -> None:
         """Check the DOIs in the queue and show a progress bar.
@@ -244,11 +206,11 @@ class DoiCheck:
         num_doi = len(dois_to_check)
         if not self.quiet:
             print(f"{num_doi} DOI{'s' if num_doi != 1 else ''} to check:")
-        self.pbar_doi = tqdm(total=num_doi, disable=self.quiet or not sys.stdout.isatty())
+        self.pbar = tqdm(total=num_doi, disable=self.quiet or not sys.stdout.isatty())
         try:
-            asyncio.run(self.__distribute_work(dois_to_check))
+            asyncio.run(self._distribute_work(dois_to_check, self.NUM_API_WORKERS))
         finally:
-            self.pbar_doi.close()
+            self.pbar.close()
         # executemany needs a list of tuples:
         if self.valid_doi_list:
             self.db.save_valid_dois([(doi, ) for doi in self.valid_doi_list])

@@ -52,6 +52,7 @@
   * Removed the unused async variants `UrlCheck.check_urls_async` and `DoiCheck.check_dois_async` — they were never reachable through the documented API.
   * Removed the dead `doi` column from the in-memory `queue` table — it was never written or read (DOIs live in the separate `queue_doi` table).
   * Refactor `command_line.main()` into a parser builder plus table-driven override helpers (no behavior change).
+  * De-duplicated the async scaffolding shared by `UrlCheck` and `DoiCheck`: session lifecycle, the worker loop, and work distribution now live in a common base class (`salted/checker_base.py`, `AsyncCheckerBase`); each checker only implements how a single item is checked and how the queue is filled (no behavior change).
   * CI now also tests against the Python 3.15 beta (Linux, Windows, and macOS) as an experimental, allowed-to-fail matrix entry to catch breakage early.
 
 ## Version 1.0.1 (2025-11-04)
