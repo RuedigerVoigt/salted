@@ -10,6 +10,7 @@ Released under the Apache License 2.0
 
 import logging
 import re
+import urllib.parse
 
 from bs4 import BeautifulSoup  # type: ignore
 from pybtex.database import parse_string  # type: ignore
@@ -169,7 +170,6 @@ class Parser:
             List of raw address strings found in the ``to`` field.
             Empty list if the link is empty or cannot be parsed.
         """
-        import urllib.parse
         try:
             parsed = urllib.parse.urlparse(mailto_link)
             to_part = urllib.parse.unquote(parsed.path)

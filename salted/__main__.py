@@ -86,8 +86,8 @@ class Salted:
                 'incompatible_versions': ['3.6', '3.7', '3.8', '3.9', '3.10'],
                 'max_tested_version': '3.14'},
             nag_over_update={
-                    'nag_days_after_release': 60,
-                    'nag_in_hundred': 100},
+                    'nag_days_after_release': 365,
+                    'nag_in_hundred': 10},
             language_messages='en',
             system_support={'full': {'Linux', 'MacOS', 'Windows'}}
             )
