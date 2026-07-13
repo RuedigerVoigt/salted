@@ -105,6 +105,16 @@ class MemoryInstance:
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS invalidDois (
             doi text);''')
+        # table 'internalLinkFindings': internal links whose filesystem
+        # target is missing (isError = 1) or could not be verified, e.g.
+        # because it resolves outside the checked folder (isError = 0)
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS internalLinkFindings (
+            filePath text,
+            url text,
+            linktext text,
+            reason text,
+            isError integer);''')
 
         logging.debug("Created database schema.")
 

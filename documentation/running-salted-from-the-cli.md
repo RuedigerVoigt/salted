@@ -13,7 +13,8 @@ On the command line salted supports all parameters. To get an overview, simply t
 ```
 usage: salted [-h] [--config <path>] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>]
               [--timeout <seconds>] [--raise_for_dead_links | --no-raise_for_dead_links]
-              [--check_dois | --no-check_dois] [--user_agent <preset or custom string>] [--mailto <email>]
+              [--check_dois | --no-check_dois] [--check_internal_links | --no-check_internal_links]
+              [--user_agent <preset or custom string>] [--mailto <email>]
               [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>]
               [--domain_delay <seconds>] [--max_file_size_mb <MB>]
               [--cache_file <path>] [--dont_check_again_within_hours <hours>]
@@ -21,7 +22,7 @@ usage: salted [-h] [--config <path>] [-i <path>] [--file_types {supported,html,t
               [--write_to <path>] [--base_url https://www.example.com] [-q]
 
 Salted is an extremely fast link checker. It works with HTML, Markdown, TeX and BibTeX files.
-Currently it only checks external links.
+It checks external links and - for HTML files - internal links.
 
 options:
   -h, --help            show this help message and exit
@@ -42,6 +43,10 @@ options:
   --check_dois, --no-check_dois
                         Check DOIs via the CrossRef API (default: True). Use --no-check_dois
                         to skip DOI validation entirely.
+  --check_internal_links, --no-check_internal_links
+                        Verify that internal links in HTML files (relative paths, /root-relative
+                        paths, #fragments) point to existing files within the checked folder
+                        (default: True). Use --no-check_internal_links to skip.
   --mailto <email>      A contact e-mail address included in the CrossRef API User-Agent to opt
                         into the polite pool (higher rate limits). Optional but recommended if
                         you check DOIs.

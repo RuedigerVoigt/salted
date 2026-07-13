@@ -30,6 +30,7 @@ from salted import (
     err,
     file_finder,
     input_handler,
+    internal_link_check,
     memory_instance,
     parameter_rules,
     report_generator,
@@ -106,6 +107,7 @@ class Salted:
         self.domain_delay: float = 0.25
         self.mailto: str | None = None
         self.check_dois: bool = True
+        self.check_internal_links: bool = True
         self.max_file_size_mb: int = 20
         # Cache
         self.cache_file: pathlib.Path | str = 'salted-cache.sqlite3'
@@ -262,6 +264,8 @@ class Salted:
             if mailto:
                 self.mailto = mailto.strip()
             self.check_dois = self._from_config(behavior, 'check_dois', target)
+            self.check_internal_links = self._from_config(
+                behavior, 'check_internal_links', target)
             self.max_file_size_mb = self._from_config(
                 behavior, 'max_file_size_mb', target)
         if 'CACHE' in cfg.sections():
@@ -358,7 +362,22 @@ class Salted:
             raise FileNotFoundError(msg)
 
         filesearch = file_finder.FileFinder()
-        file_io = input_handler.InputHandler(db, quiet=self.quiet, max_file_size_mb=self.max_file_size_mb)
+
+        # Internal links are resolved against the checked folder, which
+        # also acts as a security boundary: targets resolving outside it
+        # are never probed on disk. For a single file, its parent folder
+        # is the boundary.
+        internal_checker = None
+        if self.check_internal_links:
+            internal_checker = internal_link_check.InternalLinkCheck(
+                root=path if path.is_dir() else path.parent,
+                max_file_size_mb=self.max_file_size_mb)
+
+        file_io = input_handler.InputHandler(
+            db,
+            quiet=self.quiet,
+            max_file_size_mb=self.max_file_size_mb,
+            internal_checker=internal_checker)
 
         FILE_TYPE_SUFFIXES = {
             'html': {'.htm', '.html'},
@@ -451,6 +470,13 @@ class Salted:
                 'check_dois': self.check_dois,
                 'num_valid_dois': num_valid_dois,
                 'num_invalid_dois': num_invalid_dois,
+                'check_internal_links': self.check_internal_links,
+                'num_internal_checked': (
+                    internal_checker.cnt['internal_checked']
+                    if internal_checker else 0),
+                'num_internal_fine': (
+                    internal_checker.cnt['internal_fine']
+                    if internal_checker else 0),
                           },
             template={
                 'searchpath': self.template_searchpath,
@@ -466,7 +492,8 @@ class Salted:
         # this run must survive a DeadLinksException, otherwise a failing
         # CI run would recheck everything on the next attempt.
         cache_handler.overwrite_cache_file()
-        if self.raise_for_dead_links and db.count_errors() > 0:
+        num_dead = db.count_errors() + db.count_internal_link_errors()
+        if self.raise_for_dead_links and num_dead > 0:
             raise err.DeadLinksException("Found dead URLs")
 
 

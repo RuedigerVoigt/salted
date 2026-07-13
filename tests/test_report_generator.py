@@ -494,6 +494,72 @@ class TestGenerateInvalidDoiList:
         mem_inst.tear_down_in_memory_db()
 
 
+class TestGenerateInternalLinkList:
+    """Test generate_internal_link_list."""
+
+    @staticmethod
+    def _log(cursor, file_path, url, linktext, reason, is_error):
+        cursor.execute('''
+            INSERT INTO internalLinkFindings
+            (filePath, url, linktext, reason, isError)
+            VALUES (?, ?, ?, ?, ?);''',
+            (file_path, url, linktext, reason, is_error))
+
+    def test_no_findings_returns_none(self):
+        """Returns None when no internal link findings were recorded."""
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        assert gen.generate_internal_link_list() is None
+        mem_inst.tear_down_in_memory_db()
+
+    def test_findings_grouped_by_file(self):
+        """Findings are grouped per file with a count and detail rows."""
+        mem_inst = memory_instance.MemoryInstance()
+        cursor = mem_inst.get_cursor()
+        self._log(cursor, 'index.html', 'gone.html', 'broken',
+                  'target file does not exist', 1)
+        self._log(cursor, 'index.html', '#nope', 'frag',
+                  "fragment '#nope' not found in target", 1)
+        gen = report_generator.ReportGenerator(mem_inst)
+        result = gen.generate_internal_link_list()
+        assert result is not None
+        assert len(result) == 1
+        assert result[0]['path'] == 'index.html'
+        assert result[0]['num_findings'] == 2
+        assert len(result[0]['findings']) == 2
+        mem_inst.tear_down_in_memory_db()
+
+    def test_errors_sorted_before_unverifiable(self):
+        """Within a file, broken links (isError=1) come before notes (0)."""
+        mem_inst = memory_instance.MemoryInstance()
+        cursor = mem_inst.get_cursor()
+        self._log(cursor, 'p.html', '../out.txt', 'escape',
+                  'not checked: resolves outside the checked folder', 0)
+        self._log(cursor, 'p.html', 'gone.html', 'broken',
+                  'target file does not exist', 1)
+        gen = report_generator.ReportGenerator(mem_inst)
+        result = gen.generate_internal_link_list()
+        # findings row layout: (url, linktext, reason, isError)
+        assert result[0]['findings'][0][3] == 1
+        assert result[0]['findings'][1][3] == 0
+        mem_inst.tear_down_in_memory_db()
+
+    def test_path_rewriting_applied(self):
+        """File paths are rewritten when replace_path_by_url is set."""
+        mem_inst = memory_instance.MemoryInstance()
+        cursor = mem_inst.get_cursor()
+        self._log(cursor, '/local/index.html', 'gone.html', 'x',
+                  'target file does not exist', 1)
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.replace_path_by_url = {
+            'path_to_be_replaced': '/local',
+            'replace_with_url': 'https://example.com',
+        }
+        result = gen.generate_internal_link_list()
+        assert result[0]['path'] == 'https://example.com/index.html'
+        mem_inst.tear_down_in_memory_db()
+
+
 class TestGenerateReport:
     """Test report generation with different templates and outputs"""
 

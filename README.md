@@ -68,7 +68,8 @@ SALTED does support the following file-formats:
 
 * **HTML** :
   * Standard hyperlinks / anchors are checked.
-  * Salted does not yet check relative links or `src` attributes of pictures.
+  * Internal links (relative paths like `../about/index.html`, root-relative paths like `/contact.html`, and fragments like `#section` or `page.html#intro`) are resolved on disk and verified to exist. Fragments must match an `id` (or `<a name>`) in the target HTML file. Disable with `--no-check_internal_links`. For security, targets resolving outside the checked folder are never probed — they are listed as "not checked".
+  * Salted does not yet check `src` attributes of pictures.
   * Mailto links are parsed and listed in the report with basic format validation (no DNS lookup or delivery check).
 * **Markdown** : The pandoc version as well as GitHub flavored markdown are supported.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.

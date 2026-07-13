@@ -205,6 +205,39 @@ class ReportGenerator:
                            'exceptions': exceptions})
         return result
 
+    def generate_internal_link_list(self) -> list | None:
+        """Generate a list of internal link findings grouped by file.
+
+        Returns:
+            List of dictionaries containing:
+                - path: File path (rewritten if base_url is set)
+                - num_findings: Number of findings in the file
+                - findings: List of (url, linktext, reason, isError) tuples
+            Returns None if all internal links were fine.
+        """
+        cursor = self.db.get_cursor()
+        cursor.execute('''
+            SELECT filePath, COUNT(*) AS numFindings
+            FROM internalLinkFindings
+            GROUP BY filePath
+            ORDER BY numFindings DESC, filePath ASC;''')
+        files_w_findings = cursor.fetchall()
+        if not files_w_findings:
+            return None
+        result = []
+        for file_path, num_findings in files_w_findings:
+            cursor.execute('''
+                SELECT url, linktext, reason, isError
+                FROM internalLinkFindings
+                WHERE filePath = ?
+                ORDER BY isError DESC, url ASC;''', [file_path])
+            findings = cursor.fetchall()
+            file_path = self._display_path(file_path)
+            result.append({'path': file_path,
+                           'num_findings': num_findings,
+                           'findings': findings})
+        return result
+
     def generate_mailto_list(self) -> list | None:
         """Generate a list of mailto links found during the scan.
 
@@ -295,6 +328,7 @@ class ReportGenerator:
         access_errors = self.generate_access_error_list()
         mailto_links = self.generate_mailto_list()
         invalid_dois = self.generate_invalid_doi_list()
+        internal_links = self.generate_internal_link_list()
 
         permanent_errors = self.generate_error_list()
 
@@ -321,7 +355,8 @@ class ReportGenerator:
                 redirects=permanent_redirects,
                 exceptions=crawl_exceptions,
                 mailto_links=mailto_links,
-                invalid_dois=invalid_dois)
+                invalid_dois=invalid_dois,
+                internal_links=internal_links)
         else:
             # external template from file system
             jinja_env = Environment(
@@ -335,7 +370,8 @@ class ReportGenerator:
                 redirects=permanent_redirects,
                 exceptions=crawl_exceptions,
                 mailto_links=mailto_links,
-                invalid_dois=invalid_dois)
+                invalid_dois=invalid_dois,
+                internal_links=internal_links)
 
         if write_to == 'cli':
             print(rendered_report)

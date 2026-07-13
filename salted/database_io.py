@@ -146,6 +146,40 @@ class DatabaseIO:
             INSERT INTO invalidDois (doi)
             VALUES (?);''', invalid_dois)
 
+    def log_internal_link_finding(self,
+                                  file_path: str,
+                                  url: str,
+                                  linktext: str,
+                                  reason: str,
+                                  is_error: int) -> None:
+        """Log a finding for an internal link.
+
+        Args:
+            file_path: Path to the file containing the link.
+            url: The link exactly as written in the document.
+            linktext: The link's text content.
+            reason: Why the link is broken or could not be verified.
+            is_error: 1 for a broken link, 0 for an unverifiable one.
+        """
+        self.cursor.execute('''
+            INSERT INTO internalLinkFindings
+            (filePath, url, linktext, reason, isError)
+            VALUES (?, ?, ?, ?, ?);''',
+            [file_path, url, linktext, reason, is_error])
+
+    def count_internal_link_errors(self) -> int:
+        """Return the number of broken internal links.
+
+        Unverifiable links (isError = 0) are not counted, so they can
+        never fail a CI run.
+
+        Returns:
+            Count of internal links whose target is missing.
+        """
+        self.cursor.execute(
+            'SELECT COUNT(*) FROM internalLinkFindings WHERE isError = 1;')
+        return self.cursor.fetchone()[0]
+
     def log_error(self,
                   url: str,
                   error_code: int) -> None:

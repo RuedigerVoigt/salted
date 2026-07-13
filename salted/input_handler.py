@@ -18,7 +18,7 @@ import userprovided
 import userprovided.mail as mail_check
 from tqdm.asyncio import tqdm  # type: ignore
 
-from salted import database_io, parser
+from salted import database_io, internal_link_check, parser
 
 
 class InputHandler:
@@ -27,7 +27,8 @@ class InputHandler:
     def __init__(self,
                  db: database_io.DatabaseIO,
                  quiet: bool = False,
-                 max_file_size_mb: int = 20):
+                 max_file_size_mb: int = 20,
+                 internal_checker: internal_link_check.InternalLinkCheck | None = None):
         """Initialize the InputHandler.
 
         Args:
@@ -35,10 +36,14 @@ class InputHandler:
             quiet: If True, suppress progress messages.
             max_file_size_mb: Maximum file size in megabytes to process.
                 Files exceeding this limit are skipped. Default: 20 MB.
+            internal_checker: Checker for internal links found in HTML
+                files. If None, internal links are counted as unsupported
+                and skipped.
         """
         self.db = db
         self.quiet = quiet
         self.max_file_size_mb = max_file_size_mb
+        self.internal_checker = internal_checker
         self.cnt: Counter = Counter()
         self.parser = parser.Parser()
 
@@ -99,6 +104,36 @@ class InputHandler:
                 str(path_to_file), str(unexpected))
         return content
 
+    def _handle_internal_link(self,
+                              file_path: pathlib.Path,
+                              url: str,
+                              linktext: str) -> bool:
+        """Check an internal link candidate against the local filesystem.
+
+        Internal links are only resolved for HTML sources: Markdown and
+        TeX documents are typically transformed before publication, so
+        their relative links do not map to files on disk.
+
+        Args:
+            file_path: The file the link was found in.
+            url: The link exactly as written in the document.
+            linktext: The link's text content.
+
+        Returns:
+            True if the link was handled as an internal link (whatever
+            the check result), False if it is not an internal candidate.
+        """
+        if (not self.internal_checker
+                or file_path.suffix.lower() not in ('.htm', '.html')
+                or not internal_link_check.InternalLinkCheck.is_internal_link(url)):
+            return False
+        finding = self.internal_checker.check_link(file_path, url)
+        if finding is not None:
+            self.db.log_internal_link_finding(
+                str(file_path), url, linktext,
+                reason=finding[0], is_error=finding[1])
+        return True
+
     def handle_found_urls(self,
                           file_path: pathlib.Path,
                           url_list: list) -> None:
@@ -145,6 +180,8 @@ class InputHandler:
                     for address in addresses:
                         valid = 1 if mail_check.is_email(address) else 0
                         mailto_found.append((str(file_path), url, address, valid))
+            elif self._handle_internal_link(file_path, url, linktext):
+                pass
             else:
                 # cannot check this kind of link
                 self.cnt['unsupported_scheme'] += 1

@@ -45,6 +45,25 @@ No permanent errors found!
 {% endfor %}
 {% endif %}
 
+{% if statistics.check_internal_links and statistics.num_internal_checked > 0 %}
+# INTERNAL LINKS (LOCAL FILES)
+
+Checked {{ statistics.num_internal_checked }} internal link{{ 's' if statistics.num_internal_checked != 1 else '' }} against the local filesystem; {{ statistics.num_internal_fine }} fine.
+
+{% if internal_links %}
+{% for result in internal_links %}
+**{{ result.path }}** ({{ result.num_findings }})
+
+|finding| link and link text |
+|------:|:------------------|
+{% for link in result.findings -%}
+|{{ link[2] }} | `{{ link[0] }}`|
+| | {{ link[1] }} |
+{% endfor %}
+{% endfor %}
+{% endif %}
+{% endif %}
+
 # PERMANENT REDIRECTS
 {% if not redirects %}
 No permanent redirects found!

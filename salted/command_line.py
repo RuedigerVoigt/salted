@@ -52,6 +52,7 @@ _VALIDATED_OVERRIDES = (
     'domain_delay',
     'raise_for_dead_links',
     'check_dois',
+    'check_internal_links',
     'file_types',
 )
 
@@ -70,7 +71,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         prog='salted',
         description=f"""Salted is an extremely fast link checker.
         It works with HTML, Markdown and TeX files.
-        Currently it only checks external links.
+        It checks external links and - for HTML files - internal links.
         You are using version {salted.__version__}.""",
         epilog="For more information see: https://github.com/RuedigerVoigt/salted"
     )
@@ -121,6 +122,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=None,
         help="Check DOIs via the CrossRef API (default: True). Use --no-check_dois to skip DOI validation.")
+    parser.add_argument(
+        "--check_internal_links",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=("Verify that internal links in HTML files (relative paths, "
+              "/root-relative paths, #fragments) point to existing files "
+              "within the checked folder (default: True). "
+              "Use --no-check_internal_links to skip."))
     parser.add_argument(
         "--mailto",
         type=str,
