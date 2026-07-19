@@ -32,7 +32,7 @@ dependencies = [
     "compatibility>=2.2.0",
     "jinja2>=3.1.6",
     "pybtex>=0.26.1",
-    "tqdm>=4.68.4",
+    "tqdm>=4.69.0",
     "userprovided>=2.6.0",
 ]
 
@@ -65,8 +65,8 @@ pytest-asyncio = ">=1.4.0"
 pytest-mock = ">=3.15.1"
 pyfakefs = ">=6.2.0"
 pytest-cov = "*"
-ruff = ">=0.15.21"
-mypy = ">=2.2.0"
+ruff = ">=0.15.22"
+mypy = ">=2.3.0"
 bandit = ">=1.9.4"
 
 [build-system]
