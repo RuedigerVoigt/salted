@@ -12,7 +12,9 @@ Source: https://github.com/RuedigerVoigt/salted
 import pytest
 import pathlib
 
-from salted import report_generator, memory_instance
+from jinja2.exceptions import SecurityError
+
+from salted import err, report_generator, memory_instance
 
 
 class TestReportGeneratorInitialization:
@@ -557,6 +559,96 @@ class TestGenerateInternalLinkList:
         }
         result = gen.generate_internal_link_list()
         assert result[0]['path'] == 'https://example.com/index.html'
+        mem_inst.tear_down_in_memory_db()
+
+
+class TestTemplateSecurity:
+    """External templates are untrusted input: sandboxed and name-checked."""
+
+    @staticmethod
+    def _render(tmp_path, template_body, name='evil.jinja'):
+        """Render a template from disk and return its output."""
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        template_dir = tmp_path / "templates"
+        template_dir.mkdir(exist_ok=True)
+        (template_dir / name).write_text(template_body, encoding='utf-8')
+        try:
+            gen.generate_report(
+                statistics={'num_links': 1},
+                template={'searchpath': str(template_dir), 'name': name},
+                write_to='cli',
+                replace_path_by_url={'replace_with_url': None})
+        finally:
+            mem_inst.tear_down_in_memory_db()
+
+    def test_template_cannot_reach_the_object_graph(self, tmp_path):
+        """The classic SSTI first step must be blocked by the sandbox.
+
+        A plain jinja2.Environment lets a template walk from any passed
+        variable to every loaded class and from there to code execution.
+        """
+        with pytest.raises(SecurityError):
+            self._render(
+                tmp_path,
+                "{{ statistics.__class__.__mro__[1].__subclasses__() | length }}")
+
+    @pytest.mark.parametrize('payload', [
+        "{{ statistics.__class__.__mro__[1].__subclasses__() }}",
+        "{{ statistics.__init__.__globals__ }}",
+        "{{ ''.__class__.__mro__[1].__subclasses__() }}",
+        "{{ self.__init__.__globals__ }}",
+        "{{ cycler.__init__.__globals__ }}",
+        "{{ namespace.__init__.__globals__ }}",
+    ])
+    def test_known_sandbox_escape_routes_are_blocked(self, tmp_path, payload):
+        """Common SSTI entry points must all raise rather than evaluate."""
+        with pytest.raises(SecurityError):
+            self._render(tmp_path, payload)
+
+    def test_ordinary_template_expressions_still_work(self, tmp_path):
+        """The sandbox must not break legitimate report templates."""
+        self._render(
+            tmp_path,
+            "{{ statistics.num_links }} links "
+            "{% for k, v in statistics.items() %}{{ k }}={{ v }}{% endfor %}",
+            name='fine.jinja')
+
+    @pytest.mark.parametrize('name', [
+        'id_rsa', '.env', 'credentials', 'secrets.ini',
+        'passwd', 'config.yml', 'evil.jinja.txt'])
+    def test_non_template_file_names_are_refused(self, tmp_path, name):
+        """template_name must not be able to point at an arbitrary file.
+
+        Jinja renders a file without template syntax as its own content,
+        so accepting any name turns template_name into a file-read
+        primitive that copies the file into the report.
+        """
+        with pytest.raises(err.UnsafeTemplateError):
+            self._render(tmp_path, "SUPERSECRET", name=name)
+
+    def test_template_extension_is_case_insensitive(self, tmp_path):
+        """A legitimate template is accepted regardless of suffix case."""
+        self._render(tmp_path, "ok", name='Report.JINJA')
+
+    def test_builtin_template_names_still_load(self):
+        """The packaged templates must keep working under the sandbox."""
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        for builtin in report_generator.BUILTIN_TEMPLATES:
+            gen.generate_report(
+                statistics={'num_links': 0, 'num_checked': 0, 'timestamp': 'now',
+                            'time_to_check': 0, 'checks_per_second': 0,
+                            'num_fine': 0, 'needed_full_request': 0,
+                            'percentage_full_request': 0, 'check_dois': False,
+                            'num_valid_dois': 0, 'num_invalid_dois': 0,
+                            'check_internal_links': False,
+                            'num_internal_checked': 0, 'num_internal_fine': 0},
+                template={'searchpath': None, 'name': builtin},
+                write_to='cli',
+                replace_path_by_url={'replace_with_url': None})
         mem_inst.tear_down_in_memory_db()
 
 

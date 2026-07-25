@@ -33,6 +33,17 @@ class ConfigFileError(SaltedException):
     """
 
 
+class UnsafeTemplateError(SaltedException):
+    """Raised when a template must not be loaded or rendered.
+
+    Report templates are loaded from a path that may originate in the
+    checked folder, so they are treated as untrusted input: only files
+    with the expected template extension are accepted, and rendering
+    happens in a sandbox. This exception reports a template rejected
+    before it was read.
+    """
+
+
 class RedirectBlockedException(SaltedException):
     """Raised when a redirect target must not be requested.
 

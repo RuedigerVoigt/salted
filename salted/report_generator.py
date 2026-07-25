@@ -9,10 +9,23 @@ Released under the Apache License 2.0
 """
 import logging
 import pathlib
+from typing import Final
 
-from jinja2 import Environment, FileSystemLoader, PackageLoader
+from jinja2 import FileSystemLoader, PackageLoader
+from jinja2.sandbox import SandboxedEnvironment
 
-from salted import memory_instance
+from salted import err, memory_instance
+
+# Templates shipped inside the package. Anything else is loaded from a
+# path that may come from the checked folder, i.e. from untrusted input.
+BUILTIN_TEMPLATES: Final[tuple] = ('default.cli.jinja', 'default.md.jinja')
+
+# External templates must carry this extension. Without it, template_name
+# can name any file the process can read — a .ini pointing at an SSH key
+# or a .env file would have it rendered into the report verbatim, as a
+# file without Jinja syntax renders as its own content. Secrets very
+# rarely carry a .jinja extension, so this removes the easy targets.
+TEMPLATE_SUFFIX: Final[str] = '.jinja'
 
 
 class ReportGenerator:
@@ -296,6 +309,25 @@ class ReportGenerator:
             })
         return result
 
+    @staticmethod
+    def _reject_unsafe_template_name(name: str) -> None:
+        """Refuse template names that do not look like a template file.
+
+        Args:
+            name: The template file name as configured.
+
+        Raises:
+            err.UnsafeTemplateError: If the name lacks the template
+                extension. Jinja2 renders a file without template syntax
+                as its own content, so an arbitrary file named here would
+                be copied into the report.
+        """
+        if not name.lower().endswith(TEMPLATE_SUFFIX):
+            raise err.UnsafeTemplateError(
+                f"Refusing to load template '{name}': a template file name "
+                f"must end in '{TEMPLATE_SUFFIX}'. Any other file would be "
+                'rendered into the report as its own content.')
+
     def generate_report(self,
                         statistics: dict,
                         template: dict,
@@ -340,38 +372,34 @@ class ReportGenerator:
         if self.show_exceptions:
             crawl_exceptions = self.generate_exception_list()
 
-        rendered_report = ''
+        render_context = {
+            'statistics': statistics,
+            'access_errors': access_errors,
+            'permanent': permanent_errors,
+            'redirects': permanent_redirects,
+            'exceptions': crawl_exceptions,
+            'mailto_links': mailto_links,
+            'invalid_dois': invalid_dois,
+            'internal_links': internal_links,
+        }
 
-        if template['name'] in ('default.cli.jinja', 'default.md.jinja'):
-            # built-in template
-            jinja_env = Environment(  # nosec B701 - built-in templates output plain text/markdown, not HTML
+        # Rendering is sandboxed in both cases. A plain Environment lets a
+        # template walk the object graph of any variable it is given
+        # (value.__class__.__mro__ ... __subclasses__()) and reach code
+        # execution. autoescape does not prevent that: it escapes the
+        # *result* of an expression, not what the expression may evaluate.
+        if template['name'] in BUILTIN_TEMPLATES:
+            jinja_env = SandboxedEnvironment(  # nosec B701 - built-in templates output plain text/markdown, not HTML
                 loader=PackageLoader('salted', 'templates'),
                 autoescape=False)
-            builtin_template = jinja_env.get_template(template['name'])
-            rendered_report = builtin_template.render(
-                statistics=statistics,
-                access_errors=access_errors,
-                permanent=permanent_errors,
-                redirects=permanent_redirects,
-                exceptions=crawl_exceptions,
-                mailto_links=mailto_links,
-                invalid_dois=invalid_dois,
-                internal_links=internal_links)
         else:
-            # external template from file system
-            jinja_env = Environment(
+            self._reject_unsafe_template_name(template['name'])
+            jinja_env = SandboxedEnvironment(
                 loader=FileSystemLoader(searchpath=template['searchpath']),
                 autoescape=True)
-            user_template = jinja_env.get_template(template['name'])
-            rendered_report = user_template.render(
-                statistics=statistics,
-                access_errors=access_errors,
-                permanent=permanent_errors,
-                redirects=permanent_redirects,
-                exceptions=crawl_exceptions,
-                mailto_links=mailto_links,
-                invalid_dois=invalid_dois,
-                internal_links=internal_links)
+
+        rendered_report = jinja_env.get_template(
+            template['name']).render(**render_context)
 
         if write_to == 'cli':
             print(rendered_report)

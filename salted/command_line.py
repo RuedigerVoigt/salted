@@ -18,7 +18,7 @@ from userprovided.parameters import separated_string_to_set
 
 import salted
 from salted import parameter_rules
-from salted.err import ConfigFileError
+from salted.err import ConfigFileError, UnsafeTemplateError
 from salted.user_agents import get_user_agent, list_presets
 
 # ##################### CLI argument -> Salted attribute maps #####################
@@ -299,4 +299,12 @@ def main() -> None:
     _apply_mapped_overrides(checker, args, parser)
     _apply_special_overrides(checker, args)
 
-    checker.check(checker.searchpath)
+    # A rejected template is an expected user error (a mistyped name, or a
+    # config pointing at a file that is not a template). Report it the same
+    # way as a bad config file: a clear message and a non-zero exit code
+    # rather than a traceback.
+    try:
+        checker.check(checker.searchpath)
+    except UnsafeTemplateError as exc:
+        logging.error(str(exc))
+        sys.exit(1)
