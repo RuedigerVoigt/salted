@@ -17,6 +17,106 @@ from salted import Salted
 from salted.err import ConfigFileError
 
 
+class TestAutodiscoveredConfigPathJail:
+    """A config file merely found in the CWD may not reach outside it.
+
+    Such a file can ship with the content being checked, so the paths it
+    sets are confined to its own folder. Without that, it could point
+    template_searchpath at any readable directory (Jinja2 renders a file
+    without template syntax as its own content) or write_to / cache_file
+    at any writable location.
+    """
+
+    @staticmethod
+    def _write_config(folder, body):
+        (folder / "salted-linkcheck.ini").write_text(body, encoding='utf-8')
+
+    @pytest.mark.parametrize('key, section', [
+        ('template_searchpath', 'TEMPLATE'),
+        ('write_to', 'TEMPLATE'),
+        ('cache_file', 'CACHE'),
+    ])
+    def test_path_outside_the_config_folder_is_refused(
+            self, tmp_path, monkeypatch, key, section):
+        """Each path-valued key is confined to the config file's folder."""
+        outside = tmp_path.parent / "elsewhere"
+        outside.mkdir(exist_ok=True)
+        work = tmp_path / "work"
+        work.mkdir()
+        self._write_config(work, f"[{section}]\n{key} = {outside}\n")
+        monkeypatch.chdir(work)
+
+        checker = Salted()
+        with pytest.raises(ConfigFileError, match='points outside'):
+            checker.check_parameters()
+
+    @pytest.mark.parametrize('key, section', [
+        ('template_searchpath', 'TEMPLATE'),
+        ('write_to', 'TEMPLATE'),
+        ('cache_file', 'CACHE'),
+    ])
+    def test_path_inside_the_config_folder_is_allowed(
+            self, tmp_path, monkeypatch, key, section):
+        """A repo may still point at its own files."""
+        self._write_config(tmp_path, f"[{section}]\n{key} = local/thing\n")
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        checker.check_parameters()
+        assert getattr(checker, key) == 'local/thing'
+
+    def test_write_to_cli_is_not_treated_as_a_path(self, tmp_path, monkeypatch):
+        """'cli' means stdout and must not be resolved as a filesystem path."""
+        self._write_config(tmp_path, "[TEMPLATE]\nwrite_to = cli\n")
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        checker.check_parameters()
+        assert checker.write_to == 'cli'
+
+    def test_explicit_config_is_trusted(self, tmp_path, monkeypatch):
+        """Naming a config with --config opts into it, so it is unrestricted."""
+        outside = tmp_path.parent / "elsewhere"
+        outside.mkdir(exist_ok=True)
+        cfg = tmp_path / "explicit.ini"
+        cfg.write_text(f"[CACHE]\ncache_file = {outside / 'c.sqlite3'}\n",
+                       encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted(config_path=cfg)
+        checker.check_parameters()
+        assert str(outside) in str(checker.cache_file)
+
+    def test_overriding_the_value_lifts_the_restriction(
+            self, tmp_path, monkeypatch):
+        """An operator override is deliberate, whatever the config said.
+
+        This is the library API: attributes are assigned directly, with no
+        command line involved.
+        """
+        outside = tmp_path.parent / "elsewhere"
+        outside.mkdir(exist_ok=True)
+        work = tmp_path / "work"
+        work.mkdir()
+        self._write_config(work, f"[CACHE]\ncache_file = {outside}\n")
+        monkeypatch.chdir(work)
+
+        checker = Salted()
+        checker.cache_file = str(outside / "chosen.sqlite3")
+        checker.check_parameters()
+        assert checker.cache_file == str(outside / "chosen.sqlite3")
+
+    def test_untouched_defaults_are_not_restricted(self, tmp_path, monkeypatch):
+        """Only keys the config file actually sets are confined."""
+        self._write_config(tmp_path, "[BEHAVIOR]\ntimeout = 7\n")
+        monkeypatch.chdir(tmp_path)
+
+        checker = Salted()
+        checker.cache_file = "/somewhere/else/cache.sqlite3"
+        checker.check_parameters()
+        assert checker.timeout == 7
+
+
 class TestConfigFileHandling:
     """Test configuration file loading"""
 
@@ -125,9 +225,11 @@ file_types = html
     def test_config_file_with_template_section(self, tmp_path, monkeypatch):
         """Test loading TEMPLATE section from config"""
         config_file = tmp_path / "salted-linkcheck.ini"
+        # Paths stay inside the config file's own folder: a config that was
+        # merely found in the working directory may not reach outside it.
         config_file.write_text("""
 [TEMPLATE]
-template_searchpath = /path/to/templates
+template_searchpath = templates
 template_name = custom.jinja
 write_to = report.md
 base_url = http://example.com/
@@ -136,7 +238,7 @@ base_url = http://example.com/
         monkeypatch.chdir(tmp_path)
 
         checker = Salted()
-        assert checker.template_searchpath == '/path/to/templates'
+        assert checker.template_searchpath == 'templates'
         assert checker.template_name == 'custom.jinja'
         assert checker.write_to == 'report.md'
         # Base URL still has slash at this point; stripped in check_parameters()

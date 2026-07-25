@@ -119,6 +119,17 @@ class Salted:
         self.base_url: str | None = None
         self.quiet: bool = False
 
+        # Path settings that came from an auto-discovered config file, i.e.
+        # a salted-linkcheck.ini simply found in the working directory. Such
+        # a file is not operator input: it can ship with the very content
+        # being checked, so the paths it sets are confined to its own folder
+        # (see __enforce_untrusted_path_jail). The value is kept alongside
+        # the name so that a setting the operator later overrides - via a
+        # CLI option or by assigning the attribute when salted is used as a
+        # library - is recognised as deliberate and left alone.
+        self._untrusted_path_settings: dict[str, str] = {}
+        self._untrusted_config_dir: pathlib.Path | None = None
+
         # If there is a configfile, overwrite defaults with those settings
         self.__parse_configfile(config_path)
 
@@ -179,6 +190,77 @@ class Salted:
             logging.error(str(exc))
             raise err.ConfigFileError(str(exc)) from exc
 
+    def __adopt_path_setting(self,
+                             section: configparser.SectionProxy,
+                             key: str,
+                             autodiscovered: bool) -> Any:
+        """Read a path-valued option, noting whether its source is trusted.
+
+        Args:
+            section: The config file section to read from.
+            key: The option name, which is also the attribute name.
+            autodiscovered: True if the config file was merely found in the
+                working directory rather than named by the operator.
+
+        Returns:
+            The configured value, or the current default if the key is absent.
+        """
+        raw = section.get(key)
+        if raw is None:
+            return getattr(self, key)
+        if autodiscovered:
+            self._untrusted_path_settings[key] = raw
+        return raw
+
+    def __enforce_untrusted_path_jail(self) -> None:
+        """Confine paths from an auto-discovered config to its own folder.
+
+        A `salted-linkcheck.ini` that is merely present in the working
+        directory may ship with the content being checked. Left unchecked it
+        can point `template_searchpath` at any readable directory (whose
+        files Jinja2 renders into the report verbatim), and `write_to` or
+        `cache_file` at any writable location. Both are confined here to the
+        folder holding the config file, so such a file can only reach what
+        the operator already exposed to salted.
+
+        A setting whose value no longer matches what the config file held was
+        overridden by the operator - on the command line or by assigning the
+        attribute through the library API - and is therefore left alone.
+
+        Raises:
+            err.ConfigFileError: If a noted setting resolves outside the
+                folder containing the config file.
+        """
+        if not self._untrusted_path_settings or not self._untrusted_config_dir:
+            return
+
+        jail = self._untrusted_config_dir
+        for name, from_config in sorted(self._untrusted_path_settings.items()):
+            value = getattr(self, name)
+            if str(value) != from_config:
+                # Overridden since the config was read: operator's choice.
+                continue
+            # 'cli' is a sentinel meaning stdout, not a filesystem path.
+            if name == 'write_to' and str(value) == 'cli':
+                continue
+            try:
+                resolved = pathlib.Path(value).resolve()
+            except (OSError, ValueError, RuntimeError) as exc:
+                msg = (f"Cannot resolve '{name}' from the config file in "
+                       f"{jail}: {value}")
+                logging.error(msg)
+                raise err.ConfigFileError(msg) from exc
+            if resolved != jail and not resolved.is_relative_to(jail):
+                msg = (
+                    f"Refusing '{name} = {value}' from the config file found "
+                    f"in {jail}: it points outside that folder ({resolved}). "
+                    'A configuration file that was not named explicitly may '
+                    'only reference paths inside its own directory. Pass '
+                    '--config to use it deliberately, or set the value on '
+                    'the command line.')
+                logging.error(msg)
+                raise err.ConfigFileError(msg)
+
     def __parse_configfile(self, config_path: pathlib.Path | None = None) -> None:
         """Parse configuration file and overwrite defaults with its settings.
 
@@ -238,6 +320,14 @@ class Salted:
             logging.error(msg)
             raise err.ConfigFileError(msg) from exc
 
+        # A config file the operator named with --config is trusted input.
+        # One merely found in the working directory is not: it can belong to
+        # the checked content, so the paths it sets are confined later by
+        # __enforce_untrusted_path_jail.
+        autodiscovered = config_path is None
+        if autodiscovered:
+            self._untrusted_config_dir = target.resolve().parent
+
         for section in cfg.sections():
             if section not in {'BEHAVIOR', 'CACHE', 'FILES', 'TEMPLATE'}:
                 msg = (f"Config file contains unknown section '{section}': "
@@ -270,7 +360,8 @@ class Salted:
                 behavior, 'max_file_size_mb', target)
         if 'CACHE' in cfg.sections():
             cache = cfg['CACHE']
-            self.cache_file = cache.get('cache_file', self.cache_file)  # type: ignore[arg-type]
+            self.cache_file = self.__adopt_path_setting(
+                cache, 'cache_file', autodiscovered)
             self.dont_check_again_within_hours = self._from_config(
                 cache, 'dont_check_again_within_hours', target)
         if 'FILES' in cfg.sections():
@@ -279,11 +370,12 @@ class Salted:
             self.file_types = self._from_config(files, 'file_types', target)
         if 'TEMPLATE' in cfg.sections():
             template = cfg['TEMPLATE']
-            self.template_searchpath = template.get(
-                'template_searchpath', self.template_searchpath)
+            self.template_searchpath = self.__adopt_path_setting(
+                template, 'template_searchpath', autodiscovered)
             self.template_name = template.get(
                 'template_name', self.template_name)
-            self.write_to = template.get('write_to', self.write_to)  # type: ignore[arg-type]
+            self.write_to = self.__adopt_path_setting(
+                template, 'write_to', autodiscovered)
             self.base_url = template.get('base_url', self.base_url)
 
     def check_parameters(self) -> None:
@@ -295,6 +387,9 @@ class Salted:
             self.base_url = None
         if self.base_url:
             self.base_url = self.base_url.rstrip('/')
+        # Applied once the CLI has had its say, so an explicit option can
+        # still override a value an auto-discovered config file supplied.
+        self.__enforce_untrusted_path_jail()
 
     def check(self,
               searchpath: str | pathlib.Path) -> None:

@@ -16,6 +16,20 @@ This is useful when you want to share a single config file across multiple proje
 
 When you pass a config file with `--config`, salted treats any problem with it as a hard error: if the file is missing, cannot be read (for example a permission error), or is corrupted (not valid INI), salted prints a clear message and stops with a non-zero exit code instead of silently falling back to defaults. The same applies to a `salted-linkcheck.ini` found in the working directory if it is corrupted or contains an unknown section — only a *missing* default file is treated as "use defaults". (When used as a library, these conditions raise `salted.err.ConfigFileError`.)
 
+### Auto-discovered config files may only point inside their own folder
+
+A config file that salted simply *finds* in the working directory is not necessarily something you wrote: it can ship with the very content you are checking, for example in a repository you cloned. Such a file is therefore restricted — the path settings `template_searchpath`, `write_to`, and `cache_file` must resolve **inside the folder holding the config file**. A value pointing outside it stops the run with a clear message.
+
+This matters because those settings are powerful. `template_searchpath` combined with `template_name` decides which file is loaded as a template, and Jinja2 renders a file that contains no template syntax as its own content — so an unrestricted value could copy an SSH key or a `.env` file straight into the report. `write_to` and `cache_file` decide where salted writes.
+
+The restriction applies **only** to a config file that was auto-discovered, and only to keys that file actually sets. It does not apply when you:
+
+* name the file yourself with `--config` (you opted into it),
+* set the value on the command line (e.g. `--write_to /tmp/report.md`), or
+* assign the attribute when using salted as a library.
+
+So a project can still ship a config that points at its own template folder, while a config file you did not write cannot reach the rest of your filesystem.
+
 ## Parameters / Initializing
 
 All versions of salted use the same parameters. Their categories are only important for config files.
@@ -41,7 +55,7 @@ Values are validated at startup with the same rules regardless of whether they a
   * `cache_file`: Path to the cache file. Default is `salted-cache.sqlite3` in the current working directory.
   * `dont_check_again_within_hours`: The cache lifetime in full hours for **URLs**. If a URL was valid this number of hours ago, salted assumes it is still valid and will not check it again. This defaults to 24 hours. Note: validated DOIs are cached permanently and are never re-checked — DOIs are persistent identifiers by design.
 * **Category "TEMPLATE":**
-  * `template_searchpath`: In case you want to use a custom template, this has to be the path to the *folder* in which the template file can be found.
-  * `template_name`: The name of the template file. Built-In templates are `default.md.jinja` (for markdown output) and `default.cli.jinja` (for text output on the command line).
+  * `template_searchpath`: In case you want to use a custom template, this has to be the path to the *folder* in which the template file can be found. In an auto-discovered config file this path must stay inside that file's own folder (see above).
+  * `template_name`: The name of the template file, which must end in `.jinja`. Built-In templates are `default.md.jinja` (for markdown output) and `default.cli.jinja` (for text output on the command line). Custom templates are rendered in a Jinja2 sandbox, since a template can come from the folder being checked: expressions that reach into Python internals (`__class__`, `__mro__`, `__subclasses__` and similar) raise a `SecurityError` rather than being evaluated.
   * `write_to`: Default is 'cli' to write to standard out. Alternatively this accepts a file path.
   * `base_url`: The file system path to the checked folder is replaced with this URL in template outputs. So for example if you check the folder `/home/username/homepage/` and in the file `index.html` has a broken link, then the path could be changed to `https://www.example.com/index.html`.

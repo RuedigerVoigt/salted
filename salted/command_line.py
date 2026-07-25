@@ -299,12 +299,12 @@ def main() -> None:
     _apply_mapped_overrides(checker, args, parser)
     _apply_special_overrides(checker, args)
 
-    # A rejected template is an expected user error (a mistyped name, or a
-    # config pointing at a file that is not a template). Report it the same
-    # way as a bad config file: a clear message and a non-zero exit code
-    # rather than a traceback.
+    # A rejected template or a config file reaching outside its own folder is
+    # an expected, actionable error - a mistyped name, or a configuration that
+    # is not allowed to point where it does. Report those the way a bad config
+    # file is reported: a clear message and a non-zero exit code, no traceback.
     try:
         checker.check(checker.searchpath)
-    except UnsafeTemplateError as exc:
+    except (UnsafeTemplateError, ConfigFileError) as exc:
         logging.error(str(exc))
         sys.exit(1)
