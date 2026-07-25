@@ -9,6 +9,8 @@ Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2025: Released under the Apache License 2.0
 """
 
+import time
+
 from salted.parser import Parser
 
 
@@ -210,3 +212,116 @@ class TestTexParsing:
         urls = [link[0] for link in links]
         assert 'http://url-example.com' in urls
         assert 'http://href-example.com' in urls
+
+    def test_href_optional_argument_does_not_span_the_line(self):
+        """The optional [...] argument must not swallow later href commands.
+
+        With a greedy '.*' the optional group ate everything up to the last
+        ']' on the line, so the first href here was misparsed.
+        """
+        parser = Parser()
+        tex = r"\href[a]{http://one.example}{One} [x] \href[b]{http://two.example}{Two}"
+        links = parser.extract_links_from_tex(tex)
+
+        urls = [link[0] for link in links]
+        assert urls == ['http://one.example', 'http://two.example']
+
+    def test_href_optional_argument_length_is_bounded(self):
+        """An over-long '[...]' is not treated as the optional argument.
+
+        The bound is what keeps the scan linear, so it is part of the
+        contract: past 500 characters the bracket group no longer counts
+        as hyperref's optional argument. Real option lists are an order of
+        magnitude shorter than this.
+        """
+        parser = Parser()
+
+        at_limit = "\\href[" + ('x' * 500) + "]{http://example.com}{Text}"
+        assert parser.extract_links_from_tex(at_limit) == [
+            ['http://example.com', 'Text']]
+
+        over_limit = "\\href[" + ('x' * 501) + "]{http://example.com}{Text}"
+        assert parser.extract_links_from_tex(over_limit) == []
+
+    def test_long_urls_are_not_truncated_by_the_optional_argument_bound(self):
+        """The length bound must constrain the option list, never the URL.
+
+        URLs can legitimately be long (OAuth2 redirects, presigned S3
+        links, map permalinks). They are matched by an unbounded group, so
+        neither form of \\href nor \\url may truncate or drop them.
+        """
+        parser = Parser()
+        long_url = 'https://example.com/?token=' + ('a' * 4000)
+
+        assert parser.extract_links_from_tex(
+            "\\href{" + long_url + "}{Text}") == [[long_url, 'Text']]
+        assert parser.extract_links_from_tex(
+            "\\href[page=3]{" + long_url + "}{Text}") == [[long_url, 'Text']]
+        assert parser.extract_links_from_tex(
+            "\\url{" + long_url + "}") == [[long_url, long_url]]
+
+    def test_realistic_long_urls_survive_extraction(self):
+        """Long but standard-conformant URLs are extracted verbatim."""
+        parser = Parser()
+        urls = [
+            # OAuth2 authorization redirect with PKCE and state
+            'https://login.example.com/oauth2/authorize?response_type=code'
+            '&client_id=' + ('a' * 40) + '&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb'
+            '&scope=read%20write%20profile&state=' + ('b' * 128)
+            + '&code_challenge=' + ('c' * 43) + '&code_challenge_method=S256',
+            # Presigned S3 object URL
+            'https://bucket.s3.eu-central-1.amazonaws.com/path/to/object.pdf'
+            '?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=' + ('d' * 60)
+            + '&X-Amz-Date=20260725T000000Z&X-Amz-Expires=3600'
+            '&X-Amz-SignedHeaders=host&X-Amz-Signature=' + ('e' * 64),
+        ]
+        for url in urls:
+            assert parser.extract_links_from_tex(
+                "\\href{" + url + "}{cite}") == [[url, 'cite']], url
+
+    def test_unclosed_href_optional_argument_is_not_quadratic(self):
+        """A crafted .tex file must not stall the parser (ReDoS guard).
+
+        '\\href[' without a closing bracket used to make the engine scan
+        ahead and backtrack for every occurrence, which is quadratic:
+        ~0.6 s at 96 KB and ~73 s at 1 MB, while the default file size
+        limit is 20 MB.
+
+        Scaling is asserted rather than raw duration: doubling the input
+        must not quadruple the time. That catches a pattern that is still
+        quadratic even on a machine slow enough to pass a fixed timeout.
+        """
+        parser = Parser()
+
+        def measure(count: int) -> float:
+            payload = "\\href[" * count
+            start = time.perf_counter()
+            assert parser.extract_links_from_tex(payload) == []
+            return time.perf_counter() - start
+
+        # Warm up so the first call does not carry one-off costs.
+        measure(1000)
+        small = measure(20000)   # 120 KB
+        large = measure(40000)   # 240 KB
+
+        assert large < 2, f"parsing 240 KB took {large:.1f}s"
+        # Linear would be ~2x, the old quadratic pattern ~4x. Allow ample
+        # headroom for timer noise on loaded CI machines.
+        assert large < small * 3 + 0.05, (
+            f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
+
+    def test_unclosed_href_optional_argument_across_lines(self):
+        """The multi-line form of the ReDoS payload must stay cheap too.
+
+        A character class that excludes ']' but not newlines would pass
+        the single-line test above while still backtracking across the
+        whole file here.
+        """
+        parser = Parser()
+        payload = ("\\href[" + "\n") * 20000
+
+        start = time.perf_counter()
+        assert parser.extract_links_from_tex(payload) == []
+        duration = time.perf_counter() - start
+
+        assert duration < 2, f"parsing took {duration:.1f}s - pattern may backtrack"

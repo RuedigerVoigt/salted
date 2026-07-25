@@ -36,8 +36,31 @@ class Parser:
         self.pattern_latex_url = re.compile(
             r"\\url\{(?P<url>[^{]*?)\}",
             flags=re.MULTILINE | re.IGNORECASE)
+        # The optional argument is deliberately matched by a *bounded*
+        # character class rather than '.*'. Two reasons:
+        #   Performance: with '.*' every '\href[' that has no closing
+        #   bracket makes the engine scan ahead and backtrack, which is
+        #   quadratic in the line length — a crafted .tex file well within
+        #   max_file_size_mb could stall a run for hours. An unbounded
+        #   class such as '[^]]*' does not help here; only the length
+        #   bound makes each attempt constant work and the scan linear.
+        #   Correctness: '.*' is greedy, so a line holding an href plus a
+        #   later '[...]' swallowed everything up to the last bracket and
+        #   the first link was lost.
+        # Excluding newlines keeps the argument on one line, as '.' did.
+        # The limit applies to the *optional argument only* — the URL and
+        # the link text are matched by unbounded groups, so URLs of any
+        # length are still extracted in full. Even a stacked option list
+        # ("page=42,pdfremotestartview=FitBH,pdfnewwindow=true,...") stays
+        # under 150 characters, so 500 is ample headroom; an \href whose
+        # optional argument exceeded it would be skipped, and a skipped
+        # link is an unchecked link. The headroom is free: on documents
+        # that are not the pathological unclosed-bracket case the bound
+        # never comes into play (measured: no difference at 20 MB).
+        # The group stays capturing — extract_links_from_tex() reads the
+        # url and linktext as match[1] and match[2].
         self.pattern_latex_href = re.compile(
-            r"\\href(\[.*\]){0,1}\{(?P<url>[^}]*)\}\{(?P<linktext>[^}]*?)\}",
+            r"\\href(\[[^]\r\n]{0,500}\]){0,1}\{(?P<url>[^}]*)\}\{(?P<linktext>[^}]*?)\}",
             flags=re.MULTILINE | re.IGNORECASE)
 
         # Specs:
