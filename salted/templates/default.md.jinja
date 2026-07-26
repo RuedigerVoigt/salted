@@ -18,7 +18,7 @@ This averages to {{ statistics.checks_per_second }} checks/second.
 # FILE ACCESS ERRORS
 
 {% for error in access_errors %}
-* {{ error.path }} ({{ error.problem }})
+* {{ error.path | md_cell }} ({{ error.problem | md_cell }})
 {% endfor %}
 {% endif %}
 
@@ -33,13 +33,13 @@ No permanent errors found!
 410                     Gone
 
 {% for result in permanent %}
-**{{ result.path }}** ({{result.num_errors}})
+**{{ result.path | md_cell }}** ({{result.num_errors}})
 
 |code| URL and link text |
 |--:|:------------------|
 {% for url in result.defects -%}
-|{{ url[2] }} | [{{ url[0] }}]({{ url[0] }})|
-| | {{ url[1] }} |
+|{{ url[2] | md_cell }} | [{{ url[0] | md_cell }}]({{ url[0] | md_url }})|
+| | {{ url[1] | md_cell }} |
 {% endfor %}
 
 {% endfor %}
@@ -52,13 +52,13 @@ Checked {{ statistics.num_internal_checked }} internal link{{ 's' if statistics.
 
 {% if internal_links %}
 {% for result in internal_links %}
-**{{ result.path }}** ({{ result.num_findings }})
+**{{ result.path | md_cell }}** ({{ result.num_findings }})
 
 |finding| link and link text |
 |------:|:------------------|
 {% for link in result.findings -%}
-|{{ link[2] }} | `{{ link[0] }}`|
-| | {{ link[1] }} |
+|{{ link[2] | md_cell }} | {{ link[0] | md_cell }}|
+| | {{ link[1] | md_cell }} |
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -69,13 +69,13 @@ Checked {{ statistics.num_internal_checked }} internal link{{ 's' if statistics.
 No permanent redirects found!
 {% else %}
 {% for result in redirects %}
-**{{ result.path }}** ({{result.num_redirects}})
+**{{ result.path | md_cell }}** ({{result.num_redirects}})
 
 |code| URL and link text |
 |--:|:------------------|
 {% for url in result.redirects -%}
-|{{ url[2] }} | [{{ url[0] }}]({{ url[0] }})|
-| | {{ url[1] }} |
+|{{ url[2] | md_cell }} | [{{ url[0] | md_cell }}]({{ url[0] | md_url }})|
+| | {{ url[1] | md_cell }} |
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -85,13 +85,13 @@ No permanent redirects found!
 No exceptions during the crawl!
 {% else %}
 {% for result in exceptions %}
-**{{ result.path }}** ({{result.num_exceptions}})
+**{{ result.path | md_cell }}** ({{result.num_exceptions}})
 
 |exception| URL and link text |
 |------:|:------------------|
 {% for url in result.exceptions -%}
-|{{ url[2] }} | [{{ url[0] }}]({{ url[0] }})|
-| | {{ url[1] }} |
+|{{ url[2] | md_cell }} | [{{ url[0] | md_cell }}]({{ url[0] | md_url }})|
+| | {{ url[1] | md_cell }} |
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -110,7 +110,7 @@ DOI validation was disabled (`--no-check_dois`). DOIs were not verified via the 
 {{ statistics.num_invalid_dois }} invalid DOI{{ 's' if statistics.num_invalid_dois != 1 else '' }} — the following returned 404 from the CrossRef API:
 
 {% for entry in invalid_dois %}
-* **{{ entry.path }}**: `{{ entry.doi }}` ({{ entry.description }})
+* **{{ entry.path | md_cell }}**: {{ entry.doi | md_cell }} ({{ entry.description | md_cell }})
 {% endfor %}
 {% endif %}
 {% endif %}
@@ -123,9 +123,9 @@ DOI validation was disabled (`--no-check_dois`). DOIs were not verified via the 
 
 {% for entry in mailto_links %}
 {% if entry.valid %}
-* {{ entry.path }}: {{ entry.address }} ({{ entry.url }})
+* {{ entry.path | md_cell }}: {{ entry.address | md_cell }} ({{ entry.url | md_cell }})
 {% else %}
-* {{ entry.path }}: **MALFORMED ADDRESS** `{{ entry.address }}` ({{ entry.url }})
+* {{ entry.path | md_cell }}: **MALFORMED ADDRESS** {{ entry.address | md_cell }} ({{ entry.url | md_cell }})
 {% endif %}
 {% endfor %}
 {% endif %}

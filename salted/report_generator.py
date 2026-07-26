@@ -27,6 +27,102 @@ BUILTIN_TEMPLATES: Final[tuple] = ('default.cli.jinja', 'default.md.jinja')
 # rarely carry a .jinja extension, so this removes the easy targets.
 TEMPLATE_SUFFIX: Final[str] = '.jinja'
 
+# C0 control characters, plus DEL, except tab. Everything the report shows -
+# link text, URLs, file paths - is read out of the checked documents, so it
+# can carry terminal escape sequences. Printed unfiltered they are executed
+# rather than displayed: '\x1b[2K\x1b[32mAll links OK' erases the line and
+# writes a green success message inside the list of broken links, and a
+# carriage return overwrites what came before. The report is the product
+# here, so it must not be forgeable by the content it reports on.
+_CONTROL_CHARACTERS: Final[dict] = {
+    codepoint: None
+    for codepoint in list(range(0, 9)) + list(range(10, 32)) + [127]
+}
+
+# Characters that end a markdown link target. A URL containing them - a
+# Wikipedia '..._(programming_language)' link, for instance - would
+# otherwise terminate the '[label](target)' construct early, breaking a
+# legitimate link and letting a crafted one point somewhere else entirely.
+_MD_URL_ESCAPES: Final[dict] = {
+    '(': '%28', ')': '%29', '<': '%3C', '>': '%3E', ' ': '%20', '|': '%7C',
+}
+
+# Markdown inline markup that must not be honoured when it comes out of a
+# checked document. The backslash leads, so escaping it first does not
+# double-escape what follows. Punctuation such as '.' or '-' is left alone:
+# it only carries meaning at the start of a line, which cannot happen for a
+# value rendered inside a table cell or a list item.
+_MD_ESCAPE_CHARS: Final[str] = '\\`*_[]<>|'
+
+
+def strip_control_characters(value: str) -> str:
+    """Remove control characters that a terminal would act on.
+
+    Tab is kept: it is the one C0 character that is a normal part of text.
+    Newlines are removed as well - a report line is one record, and an
+    embedded newline lets a document fake an extra one.
+
+    Args:
+        value: A string taken from a checked document.
+
+    Returns:
+        The string without control characters.
+    """
+    return value.translate(_CONTROL_CHARACTERS)
+
+
+def markdown_cell(value: object) -> str:
+    """Escape a value taken from a document for use in markdown.
+
+    Link text and URLs are content, not markup, and must render as
+    written. Without escaping a document controls the report's structure:
+    an unescaped pipe ends a table cell and lets it inject further columns
+    or whole rows, brackets forge a link with a misleading target, and -
+    since markdown passes HTML through - angle brackets carry live tags
+    into anything that renders the report as HTML. Link text from
+    Markdown, TeX and BibTeX sources is taken verbatim by the parsers, so
+    it can contain any of these (HTML sources are tag-stripped earlier).
+
+    The backslash must be escaped first, or it would double-escape the
+    escapes added after it.
+
+    Args:
+        value: The value to render.
+
+    Returns:
+        The value as a string, safe to place in a markdown document.
+    """
+    text = str(value)
+    for char in _MD_ESCAPE_CHARS:
+        text = text.replace(char, '\\' + char)
+    return text
+
+
+def markdown_url(value: object) -> str:
+    """Percent-encode the characters that break a markdown link target.
+
+    Args:
+        value: The URL to use as a link target.
+
+    Returns:
+        The URL with link-breaking characters percent-encoded. Servers
+        decode these, so the target still resolves to the same resource.
+    """
+    text = str(value)
+    for char, encoded in _MD_URL_ESCAPES.items():
+        text = text.replace(char, encoded)
+    return text
+
+
+def _clean(value: object) -> object:
+    """Strip control characters from strings, pass anything else through."""
+    return strip_control_characters(value) if isinstance(value, str) else value
+
+
+def _clean_rows(rows: list) -> list:
+    """Apply _clean to every field of every row returned from the database."""
+    return [tuple(_clean(field) for field in row) for row in rows]
+
 
 class ReportGenerator:
     """Generate reports about broken links and redirects.
@@ -89,19 +185,22 @@ class ReportGenerator:
 
         Returns:
             The path rewritten to a URL, made relative, or left unchanged.
+            Control characters are stripped: a file name can contain them
+            on most filesystems, and the report is printed to a terminal.
         """
         if not self.replace_path_by_url:
-            return file_path
+            return strip_control_characters(file_path)
         if self.replace_path_by_url.get('replace_with_url'):
-            return self.rewrite_path(file_path)
+            return strip_control_characters(self.rewrite_path(file_path))
         base = self.replace_path_by_url.get('path_to_be_replaced')
         if not base:
-            return file_path
+            return strip_control_characters(file_path)
         try:
-            return str(pathlib.Path(file_path).relative_to(base))
+            return strip_control_characters(
+                str(pathlib.Path(file_path).relative_to(base)))
         except ValueError:
             # file_path is not under base (unexpected) — leave it untouched.
-            return file_path
+            return strip_control_characters(file_path)
 
     def generate_access_error_list(self) -> list | None:
         """Generate a list of file access errors.
@@ -119,7 +218,8 @@ class ReportGenerator:
             return None
         result = list()
         for file_path, problem in access_errors:
-            result.append({'path': file_path, 'problem': problem})
+            result.append({'path': self._display_path(file_path),
+                           'problem': strip_control_characters(problem)})
         return result
 
     def generate_error_list(self) -> list | None:
@@ -147,7 +247,7 @@ class ReportGenerator:
                 SELECT url, linktext, httpCode
                 FROM v_errorsByFile
                 WHERE filePath = ?;''', [file_path])
-            defects = cursor.fetchall()
+            defects = _clean_rows(cursor.fetchall())
             file_path = self._display_path(file_path)
             result.append({'path': file_path,
                            'num_errors': num_errors,
@@ -179,7 +279,7 @@ class ReportGenerator:
                 SELECT url, linktext, httpCode
                 FROM v_redirectsByFile
                 WHERE filePath = ?;''', [file_path])
-            redirects = cursor.fetchall()
+            redirects = _clean_rows(cursor.fetchall())
             file_path = self._display_path(file_path)
             result.append({'path': file_path,
                            'num_redirects': num_redirects,
@@ -211,7 +311,7 @@ class ReportGenerator:
                 SELECT url, linktext, reason
                 FROM v_exceptionsByFile
                 WHERE filePath = ?;''', [file_path])
-            exceptions = cursor.fetchall()
+            exceptions = _clean_rows(cursor.fetchall())
             file_path = self._display_path(file_path)
             result.append({'path': file_path,
                            'num_exceptions': num_exceptions,
@@ -244,7 +344,7 @@ class ReportGenerator:
                 FROM internalLinkFindings
                 WHERE filePath = ?
                 ORDER BY isError DESC, url ASC;''', [file_path])
-            findings = cursor.fetchall()
+            findings = _clean_rows(cursor.fetchall())
             file_path = self._display_path(file_path)
             result.append({'path': file_path,
                            'num_findings': num_findings,
@@ -271,11 +371,10 @@ class ReportGenerator:
             return None
         result = []
         for file_path, url, address, valid in rows:
-            file_path = self._display_path(file_path)
             result.append({
-                'path': file_path,
-                'url': url,
-                'address': address,
+                'path': self._display_path(file_path),
+                'url': strip_control_characters(url),
+                'address': strip_control_characters(address),
                 'valid': bool(valid),
             })
         return result
@@ -301,11 +400,10 @@ class ReportGenerator:
             return None
         result = []
         for doi, file_path, description in rows:
-            file_path = self._display_path(file_path)
             result.append({
-                'doi': doi,
-                'path': file_path,
-                'description': description,
+                'doi': strip_control_characters(doi),
+                'path': self._display_path(file_path),
+                'description': strip_control_characters(description),
             })
         return result
 
@@ -397,6 +495,12 @@ class ReportGenerator:
             jinja_env = SandboxedEnvironment(
                 loader=FileSystemLoader(searchpath=template['searchpath']),
                 autoescape=True)
+
+        # Markdown needs escaping of its own: autoescape works on HTML and
+        # would mangle a markdown document rather than protect it. Offered
+        # to custom templates too, since they face the same input.
+        jinja_env.filters['md_cell'] = markdown_cell
+        jinja_env.filters['md_url'] = markdown_url
 
         rendered_report = jinja_env.get_template(
             template['name']).render(**render_context)

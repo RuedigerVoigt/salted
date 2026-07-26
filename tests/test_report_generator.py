@@ -9,6 +9,9 @@ Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2025: Released under the Apache License 2.0
 """
 
+import contextlib
+import io
+import re
 import pytest
 import pathlib
 
@@ -560,6 +563,155 @@ class TestGenerateInternalLinkList:
         result = gen.generate_internal_link_list()
         assert result[0]['path'] == 'https://example.com/index.html'
         mem_inst.tear_down_in_memory_db()
+
+
+class TestReportSanitizing:
+    """Values from checked documents must not control the report."""
+
+    ESC = '\x1b'
+
+    @staticmethod
+    def _report(template_name, rows, findings=()):
+        """Render a report over seeded error rows and return the output."""
+        mem = memory_instance.MemoryInstance()
+        cur = mem.get_cursor()
+        if rows:
+            cur.executemany(
+                'INSERT INTO queue (filePath, hostname, url, normalizedUrl, '
+                'linktext) VALUES (?,?,?,?,?);', rows)
+            cur.executemany('INSERT INTO errors VALUES (?, ?);',
+                            [(r[3], 404) for r in rows])
+        for finding in findings:
+            cur.execute(
+                'INSERT INTO internalLinkFindings (filePath, url, linktext, '
+                'reason, isError) VALUES (?,?,?,?,?);', finding)
+        mem.generate_db_views()
+        gen = report_generator.ReportGenerator(mem)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                gen.generate_report(
+                    statistics={'num_links': len(rows), 'num_checked': len(rows),
+                                'timestamp': 'now', 'time_to_check': 1,
+                                'checks_per_second': 1, 'num_fine': 0,
+                                'needed_full_request': 0,
+                                'percentage_full_request': 0,
+                                'check_dois': False, 'num_valid_dois': 0,
+                                'num_invalid_dois': 0,
+                                'check_internal_links': True,
+                                'num_internal_checked': len(findings),
+                                'num_internal_fine': 0},
+                    template={'searchpath': None, 'name': template_name},
+                    write_to='cli', replace_path_by_url=None)
+        finally:
+            mem.tear_down_in_memory_db()
+        return buf.getvalue()
+
+    # ---- control characters (all templates) ----
+
+    def test_strip_control_characters_keeps_tab_only(self):
+        """Only the control characters go; tab is normal text and stays.
+
+        Note what remains: removing the ESC byte leaves the rest of the
+        sequence ('[32m') as ordinary text. That is deliberate - the
+        sequence is inert once ESC is gone, and the leftover is a visible
+        hint that the document contained something odd. Stripping whole
+        sequences would risk eating text that merely looks like one.
+        """
+        cleaned = report_generator.strip_control_characters(
+            'a\x1b[32mb\rc\nd\te\x00f\x7fg')
+        assert cleaned == 'a[32mbcd\tefg'
+
+    @pytest.mark.parametrize('template_name',
+                             ['default.cli.jinja', 'default.md.jinja'])
+    def test_escape_sequences_never_reach_the_report(self, template_name):
+        """A document must not be able to write terminal escapes.
+
+        Unfiltered, '\\x1b[2K\\x1b[32m...' erases the report line and prints
+        a green success message inside the list of broken links.
+        """
+        payload = f'{self.ESC}[2K{self.ESC}[32mAll links OK{self.ESC}[0m'
+        out = self._report(
+            template_name,
+            [('doc.html', 'e.example', f'https://e.example/{self.ESC}[31mx',
+              f'https://e.example/{self.ESC}[31mx', payload)])
+
+        assert '\x1b' not in out
+        assert '\r' not in out
+        # The text itself is still reported, only the escapes are gone.
+        assert 'All links OK' in out
+
+    def test_carriage_return_cannot_split_a_report_line(self):
+        out = self._report(
+            'default.cli.jinja',
+            [('doc.html', 'e.example', 'https://e.example/1',
+              'https://e.example/1', 'harmless\rOVERWRITTEN')])
+
+        assert 'harmlessOVERWRITTEN' in out
+
+    def test_control_characters_in_a_file_path_are_stripped(self):
+        """File names may contain control characters on most filesystems."""
+        out = self._report(
+            'default.cli.jinja',
+            [(f'do{self.ESC}[31mc.html', 'e.example', 'https://e.example/1',
+              'https://e.example/1', 'text')])
+
+        assert '\x1b' not in out
+
+    # ---- markdown escaping ----
+
+    def test_markdown_cell_escapes_structural_characters(self):
+        assert report_generator.markdown_cell('a|b') == r'a\|b'
+        assert report_generator.markdown_cell('[x](y)') == r'\[x\](y)'
+        assert report_generator.markdown_cell('<img>') == r'\<img\>'
+        assert report_generator.markdown_cell('a`b') == 'a\\`b'
+        # The backslash is escaped first, not twice.
+        assert report_generator.markdown_cell('a\\b') == r'a\\b'
+
+    def test_markdown_url_encodes_link_breaking_characters(self):
+        assert report_generator.markdown_url(
+            'https://e.example/Python_(programming_language)'
+        ) == 'https://e.example/Python_%28programming_language%29'
+
+    def test_pipe_in_link_text_cannot_forge_table_cells(self):
+        """An unescaped pipe would end the cell and inject further columns."""
+        out = self._report(
+            'default.md.jinja',
+            [('doc.html', 'e.example', 'https://e.example/1',
+              'https://e.example/1', 'x|**0 errors**|all fine|')])
+
+        assert r'x\|\*\*0 errors\*\*\|all fine\|' in out
+
+    def test_parenthesis_in_url_does_not_break_the_markdown_link(self):
+        """Wikipedia-style URLs are legitimate and must render as links."""
+        url = 'https://e.example/Python_(programming_language)'
+        out = self._report(
+            'default.md.jinja',
+            [('doc.html', 'e.example', url, url, 'Python')])
+
+        # The link target carries encoded parentheses, so it cannot end early.
+        assert '(https://e.example/Python_%28programming_language%29)' in out
+
+    def test_raw_html_from_a_markdown_source_is_neutralised(self):
+        """Markdown and TeX link text is not tag-stripped by a parser."""
+        out = self._report(
+            'default.md.jinja',
+            [('doc.md', 'e.example', 'https://e.example/1',
+              'https://e.example/1', '<img src=x onerror=alert(1)>')])
+
+        assert r'\<img src=x onerror=alert(1)\>' in out
+        # No angle bracket survives unescaped, which is what a renderer
+        # would otherwise turn back into a live tag.
+        assert not re.search(r'(?<!\\)<img', out)
+
+    def test_internal_link_findings_are_escaped_too(self):
+        out = self._report(
+            'default.md.jinja', [],
+            findings=[('doc.html', 'a|b.html', 'text|more',
+                       'target file does not exist', 1)])
+
+        assert r'a\|b.html' in out
+        assert r'text\|more' in out
 
 
 class TestTemplateSecurity:
