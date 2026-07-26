@@ -13,7 +13,73 @@ import pytest
 from unittest.mock import Mock, patch, mock_open
 
 from salted.input_handler import InputHandler
-from salted import database_io
+from salted import database_io, memory_instance
+from salted.file_finder import FileFinder
+
+
+class TestUppercaseFileExtensions:
+    """Supported files are recognised whatever the case of their suffix.
+
+    Windows and macOS filesystems do not distinguish case, so 'INDEX.HTML'
+    is common in the wild. Skipping such files meant their links were never
+    checked and never reported - the run just looked clean.
+    """
+
+    SAMPLES = {
+        'lower.html': '<a href="https://a.example/1">x</a>',
+        'UPPER.HTML': '<a href="https://b.example/2">x</a>',
+        'Mixed.Html': '<a href="https://c.example/3">x</a>',
+        'Notes.MD': '[y](https://d.example/4)',
+        'PAPER.TEX': r'\url{https://e.example/5}',
+        'refs.BIB': '@article{k, url = {https://f.example/6}, doi = {10.1234/x}}',
+    }
+
+    @pytest.mark.parametrize('name', [
+        'a.html', 'a.HTML', 'a.Html', 'a.htm', 'a.HTM',
+        'a.md', 'a.MD', 'a.tex', 'a.TEX', 'a.bib', 'a.BIB'])
+    def test_is_supported_format_ignores_case(self, name):
+        assert FileFinder().is_supported_format(pathlib.Path(name)) is True
+
+    def test_find_files_by_extensions_ignores_case(self, tmp_path):
+        for name, body in self.SAMPLES.items():
+            (tmp_path / name).write_text(body, encoding='utf-8')
+
+        found = FileFinder().find_files_by_extensions(tmp_path)
+
+        assert {p.name for p in found} == set(self.SAMPLES)
+
+    def test_caller_supplied_suffixes_may_be_uppercase(self, tmp_path):
+        (tmp_path / 'page.html').write_text('x', encoding='utf-8')
+
+        found = FileFinder().find_files_by_extensions(
+            tmp_path, suffixes={'.HTML'})
+
+        assert [p.name for p in found] == ['page.html']
+
+    def test_uppercase_files_are_parsed_not_just_discovered(self, tmp_path):
+        """Discovery and extractor dispatch must agree on the suffix.
+
+        The dispatch table is keyed in lowercase, so accepting uppercase
+        names during discovery without lowering here would turn a skipped
+        file into a RuntimeError.
+        """
+        for name, body in self.SAMPLES.items():
+            (tmp_path / name).write_text(body, encoding='utf-8')
+
+        mem = memory_instance.MemoryInstance()
+        db = database_io.DatabaseIO(mem, None, quiet=True)
+        handler = InputHandler(db, quiet=True)
+        try:
+            handler.scan_files(
+                sorted(FileFinder().find_files_by_extensions(tmp_path)))
+
+            queued = {url for (url,) in db.urls_to_check()}
+            assert queued == {f'https://{c}.example/{i}'
+                              for i, c in enumerate('abcdef', start=1)}
+            # The .BIB file must also yield its DOI.
+            assert db.get_dois_to_check() == ['10.1234/x']
+        finally:
+            mem.tear_down_in_memory_db()
 
 
 class TestInputHandlerInitialization:
@@ -242,6 +308,71 @@ class TestHandleFoundUrls:
         handler.handle_found_urls(pathlib.Path('test.html'), [])
 
         db_mock.save_found_links.assert_not_called()
+
+    @pytest.mark.parametrize('url', [
+        'HTTP://example.com/page',
+        'HTTPS://example.com/page',
+        'HtTpS://example.com/page',
+        'Http://example.com/page',
+    ])
+    def test_url_schemes_are_case_insensitive(self, url):
+        """RFC 3986 defines schemes as case-insensitive.
+
+        These used to be counted as an unsupported scheme and were never
+        checked - a link silently omitted from the report.
+        """
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(pathlib.Path('test.html'), [[url, 'Link']])
+
+        assert handler.cnt['links_found'] == 1
+        assert handler.cnt['unsupported_scheme'] == 0
+        db_mock.save_found_links.assert_called_once()
+
+    def test_mailto_scheme_is_case_insensitive(self):
+        """An uppercase MAILTO: is still a mailto link."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(
+            pathlib.Path('test.html'), [['MAILTO:me@example.com', 'Mail']])
+
+        db_mock.save_mailto_links.assert_called_once()
+        saved = db_mock.save_mailto_links.call_args[0][0]
+        assert saved[0][2] == 'me@example.com'
+        assert handler.cnt['unsupported_scheme'] == 0
+
+    @pytest.mark.parametrize('url', [
+        'httpfoo://example.com/x',
+        'httpsx://example.com/x',
+        'nothttp://example.com/x',
+    ])
+    def test_scheme_lookalikes_are_not_checked(self, url):
+        """Matching the scheme exactly keeps look-alikes out of the queue.
+
+        A startswith('http') test let 'httpfoo://' through.
+        """
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(pathlib.Path('test.html'), [[url, 'Link']])
+
+        assert handler.cnt['links_found'] == 0
+        assert handler.cnt['unsupported_scheme'] == 1
+        db_mock.save_found_links.assert_not_called()
+
+    def test_unparsable_url_is_counted_not_raised(self):
+        """A URL urlparse rejects must not abort the whole scan."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(
+            pathlib.Path('test.html'),
+            [['http://[oops/', 'broken'], ['https://ok.example/', 'fine']])
+
+        assert handler.cnt['links_found'] == 1
+        assert handler.cnt['unsupported_scheme'] == 1
 
 
 class TestHandleFoundDois:

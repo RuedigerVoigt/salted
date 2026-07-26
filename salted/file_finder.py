@@ -26,7 +26,11 @@ class FileFinder:
                             filepath: pathlib.Path) -> bool:
         """Check if the file format is supported.
 
-        Uses the filename suffix to determine support.
+        Uses the filename suffix to determine support. The comparison is
+        case-insensitive: 'INDEX.HTML' and 'notes.MD' are as valid as their
+        lowercase spellings, and both occur in the wild - especially on
+        Windows and macOS, whose filesystems do not distinguish the case.
+        Treating them as unsupported silently left their links unchecked.
 
         Args:
             filepath: Path to the file to check.
@@ -34,7 +38,7 @@ class FileFinder:
         Returns:
             True if the file format is supported, False otherwise.
         """
-        return bool(filepath.suffix in self.SUPPORTED_SUFFIX)
+        return bool(filepath.suffix.lower() in self.SUPPORTED_SUFFIX)
 
     def find_files_by_extensions(
             self,
@@ -43,6 +47,9 @@ class FileFinder:
         """Find all files with specific file type suffixes.
 
         Searches the base folder and all its subfolders recursively.
+
+        Matching is case-insensitive, so a folder holding 'INDEX.HTML' or
+        'Notes.Md' is searched as expected.
 
         Args:
             path_to_base_folder: Base directory to search from.
@@ -55,12 +62,14 @@ class FileFinder:
         # self undefined at time of definition. Therefore fallback here:
         if not suffixes:
             suffixes = self.SUPPORTED_SUFFIX
+        # Normalize here too: a caller may pass '.HTML'.
+        wanted = {suffix.lower() for suffix in suffixes}
 
         files_to_check = []
         path_to_check = pathlib.Path(path_to_base_folder)
         all_files = path_to_check.glob('**/*')
         for candidate in all_files:
-            if candidate.suffix in suffixes:
+            if candidate.suffix.lower() in wanted:
                 files_to_check.append(candidate.resolve())
         logging.debug('Found %s files', len(files_to_check))
         return files_to_check

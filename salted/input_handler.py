@@ -134,6 +134,42 @@ class InputHandler:
                 reason=finding[0], is_error=finding[1])
         return True
 
+    @staticmethod
+    def _queue_row(file_path: pathlib.Path,
+                   url: str,
+                   parsed_url: urllib.parse.ParseResult,
+                   linktext: str) -> list:
+        """Build the queue entry for a single http(s) link.
+
+        Multiple links may point to the same resource. Normalizing them
+        means the target is only tested once. The non-normalized version is
+        stored as well: if the link turns out to be broken, that is the
+        spelling shown to the user, as it is what stands in the document.
+
+        Args:
+            file_path: The file the link was found in.
+            url: The link exactly as written in the document.
+            parsed_url: The already parsed form of that URL.
+            linktext: The link's text content.
+
+        Returns:
+            The row to insert into the check queue.
+        """
+        try:
+            normalized_url = userprovided.url.normalize_url(url)
+        except userprovided.err.QueryKeyConflict:
+            normalized_url = userprovided.url.normalize_url(
+                url, do_not_change_query_part=True)
+
+        try:
+            hostname = parsed_url.hostname
+        except ValueError:
+            # Malformed authority, e.g. an out-of-range port. The URL is
+            # still checked; only the hostname is unknown.
+            hostname = None
+
+        return [str(file_path), hostname, url, normalized_url, linktext]
+
     def handle_found_urls(self,
                           file_path: pathlib.Path,
                           url_list: list) -> None:
@@ -152,27 +188,27 @@ class InputHandler:
         for link in url_list:
             url = link[0]
             linktext = link[1]
-            if url.startswith('http'):
-                # It may be that multiple links point to the same resource.
-                # Normalizing them means they only need to be tested once.
-                # The non-normalized version is stored anyway, because in case
-                # the link is broken, that version is used to show the user
-                # the broken links on a specific page.
-                try:
-                    normalized_url = userprovided.url.normalize_url(url)
-                except userprovided.err.QueryKeyConflict:
-                    normalized_url = userprovided.url.normalize_url(
-                        url, do_not_change_query_part=True)
-
+            # Dispatch on the parsed scheme rather than on how the URL
+            # happens to be spelled. RFC 3986 defines schemes as
+            # case-insensitive, so 'HTTP://example.com' is a normal URL that
+            # a startswith('http') test silently dropped as unsupported.
+            # Matching the scheme exactly also stops look-alikes such as
+            # 'httpfoo://host' from entering the check queue.
+            try:
                 parsed_url = urllib.parse.urlparse(url)
-                links_found.append([str(file_path),
-                                    parsed_url.hostname,
-                                    url,
-                                    normalized_url,
-                                    linktext])
+                scheme = parsed_url.scheme.lower()
+            except ValueError:
+                # A URL malformed enough that urlsplit rejects it (e.g. a
+                # bad IPv6 literal) cannot be checked.
+                self.cnt['unsupported_scheme'] += 1
+                continue
+
+            if scheme in ('http', 'https'):
+                links_found.append(
+                    self._queue_row(file_path, url, parsed_url, linktext))
                 self.cnt['links_found'] += 1
 
-            elif url.startswith('mailto:'):
+            elif scheme == 'mailto':
                 addresses = self.parser.extract_mails_from_mailto(url)
                 if not addresses:
                     mailto_found.append((str(file_path), url, '', 0))
@@ -246,7 +282,12 @@ class InputHandler:
                 should never happen because callers pre-filter by supported
                 extension.
         """
-        if file_path.suffix == ".bib":
+        # Lowercased because file discovery accepts any spelling of a
+        # supported suffix ('.HTML', '.Md'); the dispatch table is keyed in
+        # lowercase and would otherwise reject a file that was just found.
+        suffix = file_path.suffix.lower()
+
+        if suffix == ".bib":
             try:
                 url_list, doi_list = self.parser.extract_links_from_bib(content)
                 return url_list, doi_list
@@ -255,7 +296,7 @@ class InputHandler:
                     str(file_path), f'BibTeX parse error: {e}')
                 return None, None
 
-        extractor_name = self._url_extractors.get(file_path.suffix)
+        extractor_name = self._url_extractors.get(suffix)
         if extractor_name is None:
             raise RuntimeError('Invalid extension. Should never happen.')
         extractor = getattr(self.parser, extractor_name)

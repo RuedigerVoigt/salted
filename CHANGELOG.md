@@ -35,6 +35,8 @@
 * Robustness:
   * The disk cache is now written atomically. Previously the existing cache file was deleted and then rebuilt in place, so an interruption mid-write (crash, error, or power loss) could leave no cache at all. The new cache is built in a sibling temporary file and moved into place with `os.replace`, so any existing cache stays intact on failure.
 * Bug Fixes:
+  * Fix files with an uppercase extension (`INDEX.HTML`, `Notes.Md`) being skipped and their links never checked: file type matching is now case-insensitive.
+  * Fix links with an uppercase scheme (`HTTP://…`, `MAILTO:…`) being discarded as unsupported — schemes are case-insensitive per RFC 3986. Matching the parsed scheme also keeps look-alikes such as `httpfoo://host` out of the queue.
   * Fix Markdown links whose URL contains balanced parentheses (e.g. Wikipedia `..._(programming_language)`) being truncated at the first `)`, which produced false dead-link reports.
   * Fix TeX `\href` links being lost when a line held both an `\href` and a later `[...]` construct. The greedy optional-argument pattern consumed everything up to the last bracket on the line, so the first link on such a line was never extracted and went unchecked. (Same root cause as the ReDoS fix listed under Security.)
   * Fix URLs raising an unexpected exception being dropped from the report; the `validate_url` catch-all now records them via `log_exception`.
