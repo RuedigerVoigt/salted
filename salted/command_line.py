@@ -32,7 +32,6 @@ from salted.user_agents import get_user_agent, list_presets
 # Assigned only when the argument is truthy. An empty/omitted value falls
 # through to the config value or the built-in default.
 _TRUTHY_OVERRIDES = (
-    ('mailto', 'mailto'),
     ('cache_file', 'cache_file'),
     ('template_searchpath', 'template_searchpath'),
     ('template_name', 'template_name'),
@@ -45,6 +44,7 @@ _TRUTHY_OVERRIDES = (
 # None, so an explicit 0/False is honored; an invalid value aborts via
 # parser.error() with a message naming the CLI option.
 _VALIDATED_OVERRIDES = (
+    'mailto',
     'num_workers',
     'timeout',
     'dont_check_again_within_hours',

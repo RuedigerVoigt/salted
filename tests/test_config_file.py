@@ -17,6 +17,48 @@ from salted import Salted
 from salted.err import ConfigFileError
 
 
+class TestMailtoFromConfig:
+    """A bad mailto in a config file stops the run, naming the file."""
+
+    def test_valid_address_is_kept(self, tmp_path, monkeypatch):
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[BEHAVIOR]\nmailto = you@example.com\n", encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().mailto == 'you@example.com'
+
+    def test_invalid_address_raises_config_file_error(self, tmp_path,
+                                                      monkeypatch):
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[BEHAVIOR]\nmailto = nonsense\n", encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(ConfigFileError, match='mailto'):
+            Salted()
+
+    def test_newline_via_continuation_line_is_rejected(self, tmp_path,
+                                                       monkeypatch):
+        """configparser joins indented lines, so a value can hold a newline.
+
+        That is the one way a config file can carry a header separator into
+        the User-Agent sent to the CrossRef API.
+        """
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[BEHAVIOR]\nmailto = me@x.com\n    X-Injected: yes\n",
+            encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(ConfigFileError, match='mailto'):
+            Salted()
+
+    def test_absent_mailto_stays_none(self, tmp_path, monkeypatch):
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[BEHAVIOR]\ntimeout = 7\n", encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().mailto is None
+
+
 class TestAutodiscoveredConfigPathJail:
     """A config file merely found in the CWD may not reach outside it.
 

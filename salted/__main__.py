@@ -350,9 +350,7 @@ class Salted:
             parsed_domains = separated_string_to_set(behavior.get('ignore_domains'))
             if parsed_domains is not None:
                 self.ignore_domains = self._validate_domains(parsed_domains)
-            mailto = behavior.get('mailto')
-            if mailto:
-                self.mailto = mailto.strip()
+            self.mailto = self._from_config(behavior, 'mailto', target)
             self.check_dois = self._from_config(behavior, 'check_dois', target)
             self.check_internal_links = self._from_config(
                 behavior, 'check_internal_links', target)

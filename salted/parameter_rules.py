@@ -11,6 +11,7 @@ Released under the Apache License 2.0
 
 from typing import Final
 
+from userprovided.mail import is_email
 from userprovided.parameters import clean_trim, parse_boolean
 
 # Allowed values for the file_types parameter. The CLI builds its
@@ -34,7 +35,7 @@ _BOOL_PARAMETERS: Final[frozenset] = frozenset(
 
 def validate(name: str,
              value: str | int | float | bool,
-             source: str) -> str | int | float | bool:
+             source: str) -> str | int | float | bool | None:
     """Validate and convert a parameter value, whatever its origin.
 
     The same rules apply to values from the CLI, a config file, or the
@@ -67,6 +68,8 @@ def validate(name: str,
         return _validate_bool(name, value, source)
     if name == 'file_types':
         return _validate_choice(name, value, source, FILE_TYPES)
+    if name == 'mailto':
+        return _validate_mailto(value, source)
     raise KeyError(f"No validation rule for parameter '{name}'.")
 
 
@@ -74,8 +77,14 @@ def _msg(name: str,
          value: str | int | float | bool,
          source: str,
          requirement: str) -> str:
-    """Build a uniform error message naming value, parameter, and origin."""
-    return f"Invalid value '{value}' for {name} {source} - {requirement}."
+    """Build a uniform error message naming value, parameter, and origin.
+
+    The value is inserted with !r rather than in plain quotes: it is the
+    input that was just rejected, so it may contain newlines or control
+    characters that would otherwise forge extra lines in the log. For an
+    ordinary string the result is unchanged, as repr() quotes it anyway.
+    """
+    return f"Invalid value {value!r} for {name} {source} - {requirement}."
 
 
 def _to_int(value: str | int | float | bool) -> int:
@@ -152,6 +161,40 @@ def _validate_bool(name: str,
             name, value, source,
             "must be a boolean (true/false, yes/no, on/off, 1/0)"))
     return parse_boolean(value, name=name, source=source)
+
+
+def _validate_mailto(value: str | int | float | bool,
+                     source: str) -> str | None:
+    """Accept a syntactically valid e-mail address, or nothing at all.
+
+    The address is sent to the CrossRef API in the User-Agent header to opt
+    into their polite pool. It is validated here, at the boundary where the
+    parameter arrives, rather than where it is used: an unchecked value ends
+    up interpolated into an HTTP header, and a merely mistyped one is worse
+    than none at all - CrossRef does not recognise it, the request is not
+    treated as polite, and the resulting rate limiting has no visible cause.
+
+    An absent or empty value means "no address given", which is allowed
+    (salted then logs that the polite pool is not used). Anything actually
+    provided has to be valid.
+
+    Returns:
+        The trimmed address, or None if none was given.
+
+    Raises:
+        ValueError: If a value was given but is not an e-mail address.
+    """
+    if not isinstance(value, str):
+        raise ValueError(_msg(
+            'mailto', value, source, 'must be an e-mail address'))
+    cleaned = clean_trim(value, empty_as='') or ''
+    if not cleaned:
+        return None
+    if not is_email(cleaned):
+        raise ValueError(_msg(
+            'mailto', cleaned, source,
+            'must be a single valid e-mail address, e.g. you@example.com'))
+    return cleaned
 
 
 def _validate_choice(name: str,

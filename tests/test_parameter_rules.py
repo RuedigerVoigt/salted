@@ -36,6 +36,56 @@ class TestValidateDispatch:
             parameter_rules.validate('timeout', 'five', SRC)
 
 
+class TestMailto:
+    """mailto must be a valid address, or absent.
+
+    It is sent to the CrossRef API in the User-Agent header. Validating it
+    here - at the boundary where the parameter arrives - keeps doi_check.py
+    a DOI client: it receives a value that is already known good.
+    """
+
+    @pytest.mark.parametrize('address', [
+        'you@example.com',
+        'first.last@sub.example.org',
+        "o'brien@example.com",
+        'A@EXAMPLE.COM',
+    ])
+    def test_valid_addresses_accepted(self, address):
+        assert parameter_rules.validate('mailto', address, SRC) == address
+
+    def test_value_is_trimmed(self):
+        assert parameter_rules.validate(
+            'mailto', '  you@example.com  ', SRC) == 'you@example.com'
+
+    @pytest.mark.parametrize('empty', ['', '   '])
+    def test_empty_means_not_set(self, empty):
+        """An empty value is 'no address', which is allowed."""
+        assert parameter_rules.validate('mailto', empty, SRC) is None
+
+    @pytest.mark.parametrize('bad', [
+        'nonsense',
+        'a@b',
+        'you@example.com, me@example.com',   # a single address only
+        'me@x.com\r\nX-Injected: yes',       # header injection attempt
+        'me@x.com\nX-Injected: yes',
+        'me@x.com\x1b[31m',                  # terminal escape
+        42,
+        True,
+    ])
+    def test_invalid_values_raise(self, bad):
+        with pytest.raises(ValueError, match='mailto'):
+            parameter_rules.validate('mailto', bad, SRC)
+
+    def test_rejected_value_cannot_forge_a_log_line(self):
+        """The message repr()s the value, so newlines cannot break out."""
+        with pytest.raises(ValueError) as exc:
+            parameter_rules.validate(
+                'mailto', 'me@x.com\nX-Injected: yes', SRC)
+
+        assert '\n' not in str(exc.value)
+        assert '\\n' in str(exc.value)
+
+
 class TestNumWorkers:
     """num_workers accepts 'automatic' or an integer >= 1."""
 
