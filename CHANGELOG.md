@@ -23,6 +23,7 @@
 * Security:
   * Updated dependencies; bumped minimum lxml to 6.1.0 to address CVE-2026-41066 (XXE in `iterparse`/`ETCompatXMLParser`)
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
+  * GitHub Actions are pinned to commit SHAs instead of mutable tags, so a repointed tag cannot change what the workflows — including the one publishing to PyPI — actually run. `actions/setup-python` was bumped to v7 in the process.
   * The disk cache now stores only validated URLs and DOIs. Previously the whole in-memory database was copied to `salted-cache.sqlite3`, persisting absolute local file paths, link text, and e-mail addresses that are never read back — a leak if the cache file is shared or committed.
   * Add basic SSRF preflight check: any URL whose host resolves to a loopback address (127.0.0.0/8, ::1, `localhost`), an RFC1918 private range (10.x, 172.16.x, 192.168.x), or a link-local address (169.254.0.0/16 including the cloud-metadata endpoint, fe80::/10, `.local` hostnames) is blocked before a network request is made and logged as an exception in the report. (Requires userprovided ≥ 2.3.0).
   * Enable `autoescape=True` on Jinja2 `Environment` for user-provided templates to prevent XSS (CWE-94); built-in CLI/Markdown templates explicitly set `autoescape=False` as they output plain text
