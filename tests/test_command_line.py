@@ -250,6 +250,51 @@ class TestCommandLineArguments:
 
                 assert mock_checker.ignore_urls == {'https://a.com', 'https://b.com'}
 
+    def test_main_with_exclude_paths_argument(self):
+        """Test CLI with --exclude_paths argument."""
+        test_args = ['salted', '--exclude_paths', 'docs/drafts, vendor']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.exclude_paths == {'docs/drafts', 'vendor'}
+
+    def test_main_with_exclude_paths_keeps_windows_backslashes(self):
+        r"""A backslash in a path is literal, not an escape character.
+
+        Regression guard: the parser shared with --ignore_urls would turn
+        'C:\docs\drafts' into 'C:docsdrafts'.
+        """
+        test_args = ['salted', '--exclude_paths', r'C:\docs\drafts, .\build']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.exclude_paths == {
+                    r'C:\docs\drafts', r'.\build'}
+
+    def test_main_with_exclude_paths_quoted_comma(self):
+        """A path containing a comma stays one entry when quoted."""
+        test_args = ['salted', '--exclude_paths', r'"C:\my, folder", other']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+                assert mock_checker.exclude_paths == {
+                    r'C:\my, folder', 'other'}
+
     def test_main_with_cache_file_argument(self):
         """Test CLI with --cache_file argument."""
         test_args = ['salted', '--cache_file', './my-cache.sqlite3']

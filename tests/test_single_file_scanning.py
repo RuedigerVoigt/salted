@@ -131,6 +131,80 @@ def test_file_types_markdown_excludes_html(tmp_path):
     assert not any('html-link' in u for u in urls)
 
 
+def test_excluded_folder_is_not_scanned(tmp_path):
+    """exclude_paths keeps a whole subtree out of the scan."""
+    dir_path = tmp_path / 'site'
+    write_html(dir_path, 'index.html',
+               "<html><body><a href='https://kept.example.com/'>x</a></body></html>")
+    write_html(dir_path / 'vendor', 'bundled.html',
+               "<html><body><a href='https://vendored.example.com/'>x</a></body></html>")
+
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+        checker = salted.Salted()
+        checker.exclude_paths = {str(dir_path / 'vendor')}
+        checker.check(dir_path)
+
+    urls = [u[0] for u in FakeUrlCheck.last_urls] if FakeUrlCheck.last_urls else []
+    assert any('kept' in u for u in urls)
+    assert not any('vendored' in u for u in urls)
+
+
+def test_excluded_single_file_is_not_scanned(tmp_path):
+    """A single excluded file is skipped while its siblings are checked."""
+    dir_path = tmp_path / 'site'
+    write_html(dir_path, 'index.html',
+               "<html><body><a href='https://kept.example.com/'>x</a></body></html>")
+    write_html(dir_path, 'draft.html',
+               "<html><body><a href='https://drafted.example.com/'>x</a></body></html>")
+
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+        checker = salted.Salted()
+        checker.exclude_paths = {str(dir_path / 'draft.html')}
+        checker.check(dir_path)
+
+    urls = [u[0] for u in FakeUrlCheck.last_urls] if FakeUrlCheck.last_urls else []
+    assert any('kept' in u for u in urls)
+    assert not any('drafted' in u for u in urls)
+
+
+def test_excluded_file_named_as_searchpath_is_honored(tmp_path):
+    """A file handed to -i directly must still obey the exclusion list.
+
+    It ends in the same 'nothing to check' path as an empty folder rather
+    than being checked anyway.
+    """
+    file_path = write_html(
+        tmp_path / 'site', 'draft.html',
+        "<html><body><a href='https://drafted.example.com/'>x</a></body></html>")
+
+    FakeUrlCheck.last_urls = None
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+        checker = salted.Salted()
+        checker.exclude_paths = {str(file_path)}
+        checker.check(file_path)  # returns early, does not raise
+
+    assert FakeUrlCheck.last_urls is None
+
+
+def test_exclusion_of_an_unrelated_path_changes_nothing(tmp_path):
+    """An exclusion that matches nothing leaves the scan untouched."""
+    dir_path = tmp_path / 'site'
+    write_html(dir_path, 'index.html',
+               "<html><body><a href='https://kept.example.com/'>x</a></body></html>")
+
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
+         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+        checker = salted.Salted()
+        checker.exclude_paths = {str(tmp_path / 'does-not-exist')}
+        checker.check(dir_path)
+
+    urls = [u[0] for u in FakeUrlCheck.last_urls] if FakeUrlCheck.last_urls else []
+    assert any('kept' in u for u in urls)
+
+
 def test_file_types_supported_scans_all(tmp_path):
     """--file_types supported (default) should scan all supported formats."""
     dir_path = tmp_path / 'mixed'

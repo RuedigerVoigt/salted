@@ -19,6 +19,7 @@ from userprovided.parameters import separated_string_to_set
 import salted
 from salted import parameter_rules
 from salted.err import ConfigFileError, UnsafeTemplateError
+from salted.file_finder import separated_paths_to_set
 from salted.user_agents import get_user_agent, list_presets
 
 # ##################### CLI argument -> Salted attribute maps #####################
@@ -148,6 +149,15 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         metavar="<domain,domain>"
     )
     parser.add_argument(
+        "--exclude_paths",
+        type=str,
+        help=("Comma-separated list of files and folders that will not be scanned "
+              "(e.g. drafts,build/vendor.html). Paths are taken literally - either "
+              "absolute or relative to the current working directory. Wrap a path "
+              "containing a comma in double quotes."),
+        metavar="<path,path>"
+    )
+    parser.add_argument(
         "--domain_delay",
         type=float,
         help="Minimum delay in seconds between requests to the same domain (default: 0.25). Set to 0 to disable rate limiting.",
@@ -234,6 +244,35 @@ def _apply_mapped_overrides(checker: 'salted.Salted',
             setattr(checker, dest, validated)
 
 
+def _apply_set_overrides(checker: 'salted.Salted',
+                         args: argparse.Namespace) -> None:
+    """Apply the CLI options that are given as a separated list.
+
+    Each is parsed into a set. An empty or omitted value falls through to
+    the config value or the built-in default.
+
+    Args:
+        checker: The Salted instance whose attributes are overridden.
+        args: The parsed command line arguments.
+    """
+    if args.ignore_urls:
+        parsed_ignores = separated_string_to_set(args.ignore_urls)
+        if parsed_ignores is not None:
+            checker.ignore_urls = parsed_ignores
+
+    if args.ignore_domains:
+        parsed_domains = separated_string_to_set(args.ignore_domains)
+        if parsed_domains is not None:
+            checker.ignore_domains = checker._validate_domains(parsed_domains)
+
+    if args.exclude_paths:
+        # A dedicated parser: in a path a backslash is a separator, not an
+        # escape character (see salted.file_finder.separated_paths_to_set).
+        parsed_exclusions = separated_paths_to_set(args.exclude_paths)
+        if parsed_exclusions is not None:
+            checker.exclude_paths = parsed_exclusions
+
+
 def _apply_special_overrides(checker: 'salted.Salted',
                              args: argparse.Namespace) -> None:
     """Apply the CLI overrides that need more than a plain assignment.
@@ -259,16 +298,7 @@ def _apply_special_overrides(checker: 'salted.Salted',
         except ValueError:
             checker.user_agent = args.user_agent
 
-    if args.ignore_urls:
-        # Parse comma-separated values into a clean set using userprovided helper
-        parsed_ignores = separated_string_to_set(args.ignore_urls)
-        if parsed_ignores is not None:
-            checker.ignore_urls = parsed_ignores
-
-    if args.ignore_domains:
-        parsed_domains = separated_string_to_set(args.ignore_domains)
-        if parsed_domains is not None:
-            checker.ignore_domains = checker._validate_domains(parsed_domains)
+    _apply_set_overrides(checker, args)
 
     if args.quiet:
         checker.quiet = True

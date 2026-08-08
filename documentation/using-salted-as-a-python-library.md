@@ -16,6 +16,10 @@ linkcheck = salted.Salted()
 # Now you can set parameters to specific values, for example:
 linkcheck.timeout = 10
 
+# Files and folders you do not want to scan (a set of paths, each either
+# absolute or relative to the current working directory):
+linkcheck.exclude_paths = {'path_to_your_files/vendor', 'path_to_your_files/wip.html'}
+
 # Salted assumes all your files are in one folder or subfolders of that.
 # Simply call the check function of the instance just created:
 linkcheck.check('path_to_your_files/')

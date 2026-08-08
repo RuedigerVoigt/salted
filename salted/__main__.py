@@ -97,6 +97,7 @@ class Salted:
         # Files
         self.searchpath: str | pathlib.Path = pathlib.Path.cwd()
         self.file_types: str = 'supported'
+        self.exclude_paths: set = set()
         # Behavior
         self.num_workers: int | str = 'automatic'
         self.timeout: int = 5
@@ -363,9 +364,7 @@ class Salted:
             self.dont_check_again_within_hours = self._from_config(
                 cache, 'dont_check_again_within_hours', target)
         if 'FILES' in cfg.sections():
-            files = cfg['FILES']
-            self.searchpath = files.get('searchpath', self.searchpath)  # type: ignore[arg-type]
-            self.file_types = self._from_config(files, 'file_types', target)
+            self.__parse_files_section(cfg['FILES'], target)
         if 'TEMPLATE' in cfg.sections():
             template = cfg['TEMPLATE']
             self.template_searchpath = self.__adopt_path_setting(
@@ -375,6 +374,29 @@ class Salted:
             self.write_to = self.__adopt_path_setting(
                 template, 'write_to', autodiscovered)
             self.base_url = template.get('base_url', self.base_url)
+
+    def __parse_files_section(self,
+                              files: configparser.SectionProxy,
+                              target: pathlib.Path) -> None:
+        """Apply the [FILES] section of a config file.
+
+        Args:
+            files: The [FILES] section.
+            target: Path to the config file, used in error messages.
+
+        Raises:
+            err.ConfigFileError: If a value violates the parameter rules.
+        """
+        self.searchpath = files.get('searchpath', self.searchpath)  # type: ignore[arg-type]
+        self.file_types = self._from_config(files, 'file_types', target)
+        # No path jail for the exclusions (unlike the settings handled by
+        # __adopt_path_setting): they can only ever *reduce* what salted
+        # reads, so even a config file shipped with the checked content
+        # cannot use them to reach anything new.
+        parsed_exclusions = file_finder.separated_paths_to_set(
+            files.get('exclude_paths'))
+        if parsed_exclusions is not None:
+            self.exclude_paths = parsed_exclusions
 
     def check_parameters(self) -> None:
         # Now the params are fixed => Apply corrections and checks
@@ -413,6 +435,47 @@ class Salted:
             # exit path (early return, DeadLinksException, or an unexpected
             # error), preventing a leaked connection / ResourceWarning.
             mem_instance.tear_down_in_memory_db()
+
+    def _select_files(self,
+                      path: pathlib.Path,
+                      filesearch: file_finder.FileFinder,
+                      suffixes: set | None) -> list[pathlib.Path]:
+        """Determine which files to check, honoring the exclusion list.
+
+        Args:
+            path: The resolved searchpath: either a folder or a single file.
+            filesearch: The file finder used to search and to match exclusions.
+            suffixes: File suffixes to look for, or None for all supported.
+
+        Returns:
+            The files to check. An empty list means there is nothing to do,
+            which the caller reports rather than treating as an error.
+
+        Raises:
+            ValueError: If a single file was named whose format is not
+                supported.
+        """
+        excluded_paths = filesearch.resolve_exclusions(self.exclude_paths)
+
+        if path.is_dir():
+            logging.info('Base folder: %s', path)
+            return filesearch.find_files_by_extensions(
+                path, suffixes=suffixes, exclude=excluded_paths)
+
+        if path.is_file() and filesearch.is_supported_format(path):
+            # A file named directly with -i may be excluded as well. Honor
+            # that instead of checking it anyway: the empty list ends in the
+            # "nothing to check" path the caller already has for a folder
+            # without supported files.
+            if filesearch.is_excluded(path, excluded_paths):
+                logging.warning(
+                    'The file to check (%s) is on the exclusion list.', path)
+                return []
+            return [path]
+
+        msg = f"File format of {path} not supported"
+        logging.exception(msg)
+        raise ValueError(msg)
 
     def _run_check(self,
                    mem_instance: memory_instance.MemoryInstance,
@@ -479,16 +542,7 @@ class Salted:
         }
         suffixes = FILE_TYPE_SUFFIXES.get(self.file_types)  # None for 'supported'
 
-        # Select files to check (directory or single supported file)
-        if path.is_dir():
-            logging.info('Base folder: %s', path)
-            files_to_check = filesearch.find_files_by_extensions(path, suffixes=suffixes)
-        elif path.is_file() and filesearch.is_supported_format(path):
-            files_to_check = [path]
-        else:
-            msg = f"File format of {path} not supported"
-            logging.exception(msg)
-            raise ValueError(msg)
+        files_to_check = self._select_files(path, filesearch, suffixes)
 
         # Scan and prune for both directory and single-file modes
         if not files_to_check:

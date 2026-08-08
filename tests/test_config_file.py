@@ -59,6 +59,53 @@ class TestMailtoFromConfig:
         assert Salted().mailto is None
 
 
+class TestExcludePathsFromConfig:
+    """[FILES] exclude_paths accepts a comma-separated list of paths."""
+
+    def test_entries_are_parsed_into_a_set(self, tmp_path, monkeypatch):
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[FILES]\nexclude_paths = docs/drafts, vendor\n", encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().exclude_paths == {'docs/drafts', 'vendor'}
+
+    def test_windows_paths_survive(self, tmp_path, monkeypatch):
+        r"""A backslash in a config value is part of the path, not an escape."""
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[FILES]\nexclude_paths = C:\\docs\\drafts, .\\build\n",
+            encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().exclude_paths == {r'C:\docs\drafts', r'.\build'}
+
+    def test_absent_key_leaves_the_default_empty(self, tmp_path, monkeypatch):
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[FILES]\nfile_types = html\n", encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().exclude_paths == set()
+
+    def test_exclusions_are_not_confined_to_the_config_folder(
+            self, tmp_path, monkeypatch):
+        """Unlike template_searchpath, write_to and cache_file.
+
+        An exclusion can only ever *reduce* what salted reads, so even an
+        auto-discovered config file cannot use one to reach anything new.
+        """
+        workdir = tmp_path / 'work'
+        workdir.mkdir()
+        outside = tmp_path / 'outside'
+        outside.mkdir()
+        (workdir / "salted-linkcheck.ini").write_text(
+            f"[FILES]\nexclude_paths = {outside}\n", encoding='utf-8')
+        monkeypatch.chdir(workdir)
+
+        checker = Salted()
+        checker.check_parameters()  # would raise if the path jail applied
+
+        assert checker.exclude_paths == {str(outside)}
+
+
 class TestAutodiscoveredConfigPathJail:
     """A config file merely found in the CWD may not reach outside it.
 

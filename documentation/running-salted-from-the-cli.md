@@ -16,6 +16,7 @@ usage: salted [-h] [--config <path>] [-i <path>] [--file_types {supported,html,t
               [--check_dois | --no-check_dois] [--check_internal_links | --no-check_internal_links]
               [--user_agent <preset or custom string>] [--mailto <email>]
               [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>]
+              [--exclude_paths <path,path>]
               [--domain_delay <seconds>] [--max_file_size_mb <MB>]
               [--cache_file <path>] [--dont_check_again_within_hours <hours>]
               [--template_searchpath <path to folder>] [--template_name <filename>]
@@ -56,6 +57,11 @@ options:
                         Comma-separated list of hostnames whose URLs will not be checked
                         (e.g. example.com,skip.org). Matching is exact: example.com does not
                         match sub.example.com. Full URLs are accepted and normalized to the hostname.
+  --exclude_paths <path,path>
+                        Comma-separated list of files and folders that will not be scanned
+                        (e.g. drafts,build/vendor.html). Paths are taken literally - either
+                        absolute or relative to the current working directory. Wrap a path
+                        containing a comma in double quotes.
   --domain_delay <seconds>
                         Minimum delay in seconds between requests to the same domain (default: 0.25).
                         Set to 0 to disable rate limiting.
@@ -79,6 +85,24 @@ options:
 For more information see: https://github.com/RuedigerVoigt/salted
 
 ```
+
+## Excluding files and folders
+
+`-i` / `--searchpath` narrows the check to one folder, but it cannot carve anything out of it. Use `--exclude_paths` for that — an excluded file is never read, and an excluded folder is skipped together with everything below it:
+
+```bash
+# Leave out a whole folder and a single file:
+salted -i ./homepage/ --exclude_paths "homepage/vendor, homepage/drafts/wip.html"
+```
+
+Notes:
+
+* Entries are **literal paths**, not glob patterns. `*.min.html` or `**/node_modules` are not (yet) supported: name the folders you want to skip.
+* An entry may be an absolute path or a path relative to the directory you called salted from — **not** relative to the searchpath.
+* Backslashes are part of the path, so Windows paths can be written as usual: `--exclude_paths "C:\site\vendor"`.
+* If a path itself contains a comma, wrap it in double quotes: `--exclude_paths '"C:\my, folder", other'`.
+* An entry that matches nothing is not an error, but salted logs a warning — that way a typo does not silently check what you meant to skip.
+* This works at the *file* level, unlike `--ignore_urls` and `--ignore_domains`, which still read the file and only skip individual links.
 
 ## Quiet mode for CI pipelines
 

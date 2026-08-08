@@ -52,6 +52,12 @@ Two runs in a row (i.e. one full check and one using the cache):
 
 Salted automatically recognizes supported file formats by their extension (i.e. `htm`, `html`, `md`, `tex`, and `bib`).
 
+Single files and whole folders can be left out of the scan with `--exclude_paths` (or the `exclude_paths` key under `[FILES]` in a config file):
+
+```bash
+salted -i ./homepage/ --exclude_paths "homepage/vendor, homepage/drafts/wip.html"
+```
+
 ## Installation
 
 Installation is straightforward using pip:
