@@ -11,9 +11,11 @@ Released under the Apache License 2.0
 import logging
 import re
 import urllib.parse
+from typing import Final
 
 from bs4 import BeautifulSoup  # type: ignore
-from pybtex.database import parse_string  # type: ignore
+
+from salted import err
 
 try:
     import lxml  # type: ignore[import-untyped]
@@ -23,6 +25,24 @@ except ImportError:
     _BS_PARSER = 'html.parser'
     logging.warning("lxml not installed — falling back to html.parser. "
                     "Install salted[lxml] for faster HTML parsing.")
+
+# BibTeX support is optional. Unlike lxml - which only swaps the HTML
+# backend for a faster one - pybtex has no fallback: without it a .bib
+# file cannot be read at all. So this import stays silent. Warning here
+# would nag the majority who never check a .bib file, while the ones who
+# do are told at the point where such a file is actually encountered.
+try:
+    from pybtex.database import parse_string  # type: ignore
+    PYBTEX_AVAILABLE = True
+except ImportError:
+    PYBTEX_AVAILABLE = False
+
+# The message is defined once: the run aborts with it when a .bib file
+# was named explicitly, and it is written into the report when one was
+# merely found while scanning a folder.
+MISSING_PYBTEX_MSG: Final[str] = (
+    'BibTeX support requires the optional dependency pybtex, which is not '
+    'installed. Install it with: pip install salted[bibtex]')
 # a future version of pybtex might get type hints, see:
 # https://bitbucket.org/pybtex-devs/pybtex/issues/141/type-annotations
 
@@ -157,7 +177,12 @@ class Parser:
                   bibtex entry key and field name.
                 - Second list: [[doi, text], [doi, text]] where text is the
                   bibtex entry key and field name.
+
+        Raises:
+            err.MissingOptionalDependencyError: If pybtex is not installed.
         """
+        if not PYBTEX_AVAILABLE:
+            raise err.MissingOptionalDependencyError(MISSING_PYBTEX_MSG)
         url_list = []
         doi_list = []
         bib_data = parse_string(file_content, bib_format='bibtex')

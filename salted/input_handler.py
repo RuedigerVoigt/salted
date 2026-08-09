@@ -288,6 +288,16 @@ class InputHandler:
         suffix = file_path.suffix.lower()
 
         if suffix == ".bib":
+            # Without pybtex the file cannot be read at all. Skipping it
+            # silently would leave its links unchecked while the run still
+            # reports success - the worst outcome for a link checker, and
+            # invisible in CI. So it is recorded as a file access error and
+            # counted, which makes it fail a --raise_for_dead_links run.
+            if not parser.PYBTEX_AVAILABLE:
+                self.cnt['bib_files_skipped'] += 1
+                self.db.log_file_access_error(
+                    str(file_path), parser.MISSING_PYBTEX_MSG)
+                return None, None
             try:
                 url_list, doi_list = self.parser.extract_links_from_bib(content)
                 return url_list, doi_list
@@ -334,5 +344,14 @@ class InputHandler:
                 self.handle_found_urls(file_path, url_list)
             if doi_list:
                 self.handle_found_dois(file_path, doi_list)
+
+        # One aggregate warning instead of one per file: a bibliography
+        # folder can hold dozens of .bib files and the fix is the same for
+        # all of them.
+        skipped = self.cnt['bib_files_skipped']
+        if skipped:
+            logging.warning(
+                '%s BibTeX file(s) were NOT checked: %s',
+                skipped, parser.MISSING_PYBTEX_MSG)
 
         return None

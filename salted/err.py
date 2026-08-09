@@ -44,6 +44,18 @@ class UnsafeTemplateError(SaltedException):
     """
 
 
+class MissingOptionalDependencyError(SaltedException):
+    """Raised when a file format needs an optional dependency that is absent.
+
+    Some formats are only supported if an extra was installed. BibTeX
+    needs `pybtex` (`pip install salted[bibtex]`), which is not part of
+    the default install because most users never check `.bib` files.
+    This is raised when such a file was asked for explicitly; a `.bib`
+    file merely found while scanning a folder is reported in the run's
+    file access errors instead.
+    """
+
+
 class RedirectBlockedException(SaltedException):
     """Raised when a redirect target must not be requested.
 

@@ -68,6 +68,19 @@ pip install salted
 
 *The installation via pip / pip3 install the library salted AND registers it as a command line script in the path. So you can just call salted in the terminal.*
 
+### Optional extras
+
+Two features are not part of the default install, so you do not carry dependencies you never use:
+
+```bash
+pip install salted[bibtex]   # check .bib files (adds pybtex)
+pip install salted[lxml]     # faster HTML parsing (adds lxml)
+pip install salted[all]      # both
+```
+
+* **`bibtex`** is *required* to check `.bib` files. Without it salted cannot read them at all: a `.bib` file named directly with `-i` stops the run with a message naming this command, and one merely found while scanning a folder is listed in the report as not checked — it never counts as "fine". With `--raise_for_dead_links` an unchecked `.bib` file fails the run, so a CI pipeline cannot silently stop checking your bibliography.
+* **`lxml`** is only an optimization. Without it salted falls back to Python's built-in `html.parser`; everything still works, just slower and less tolerant of malformed HTML.
+
 ## Supported File Formats
 
 SALTED does support the following file-formats:
@@ -79,7 +92,7 @@ SALTED does support the following file-formats:
   * Mailto links are parsed and listed in the report with basic format validation (no DNS lookup or delivery check).
 * **Markdown** : The pandoc version as well as GitHub flavored markdown are supported.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
-* **BibTeX** : URL and DOI fields are extracted and checked. BibTeX files are included when using `--file_types tex` or `--file_types supported`.
+* **BibTeX** : URL and DOI fields are extracted and checked. BibTeX files are included when using `--file_types tex` or `--file_types supported`. **Requires the `bibtex` extra** (`pip install salted[bibtex]`) — see [Optional extras](#optional-extras). Without it a `.bib` file is never silently skipped: naming one with `-i` stops the run, and one found while scanning a folder is reported as not checked and fails a `--raise_for_dead_links` run.
 * **Microsoft Word**: is not directly supported, but you can convert Word to markdown which is supported.
 
 

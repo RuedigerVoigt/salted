@@ -31,13 +31,16 @@ dependencies = [
     "beautifulsoup4>=4.15.0",
     "compatibility>=2.2.0",
     "jinja2>=3.1.6",
-    "pybtex>=0.26.1",
     "tqdm>=4.69.0",
     "userprovided>=2.6.0",
 ]
 
 [project.optional-dependencies]
 lxml = ["lxml>=6.1.1"]
+# BibTeX support. Optional because most users never check .bib files and
+# pybtex is only used to read the url and doi fields out of them.
+bibtex = ["pybtex>=0.26.1"]
+all = ["lxml>=6.1.1", "pybtex>=0.26.1"]
 
 [project.urls]
 Homepage = "https://github.com/RuedigerVoigt/salted"
@@ -58,6 +61,8 @@ pytest-asyncio = ">=1.4.0"
 pytest-mock = ">=3.15.1"
 pyfakefs = ">=6.2.0"
 pytest-cov = "*"
+# Runtime-optional, but required here: the BibTeX tests must run.
+pybtex = ">=0.26.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=9.1.1"
@@ -65,6 +70,7 @@ pytest-asyncio = ">=1.4.0"
 pytest-mock = ">=3.15.1"
 pyfakefs = ">=6.2.0"
 pytest-cov = "*"
+pybtex = ">=0.26.1"
 ruff = ">=0.15.22"
 mypy = ">=2.3.0"
 bandit = ">=1.9.4"

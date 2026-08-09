@@ -33,6 +33,7 @@ from salted import (
     internal_link_check,
     memory_instance,
     parameter_rules,
+    parser,
     report_generator,
     url_check,
 )
@@ -550,6 +551,16 @@ class Salted:
 
         files_to_check = self._select_files(path, filesearch, suffixes)
 
+        # A single .bib file named with -i is an explicit request for
+        # BibTeX. Reporting "nothing to check" or a file access error would
+        # bury the one thing the user asked for, so this fails loudly and
+        # names the fix. A .bib file merely found while scanning a folder is
+        # handled in InputHandler, which keeps the rest of the run going.
+        if (not parser.PYBTEX_AVAILABLE
+                and path.is_file() and path.suffix.lower() == '.bib'):
+            logging.error(parser.MISSING_PYBTEX_MSG)
+            raise err.MissingOptionalDependencyError(parser.MISSING_PYBTEX_MSG)
+
         # Scan and prune for both directory and single-file modes
         if not files_to_check:
             logging.warning("No supported files in this folder or its subfolders.")
@@ -646,7 +657,16 @@ class Salted:
         # CI run would recheck everything on the next attempt.
         cache_handler.overwrite_cache_file()
         num_dead = db.count_errors() + db.count_internal_link_errors()
-        if self.raise_for_dead_links and num_dead > 0:
+        # A .bib file that could not be read for lack of pybtex counts as a
+        # failure, not as a pass: its links were never checked, and a run
+        # that silently ignored them while exiting 0 would hide dead links
+        # in exactly the pipeline meant to catch them.
+        num_unchecked_bib = file_io.cnt['bib_files_skipped']
+        if self.raise_for_dead_links and (num_dead + num_unchecked_bib) > 0:
+            if num_dead == 0:
+                raise err.DeadLinksException(
+                    f'{num_unchecked_bib} BibTeX file(s) could not be checked. '
+                    f'{parser.MISSING_PYBTEX_MSG}')
             raise err.DeadLinksException("Found dead URLs")
 
 

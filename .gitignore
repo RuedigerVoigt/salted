@@ -6,6 +6,9 @@ test-cache*.sqlite3
 CLAUDE.md
 .claude/
 
+# Local planning notes
+TODO.md
+
 # Test/temporary files
 test_report.txt
 cli_output.txt
