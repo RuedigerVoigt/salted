@@ -45,6 +45,7 @@
   * Fix TeX `\href` links being lost when a line held both an `\href` and a later `[...]` construct. The greedy optional-argument pattern consumed everything up to the last bracket on the line, so the first link on such a line was never extracted and went unchecked. (Same root cause as the ReDoS fix listed under Security.)
   * Fix URLs raising an unexpected exception being dropped from the report; the `validate_url` catch-all now records them via `log_exception`.
   * Fix files with non-UTF-8 encoding (e.g. Latin-1) causing a file access error on Windows — salted now tries UTF-8 first and falls back to Latin-1
+  * Fix a config file saved with a UTF-8 byte-order mark being rejected as `Config file is corrupted (not valid INI)`. Windows editors (Notepad, Visual Studio, PowerShell 5.1) write that BOM by default; read as plain UTF-8 it survived as an invisible character before `[SECTION]`, so `configparser` saw a first line that did not start with `[` and refused a perfectly valid file — with an error message pointing at a syntax error that was not there. The config file is now read as `utf-8-sig`, which strips a leading BOM and is identical to `utf-8` when there is none.
   * Fix `--file_types` having no effect on directory scans
   * Fix BibTeX URL and DOI extraction silently failing due to wrong field name casing (`'Url'`/`'Doi'` → `'url'`/`'doi'`)
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled

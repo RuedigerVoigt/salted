@@ -59,6 +59,50 @@ class TestMailtoFromConfig:
         assert Salted().mailto is None
 
 
+class TestByteOrderMark:
+    """A config file saved with a UTF-8 BOM must be read, not rejected.
+
+    Windows editors (Notepad, Visual Studio, PowerShell 5.1) write those
+    three bytes by default. Read as plain 'utf-8' they survive as U+FEFF at
+    the start of the string, configparser sees a first line that does not
+    begin with '[' and raises MissingSectionHeaderError - so salted used to
+    report a valid file as 'corrupted (not valid INI)'.
+    """
+
+    def test_autodiscovered_config_with_bom_is_read(self, tmp_path,
+                                                    monkeypatch):
+        (tmp_path / "salted-linkcheck.ini").write_bytes(
+            b'\xef\xbb\xbf[BEHAVIOR]\ntimeout = 42\n')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().timeout == 42
+
+    def test_explicit_config_with_bom_is_read(self, tmp_path):
+        target = tmp_path / "my-config.ini"
+        target.write_bytes(b'\xef\xbb\xbf[BEHAVIOR]\ntimeout = 42\n')
+
+        assert Salted(config_path=target).timeout == 42
+
+    def test_file_without_bom_is_unchanged(self, tmp_path, monkeypatch):
+        """The regression guard for the fix itself: utf-8-sig must not alter
+        a file that carries no BOM."""
+        (tmp_path / "salted-linkcheck.ini").write_bytes(
+            b'[BEHAVIOR]\ntimeout = 42\n')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().timeout == 42
+
+    def test_a_genuinely_broken_file_still_raises(self, tmp_path,
+                                                  monkeypatch):
+        """Stripping the BOM must not paper over real INI errors."""
+        (tmp_path / "salted-linkcheck.ini").write_bytes(
+            b'\xef\xbb\xbftimeout = 42\n')
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(ConfigFileError, match='corrupted'):
+            Salted()
+
+
 class TestExcludePathsFromConfig:
     """[FILES] exclude_paths accepts a comma-separated list of paths."""
 

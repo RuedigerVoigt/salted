@@ -307,8 +307,14 @@ class Salted:
         # Read the file ourselves: ConfigParser.read() silently ignores files
         # it cannot open, so reading the text here lets a permission problem or
         # a non-UTF-8 file surface with a clear message instead of being lost.
+        # 'utf-8-sig' rather than 'utf-8': it drops a leading byte-order mark
+        # and is identical to plain utf-8 when there is none. Windows editors
+        # (Notepad, Visual Studio, PowerShell 5.1) write that BOM by default,
+        # and plain utf-8 keeps it in the string - where configparser sees a
+        # first line that does not begin with '[' and rejects a perfectly
+        # valid file as 'not valid INI'.
         try:
-            config_text = target.read_text(encoding='utf-8')
+            config_text = target.read_text(encoding='utf-8-sig')
         except (OSError, UnicodeDecodeError) as exc:
             msg = f"Config file could not be read: {target} - {exc}"
             logging.error(msg)
