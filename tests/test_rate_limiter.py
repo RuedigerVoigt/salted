@@ -26,12 +26,6 @@ class TestRateLimiterBasics:
         assert limiter.drop_subdomain is True
         assert len(limiter.last_request_time) == 0
 
-        stats = limiter.get_stats()
-        assert stats['delay_seconds'] == 0.25
-        assert stats['drop_subdomain'] is True
-        assert stats['enabled'] is True
-        assert stats['tracked_domains'] == 0
-
     @pytest.mark.asyncio
     async def test_initialization_custom_values(self):
         """Test rate limiter with custom values"""
@@ -51,7 +45,8 @@ class TestRateLimiterBasics:
 
         # Should complete almost instantly
         assert elapsed < 0.1
-        assert limiter.get_stats()['enabled'] is False
+        # Disabled: wait_if_needed returns before recording anything
+        assert len(limiter.last_request_time) == 0
 
 
 class TestDomainExtraction:
@@ -140,7 +135,7 @@ class TestRateLimitingBehavior:
 
         # Should be instant for different domains
         assert elapsed < 0.1
-        assert limiter.get_stats()['tracked_domains'] == 3
+        assert len(limiter.last_request_time) == 3
 
     @pytest.mark.asyncio
     async def test_same_domain_different_subdomains_shared_limit(self):
@@ -155,7 +150,7 @@ class TestRateLimitingBehavior:
 
         # Should be delayed because both resolve to 'example.com'
         assert 0.4 < elapsed < 0.6
-        assert limiter.get_stats()['tracked_domains'] == 1
+        assert len(limiter.last_request_time) == 1
 
     @pytest.mark.asyncio
     async def test_same_domain_different_subdomains_separate_limit(self):
@@ -170,7 +165,7 @@ class TestRateLimitingBehavior:
 
         # Should NOT be delayed because they're different subdomains
         assert elapsed < 0.1
-        assert limiter.get_stats()['tracked_domains'] == 2
+        assert len(limiter.last_request_time) == 2
 
     @pytest.mark.asyncio
     async def test_wait_after_delay_passes(self):
@@ -209,7 +204,7 @@ class TestConcurrency:
 
         # Should all complete quickly (no delays for different domains)
         assert elapsed < 0.2
-        assert limiter.get_stats()['tracked_domains'] == 4
+        assert len(limiter.last_request_time) == 4
 
     @pytest.mark.asyncio
     async def test_concurrent_requests_same_domain(self):
@@ -229,7 +224,7 @@ class TestConcurrency:
         # Should take approximately delay * (n-1) seconds
         # 3 requests with 0.2s delay = ~0.4s total
         assert 0.3 < elapsed < 0.5
-        assert limiter.get_stats()['tracked_domains'] == 1
+        assert len(limiter.last_request_time) == 1
 
 
 class TestEdgeCases:
@@ -243,8 +238,7 @@ class TestEdgeCases:
         # Should not raise exception, just skip rate limiting
         await limiter.wait_if_needed('')
 
-        stats = limiter.get_stats()
-        assert stats['tracked_domains'] == 0
+        assert len(limiter.last_request_time) == 0
 
     @pytest.mark.asyncio
     async def test_negative_delay_treated_as_disabled(self):
@@ -258,4 +252,5 @@ class TestEdgeCases:
 
         # Should be instant
         assert elapsed < 0.1
-        assert limiter.get_stats()['enabled'] is False
+        # Negative delay disables the limiter, so nothing is recorded
+        assert len(limiter.last_request_time) == 0

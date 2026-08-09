@@ -120,17 +120,3 @@ class DomainRateLimiter:
 
             # Record the request time
             self.last_request_time[domain] = current_time
-
-    def get_stats(self) -> dict:
-        """
-        Get statistics about tracked domains.
-
-        Returns:
-            Dictionary with statistics
-        """
-        return {
-            'tracked_domains': len(self.last_request_time),
-            'delay_seconds': self.delay_seconds,
-            'drop_subdomain': self.drop_subdomain,
-            'enabled': self.delay_seconds > 0
-        }
