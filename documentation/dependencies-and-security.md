@@ -23,7 +23,7 @@ Neither is installed by `pip install salted`. They differ in kind: one only make
 | [lxml](https://lxml.de/) | `salted[lxml]` | High-performance HTML parsing backend for BeautifulSoup — faster and more lenient with malformed HTML than the built-in `html.parser`. **Has a fallback:** without it salted uses `html.parser` and everything still works. Requires `>=6.1.1` (fixes CVE-2026-41066, needed for Python 3.14 compatibility). |
 | [pybtex](https://pybtex.org/) | `salted[bibtex]` | Parses BibTeX files to extract URL and DOI fields. **Has no fallback:** without it a `.bib` file cannot be read at all. |
 
-`pip install salted[all]` installs both.
+`pip install "salted[all]"` installs both. Keep the double quotes: zsh (the default shell on macOS) reads the brackets as a filename pattern and aborts before pip runs.
 
 Because `pybtex` is optional, its own dependencies — `latexcodec` and `PyYAML` — are no longer part of a default install either.
 

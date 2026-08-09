@@ -19,7 +19,9 @@ from userprovided.url import extract_domain
 class DomainRateLimiter:
     """
     Rate limiter that enforces minimum delay between requests to the same domain.
-    Thread-safe for async operations using asyncio locks.
+    Safe for concurrent coroutines through asyncio locks - which is not the
+    same as thread-safe: asyncio.Lock guards a single event loop, so sharing
+    an instance across threads would need different primitives.
 
     Uses userprovided.url.extract_domain() for robust domain extraction with
     proper handling of multi-part TLDs (e.g., .co.uk, .com.au).

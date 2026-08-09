@@ -115,7 +115,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--raise_for_dead_links",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Raise an exception if dead links are found, or if a file could not be read and its links went unchecked (default: False).")
+        help=("Raise an exception if dead links are found, or if a file "
+              "could not be read and its links went unchecked "
+              "(default: False)."))
     presets = ', '.join(list_presets())
     parser.add_argument(
         "--user_agent",

@@ -24,7 +24,7 @@ try:
 except ImportError:
     _BS_PARSER = 'html.parser'
     logging.warning("lxml not installed — falling back to html.parser. "
-                    "Install salted[lxml] for faster HTML parsing.")
+                    'Install "salted[lxml]" for faster HTML parsing.')
 
 # BibTeX support is optional. Unlike lxml - which only swaps the HTML
 # backend for a faster one - pybtex has no fallback: without it a .bib
@@ -42,7 +42,11 @@ except ImportError:
 # merely found while scanning a folder.
 MISSING_PYBTEX_MSG: Final[str] = (
     'BibTeX support requires the optional dependency pybtex, which is not '
-    'installed. Install it with: pip install salted[bibtex]')
+    'installed. Install it with: pip install "salted[bibtex]"')
+# The quotes are part of the command, not decoration: zsh (the default
+# shell on macOS) treats the brackets as a filename pattern and aborts
+# with 'no matches found' before pip runs. Double quotes work in every
+# shell, single quotes would break the Windows command prompt.
 # a future version of pybtex might get type hints, see:
 # https://bitbucket.org/pybtex-devs/pybtex/issues/141/type-annotations
 

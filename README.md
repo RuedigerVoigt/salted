@@ -19,7 +19,7 @@ Key advantages of this application:
     * Salted uses a configurable cache. If your check found some broken links and you fixed them within the cache lifetime (default: 24h), then the next run will only check the changed links.
     * It normalizes URLs. Because `https://www.example.com/index.html#one` and `https://www.example.com/index.html#two` point to the same page, only one check is performed.
 * *It is fast.*
-    * Some linkcheckers work in a linear way - one link after another. Salted spawns many asynchronous worker threads that work in parallel and free up resources while waiting on a server's response.
+    * Some linkcheckers work in a linear way - one link after another. Salted spawns many async workers (asyncio coroutines, not threads) that work concurrently and free up resources while waiting on a server's response.
     * Salted is very fast and can check dozens of links *per second* (depending on your connection).
 * *Salted can be used stand-alone or in a CI pipeline / within GitHub actions.*
      * The result can be written to standard out / the command line or to a file.
@@ -73,10 +73,12 @@ pip install salted
 Two features are not part of the default install, so you do not carry dependencies you never use:
 
 ```bash
-pip install salted[bibtex]   # check .bib files (adds pybtex)
-pip install salted[lxml]     # faster HTML parsing (adds lxml)
-pip install salted[all]      # both
+pip install "salted[bibtex]"   # check .bib files (adds pybtex)
+pip install "salted[lxml]"     # faster HTML parsing (adds lxml)
+pip install "salted[all]"      # both
 ```
+
+*The quotes matter: zsh — the default shell on macOS — reads the square brackets as a filename pattern and aborts with `no matches found` before pip ever runs. Double quotes work in every shell, including the Windows command prompt.*
 
 * **`bibtex`** is *required* to check `.bib` files. Without it salted cannot read them at all: a `.bib` file named directly with `-i` stops the run with a message naming this command, and one merely found while scanning a folder is listed in the report as not checked — it never counts as "fine". With `--raise_for_dead_links` an unchecked `.bib` file fails the run, so a CI pipeline cannot silently stop checking your bibliography.
 * **`lxml`** is only an optimization. Without it salted falls back to Python's built-in `html.parser`; everything still works, just slower and less tolerant of malformed HTML.
@@ -92,7 +94,7 @@ SALTED does support the following file-formats:
   * Mailto links are parsed and listed in the report with basic format validation (no DNS lookup or delivery check).
 * **Markdown** : The pandoc version as well as GitHub flavored markdown are supported.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
-* **BibTeX** : URL and DOI fields are extracted and checked. BibTeX files are included when using `--file_types tex` or `--file_types supported`. **Requires the `bibtex` extra** (`pip install salted[bibtex]`) — see [Optional extras](#optional-extras). Without it a `.bib` file is never silently skipped: naming one with `-i` stops the run, and one found while scanning a folder is reported as not checked and fails a `--raise_for_dead_links` run.
+* **BibTeX** : URL and DOI fields are extracted and checked. BibTeX files are included when using `--file_types tex` or `--file_types supported`. **Requires the `bibtex` extra** (`pip install "salted[bibtex]"`) — see [Optional extras](#optional-extras). Without it a `.bib` file is never silently skipped: naming one with `-i` stops the run, and one found while scanning a folder is reported as not checked and fails a `--raise_for_dead_links` run.
 * **Microsoft Word**: is not directly supported, but you can convert Word to markdown which is supported.
 
 

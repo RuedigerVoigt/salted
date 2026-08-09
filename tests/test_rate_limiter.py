@@ -184,7 +184,7 @@ class TestRateLimitingBehavior:
 
 
 class TestConcurrency:
-    """Test thread-safety and concurrent access"""
+    """Test concurrent access from several coroutines (not threads)"""
 
     @pytest.mark.asyncio
     async def test_concurrent_requests_different_domains(self):
