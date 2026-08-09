@@ -31,7 +31,7 @@ dependencies = [
     "beautifulsoup4>=4.15.0",
     "compatibility>=2.2.0",
     "jinja2>=3.1.6",
-    "tqdm>=4.69.0",
+    "tqdm>=4.70.0",
     "userprovided>=2.6.0",
 ]
 
