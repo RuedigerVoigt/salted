@@ -11,7 +11,7 @@ import pathlib
 from unittest.mock import patch, MagicMock
 import pytest
 
-from salted import command_line
+from salted import command_line, err, parser
 
 
 class TestCommandLineArguments:
@@ -530,6 +530,84 @@ class TestArgumentParsingEdgeCases:
             # argparse should raise SystemExit for invalid int
             with pytest.raises(SystemExit):
                 command_line.main()
+
+
+class TestExpectedErrorsExitCleanly:
+    """Expected outcomes end in a message and exit code 1, not a traceback.
+
+    Dead links found by a CI run and a `.bib` file without the BibTeX extra
+    are normal situations, so the CLI must not answer them with a Python
+    stack trace. Library use is unaffected: it never goes through main().
+    """
+
+    def test_dead_links_exit_without_traceback(self, caplog):
+        """--raise_for_dead_links finding links is a result, not a crash."""
+        test_args = ['salted', '--raise_for_dead_links']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_checker.check.side_effect = err.DeadLinksException(
+                    'Found dead URLs')
+                mock_salted_class.return_value = mock_checker
+
+                with pytest.raises(SystemExit) as excinfo:
+                    command_line.main()
+
+        assert excinfo.value.code == 1
+        assert 'Found dead URLs' in caplog.text
+
+    def test_dead_links_message_survives(self, caplog):
+        """The pybtex hint carried by the exception must reach the user.
+
+        Skipped .bib files raise DeadLinksException with a message naming
+        the install command - a bare sys.exit() would swallow it.
+        """
+        test_args = ['salted', '--raise_for_dead_links']
+        message = (f'1 BibTeX file(s) could not be checked. '
+                   f'{parser.MISSING_PYBTEX_MSG}')
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_checker.check.side_effect = err.DeadLinksException(message)
+                mock_salted_class.return_value = mock_checker
+
+                with pytest.raises(SystemExit):
+                    command_line.main()
+
+        assert parser.MISSING_PYBTEX_MSG in caplog.text
+
+    def test_missing_optional_dependency_exits_without_traceback(self, caplog):
+        """`salted -i refs.bib` without the extra exits instead of crashing."""
+        test_args = ['salted', '-i', 'refs.bib']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_checker.check.side_effect = err.MissingOptionalDependencyError(
+                    parser.MISSING_PYBTEX_MSG)
+                mock_salted_class.return_value = mock_checker
+
+                with pytest.raises(SystemExit) as excinfo:
+                    command_line.main()
+
+        assert excinfo.value.code == 1
+        # Logged where the file was rejected - not a second time here.
+        assert parser.MISSING_PYBTEX_MSG not in caplog.text
+
+    def test_unexpected_exception_is_not_swallowed(self):
+        """Only expected errors are caught; a real defect must still surface."""
+        test_args = ['salted']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_checker.check.side_effect = RuntimeError('unexpected')
+                mock_salted_class.return_value = mock_checker
+
+                with pytest.raises(RuntimeError):
+                    command_line.main()
 
 
 class TestParameterTypesAndConversion:

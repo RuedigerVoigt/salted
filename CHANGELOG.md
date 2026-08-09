@@ -41,6 +41,7 @@
 * Robustness:
   * The disk cache is now written atomically. Previously the existing cache file was deleted and then rebuilt in place, so an interruption mid-write (crash, error, or power loss) could leave no cache at all. The new cache is built in a sibling temporary file and moved into place with `os.replace`, so any existing cache stays intact on failure.
 * Bug Fixes:
+  * The CLI no longer answers expected situations with a Python traceback. Dead links found with `--raise_for_dead_links` and a `.bib` file named with `-i` while the `bibtex` extra is missing now print their message and exit with code 1, like a bad config file already did. The exit code is unchanged, so existing CI pipelines keep working; library use is unaffected, as `DeadLinksException` and `MissingOptionalDependencyError` are only caught in the CLI entry point.
   * Fix files with an uppercase extension (`INDEX.HTML`, `Notes.Md`) being skipped and their links never checked: file type matching is now case-insensitive.
   * Fix links with an uppercase scheme (`HTTP://…`, `MAILTO:…`) being discarded as unsupported — schemes are case-insensitive per RFC 3986. Matching the parsed scheme also keeps look-alikes such as `httpfoo://host` out of the queue.
   * Fix Markdown links whose URL contains balanced parentheses (e.g. Wikipedia `..._(programming_language)`) being truncated at the first `)`, which produced false dead-link reports.

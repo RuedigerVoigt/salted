@@ -18,7 +18,12 @@ from userprovided.parameters import separated_string_to_set
 
 import salted
 from salted import parameter_rules
-from salted.err import ConfigFileError, UnsafeTemplateError
+from salted.err import (
+    ConfigFileError,
+    DeadLinksException,
+    MissingOptionalDependencyError,
+    UnsafeTemplateError,
+)
 from salted.file_finder import separated_paths_to_set
 from salted.user_agents import get_user_agent, list_presets
 
@@ -329,12 +334,19 @@ def main() -> None:
     _apply_mapped_overrides(checker, args, parser)
     _apply_special_overrides(checker, args)
 
-    # A rejected template or a config file reaching outside its own folder is
-    # an expected, actionable error - a mistyped name, or a configuration that
-    # is not allowed to point where it does. Report those the way a bad config
-    # file is reported: a clear message and a non-zero exit code, no traceback.
+    # Everything caught here is an expected, actionable outcome rather than a
+    # defect: a mistyped template name, a config file pointing outside its own
+    # folder, dead links found by a CI run, or a .bib file without the BibTeX
+    # extra installed. All of them are reported the way a bad config file is
+    # reported - a clear message and a non-zero exit code, no traceback. The
+    # exceptions still propagate for library use, which never goes through
+    # main().
     try:
         checker.check(checker.searchpath)
-    except (UnsafeTemplateError, ConfigFileError) as exc:
+    except MissingOptionalDependencyError:
+        # The install hint was already logged where the file was rejected,
+        # so repeating it here would only print the same message twice.
+        sys.exit(1)
+    except (UnsafeTemplateError, ConfigFileError, DeadLinksException) as exc:
         logging.error(str(exc))
         sys.exit(1)
