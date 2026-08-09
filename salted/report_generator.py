@@ -8,7 +8,9 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 import logging
+import os
 import pathlib
+import sys
 from typing import Final
 
 from jinja2 import FileSystemLoader, PackageLoader
@@ -53,6 +55,19 @@ _MD_URL_ESCAPES: Final[dict] = {
 # it only carries meaning at the start of a line, which cannot happen for a
 # value rendered inside a table cell or a list item.
 _MD_ESCAPE_CHARS: Final[str] = '\\`*_[]<>|'
+
+# OSC 8 terminal hyperlink: ESC ] 8 ; params ; URI ST. The trailing
+# sequence with an empty URI closes the link, so following output is not
+# swallowed into it. ESC \ is used as the string terminator rather than
+# BEL, as it is the form specified by ECMA-48.
+_OSC8_OPEN: Final[str] = '\x1b]8;;'
+_OSC8_ST: Final[str] = '\x1b\\'
+_OSC8_CLOSE: Final[str] = f'{_OSC8_OPEN}{_OSC8_ST}'
+
+# Only these are turned into terminal hyperlinks. Everything the report
+# shows comes out of a checked document, and a scheme like 'javascript:'
+# or 'file:' has no business being one click away in a terminal.
+_LINKABLE_SCHEMES: Final[tuple] = ('http://', 'https://')
 
 
 def strip_control_characters(value: str) -> str:
@@ -112,6 +127,63 @@ def markdown_url(value: object) -> str:
     for char, encoded in _MD_URL_ESCAPES.items():
         text = text.replace(char, encoded)
     return text
+
+
+def terminal_supports_hyperlinks() -> bool:
+    """Decide whether OSC 8 hyperlinks may be written to stdout.
+
+    There is no way to ask a terminal whether it understands OSC 8, so
+    this is a conservative guess: emit only when stdout is a terminal at
+    all. Redirected output and pipes must stay free of escape sequences -
+    they end up in log files and CI output, where the bytes would be
+    noise rather than a link.
+
+    Returns:
+        True if stdout looks like a terminal that may render hyperlinks.
+    """
+    try:
+        if not sys.stdout.isatty():
+            return False
+    except (AttributeError, ValueError):
+        # Replaced or already closed stdout: assume not a terminal.
+        return False
+    # TERM is often unset (notably on Windows), so only an explicit
+    # 'dumb' counts against us here.
+    if os.environ.get('TERM') == 'dumb':
+        return False
+    return not os.environ.get('NO_COLOR')
+
+
+def osc8_link(value: object) -> str:
+    """Wrap a URL in an OSC 8 escape sequence so terminals linkify it.
+
+    The URL is both the link target and the visible text. A terminal that
+    does not understand OSC 8 ignores the sequence and prints that text,
+    so the output is what salted showed before - this cannot render a URL
+    invisible.
+
+    That is also what makes this worth doing: terminals otherwise guess
+    where a URL ends by scanning the printed text, and most stop at '(' or
+    ')' because those usually delimit a URL rather than belong to it. A
+    link such as '..._(Datenbank)' is cut short and cannot be clicked.
+    Inside an escape sequence the URL is not parsed out of the text at
+    all, so the problem disappears.
+
+    Args:
+        value: The URL to render as a hyperlink.
+
+    Returns:
+        The URL wrapped in an OSC 8 sequence, or unchanged if it does not
+        use a scheme that may be linkified.
+    """
+    # Control characters would end the escape sequence early and let a
+    # checked document write terminal escapes of its own. Rows from the
+    # database are cleaned already, but this filter is offered to custom
+    # templates too, which may apply it to anything.
+    url = strip_control_characters(str(value))
+    if not url.lower().startswith(_LINKABLE_SCHEMES):
+        return url
+    return f'{_OSC8_OPEN}{url}{_OSC8_ST}{url}{_OSC8_CLOSE}'
 
 
 def _clean(value: object) -> object:
@@ -501,6 +573,15 @@ class ReportGenerator:
         # to custom templates too, since they face the same input.
         jinja_env.filters['md_cell'] = markdown_cell
         jinja_env.filters['md_url'] = markdown_url
+
+        # Terminal hyperlinks only when the report goes to a terminal.
+        # Written to a file they would be stray escape bytes, so the
+        # filter degrades to passing the URL through unchanged.
+        if write_to == 'cli' and terminal_supports_hyperlinks():
+            jinja_env.filters['osc8'] = osc8_link
+        else:
+            jinja_env.filters['osc8'] = lambda value: strip_control_characters(
+                str(value))
 
         rendered_report = jinja_env.get_template(
             template['name']).render(**render_context)

@@ -33,7 +33,7 @@ HTTP status code 410 = Gone
 {% for result in permanent %}
 {{ result.path }} {{result.num_errors}}
 {% for url in result.defects %}
-* {{ url[2] }}: {{ url[1] }} {{ url[0] }}
+* {{ url[2] }}: {{ url[1] }} {{ url[0] | osc8 }}
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -58,7 +58,7 @@ No permanent redirects found!
 {% for result in redirects %}
 {{ result.path }} {{result.num_redirects}}
 {% for url in result.redirects %}
-* {{ url[2] }}: {{ url[1] }} {{ url[0] }}
+* {{ url[2] }}: {{ url[1] }} {{ url[0] | osc8 }}
 {% endfor %}
 {% endfor %}
 {% endif %}
@@ -70,7 +70,7 @@ No exceptions during the crawl!
 {% for result in exceptions %}
 {{ result.path }} {{result.num_exceptions}}
 {% for url in result.exceptions %}
-* {{ url[2] }}: {{ url[1] }} {{ url[0] }}
+* {{ url[2] }}: {{ url[1] }} {{ url[0] | osc8 }}
 {% endfor %}
 {% endfor %}
 {% endif %}

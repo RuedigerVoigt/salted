@@ -12,12 +12,20 @@ Source: https://github.com/RuedigerVoigt/salted
 import contextlib
 import io
 import re
+import sys
 import pytest
 import pathlib
 
 from jinja2.exceptions import SecurityError
 
 from salted import err, report_generator, memory_instance
+
+
+class _FakeTTY(io.StringIO):
+    """A stdout replacement that claims to be a terminal."""
+
+    def isatty(self) -> bool:
+        return True
 
 
 class TestReportGeneratorInitialization:
@@ -888,4 +896,187 @@ class TestGenerateReport:
                     write_to='/some/report.txt',
                     replace_path_by_url={'replace_with_url': None}
                 )
+        mem_inst.tear_down_in_memory_db()
+
+
+class TestOsc8Link:
+    """Test the OSC 8 terminal hyperlink filter"""
+
+    def test_wraps_http_url(self):
+        """A http URL is wrapped as target and as visible text"""
+        url = 'http://example.com/page'
+        assert report_generator.osc8_link(url) == (
+            f'\x1b]8;;{url}\x1b\\{url}\x1b]8;;\x1b\\')
+
+    def test_wraps_https_url(self):
+        """https is linkified as well"""
+        assert report_generator.osc8_link('https://example.com').startswith(
+            '\x1b]8;;https://example.com\x1b\\')
+
+    def test_url_with_parentheses_kept_intact(self):
+        """The case this feature exists for: parens must survive"""
+        url = 'https://de.wikipedia.org/wiki/Normalisierung_(Datenbank)'
+        result = report_generator.osc8_link(url)
+        # The URL appears twice unaltered: once as target, once as text.
+        assert result.count(url) == 2
+
+    def test_visible_text_is_the_url(self):
+        """Stripping the escapes must leave exactly the URL behind"""
+        url = 'https://example.com/a(b)c'
+        result = report_generator.osc8_link(url)
+        visible = re.sub('\x1b]8;;[^\x1b]*\x1b\\\\', '', result)
+        assert visible == url
+
+    @pytest.mark.parametrize('url', [
+        'ftp://example.com/file',
+        'javascript:alert(1)',
+        'file:///etc/passwd',
+        'mailto:someone@example.com',
+        'not a url at all',
+        '',
+    ])
+    def test_other_schemes_are_not_linkified(self, url):
+        """Only http(s) becomes a clickable link"""
+        assert report_generator.osc8_link(url) == url
+
+    def test_control_characters_are_stripped(self):
+        """A URL must not be able to close the sequence and escape it"""
+        hostile = ('https://example.com/\x1b\\'
+                   '\x1b]8;;http://evil.example\x1b\\')
+        result = report_generator.osc8_link(hostile)
+        assert '\x1b]8;;http://evil.example' not in result
+        # Exactly one opening and one closing sequence remain.
+        assert result.count('\x1b]8;;') == 2
+
+    def test_non_string_input(self):
+        """Anything not a string is coerced, not linkified"""
+        assert report_generator.osc8_link(42) == '42'
+        assert report_generator.osc8_link(None) == 'None'
+
+    def test_uppercase_scheme_is_linkified(self):
+        """Scheme comparison is case insensitive"""
+        assert report_generator.osc8_link('HTTPS://example.com').startswith(
+            '\x1b]8;;')
+
+
+class TestTerminalSupportsHyperlinks:
+    """Test the gate deciding whether escape sequences may be written"""
+
+    def test_not_a_tty(self, monkeypatch):
+        """Redirected output must stay free of escape sequences"""
+        monkeypatch.setattr(sys, 'stdout', io.StringIO())
+        assert report_generator.terminal_supports_hyperlinks() is False
+
+    def test_tty_without_term(self, monkeypatch):
+        """An unset TERM is normal on Windows and must not disable links"""
+        monkeypatch.setattr(sys, 'stdout', _FakeTTY())
+        monkeypatch.delenv('TERM', raising=False)
+        monkeypatch.delenv('NO_COLOR', raising=False)
+        assert report_generator.terminal_supports_hyperlinks() is True
+
+    def test_term_dumb(self, monkeypatch):
+        """TERM=dumb explicitly means no escape sequences"""
+        monkeypatch.setattr(sys, 'stdout', _FakeTTY())
+        monkeypatch.setenv('TERM', 'dumb')
+        monkeypatch.delenv('NO_COLOR', raising=False)
+        assert report_generator.terminal_supports_hyperlinks() is False
+
+    def test_no_color_env(self, monkeypatch):
+        """NO_COLOR is honoured"""
+        monkeypatch.setattr(sys, 'stdout', _FakeTTY())
+        monkeypatch.delenv('TERM', raising=False)
+        monkeypatch.setenv('NO_COLOR', '1')
+        assert report_generator.terminal_supports_hyperlinks() is False
+
+    def test_stdout_without_isatty(self, monkeypatch):
+        """A replaced stdout lacking isatty must not raise"""
+        monkeypatch.setattr(sys, 'stdout', object())
+        assert report_generator.terminal_supports_hyperlinks() is False
+
+
+class TestOsc8InGeneratedReport:
+    """Test hyperlink emission end to end through generate_report"""
+
+    STATS = {
+        'timestamp': '2026-01-01 12:00h',
+        'num_links': 1, 'num_checked': 1,
+        'time_to_check': 1, 'checks_per_second': 1.0,
+        'num_fine': 0, 'needed_full_request': 0,
+        'percentage_full_request': 0,
+        'check_dois': True,
+        'num_valid_dois': 0,
+        'num_invalid_dois': 0,
+    }
+    URL = 'https://example.com/wiki/Normalisierung_(Datenbank)'
+
+    def _db_with_one_error(self):
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        cursor = mem_inst.get_cursor()
+        cursor.execute(
+            'INSERT INTO queue (filePath, hostname, url, normalizedUrl, '
+            'linktext) VALUES (?, ?, ?, ?, ?)',
+            ['test.html', 'example.com', self.URL, self.URL, 'Link'])
+        cursor.execute(
+            'INSERT INTO errors VALUES (?, ?)', [self.URL, 404])
+        return mem_inst
+
+    def test_cli_output_has_hyperlink_when_tty(self, monkeypatch, capsys):
+        """On a terminal the URL is wrapped in an OSC 8 sequence"""
+        monkeypatch.setattr(
+            report_generator, 'terminal_supports_hyperlinks', lambda: True)
+        mem_inst = self._db_with_one_error()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.generate_report(
+            statistics=self.STATS,
+            template={'name': 'default.cli.jinja'},
+            write_to='cli',
+            replace_path_by_url={'replace_with_url': None})
+        out = capsys.readouterr().out
+        assert f'\x1b]8;;{self.URL}\x1b\\' in out
+        mem_inst.tear_down_in_memory_db()
+
+    def test_cli_output_plain_when_not_a_tty(self, capsys):
+        """Piped output keeps the previous plain-text form"""
+        mem_inst = self._db_with_one_error()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.generate_report(
+            statistics=self.STATS,
+            template={'name': 'default.cli.jinja'},
+            write_to='cli',
+            replace_path_by_url={'replace_with_url': None})
+        out = capsys.readouterr().out
+        assert '\x1b' not in out
+        assert self.URL in out
+        mem_inst.tear_down_in_memory_db()
+
+    def test_file_output_never_has_escapes(self, monkeypatch, tmp_path):
+        """Even on a terminal, a report written to a file stays plain"""
+        monkeypatch.setattr(
+            report_generator, 'terminal_supports_hyperlinks', lambda: True)
+        output_file = tmp_path / 'report.txt'
+        mem_inst = self._db_with_one_error()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.generate_report(
+            statistics=self.STATS,
+            template={'name': 'default.cli.jinja'},
+            write_to=str(output_file),
+            replace_path_by_url={'replace_with_url': None})
+        content = output_file.read_text(encoding='utf-8')
+        assert '\x1b' not in content
+        assert self.URL in content
+        mem_inst.tear_down_in_memory_db()
+
+    def test_markdown_template_never_has_escapes(self, monkeypatch, capsys):
+        """The markdown template does not use the filter"""
+        monkeypatch.setattr(
+            report_generator, 'terminal_supports_hyperlinks', lambda: True)
+        mem_inst = self._db_with_one_error()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.generate_report(
+            statistics=self.STATS,
+            template={'name': 'default.md.jinja'},
+            write_to='cli',
+            replace_path_by_url={'replace_with_url': None})
+        assert '\x1b' not in capsys.readouterr().out
         mem_inst.tear_down_in_memory_db()
