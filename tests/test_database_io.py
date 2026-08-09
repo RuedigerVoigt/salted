@@ -386,6 +386,19 @@ class TestLogFileAccessError:
         assert error[1] == 'Permission denied'
         mem_inst.tear_down_in_memory_db()
 
+    def test_count_file_access_errors(self):
+        """The count drives whether unreadable files fail the run"""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+
+        assert db_io.count_file_access_errors() == 0
+
+        db_io.log_file_access_error('/a.html', 'permission error')
+        db_io.log_file_access_error('/b.bib', 'BibTeX parse error: bad token')
+
+        assert db_io.count_file_access_errors() == 2
+        mem_inst.tear_down_in_memory_db()
+
 
 class TestDelLinksThatCanBeSkipped:
     """Test deleting links that can be skipped"""

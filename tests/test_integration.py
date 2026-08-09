@@ -198,6 +198,61 @@ def test_teardown_runs_when_dead_links_raise(mock_head, tmp_path):
     assert calls, "tear_down_in_memory_db was not called on the raise path"
 
 
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_unreadable_file_fails_the_run(mock_head, tmp_path):
+    """A file that could not be read fails --raise_for_dead_links.
+
+    Its links were never checked, so passing the run would hide dead
+    links in exactly the pipeline meant to catch them. The oversized
+    file stands in for every reason a file is skipped.
+    """
+    d = tmp_path / "unreadable"
+    d.mkdir()
+    (d / "fine.html").write_text("<a href='https://www.example.com/'>ok</a>")
+    (d / "huge.html").write_text("<html>" + "x" * (2 * 1024 * 1024) + "</html>")
+
+    my_check = salted.Salted()
+    my_check.raise_for_dead_links = True
+    my_check.max_file_size_mb = 1
+    with pytest.raises(err.DeadLinksException) as excinfo:
+        my_check.check(searchpath=d)
+
+    message = str(excinfo.value)
+    assert 'could not be checked' in message
+    # Nothing was dead, so the message must not send anyone hunting for
+    # a broken link that does not exist.
+    assert 'dead link' not in message
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_unreadable_file_passes_without_the_flag(mock_head, tmp_path):
+    """Without --raise_for_dead_links an unreadable file only gets reported."""
+    d = tmp_path / "unreadable_no_flag"
+    d.mkdir()
+    (d / "fine.html").write_text("<a href='https://www.example.com/'>ok</a>")
+    (d / "huge.html").write_text("<html>" + "x" * (2 * 1024 * 1024) + "</html>")
+
+    my_check = salted.Salted()
+    my_check.max_file_size_mb = 1
+    my_check.check(searchpath=d)  # should not raise
+
+
+def test_failure_message_names_every_reason():
+    """The exception is often the only thing read in a CI log."""
+    both = salted.Salted._failure_message(2, 1, 0)
+    assert 'Found 2 dead link(s)' in both
+    assert '1 file(s) could not be checked' in both
+
+    only_dead = salted.Salted._failure_message(3, 0, 0)
+    assert 'could not be checked' not in only_dead
+
+    # A .bib skipped for want of pybtex is already part of num_unreadable;
+    # it only adds the install hint.
+    with_bib = salted.Salted._failure_message(0, 1, 1)
+    assert '1 file(s) could not be checked' in with_bib
+    assert 'salted[bibtex]' in with_bib
+
+
 @patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock)
 def test_cache_is_written_when_dead_links_raise(mock_head, tmp_path):
     """Valid URLs are cached even when check() raises DeadLinksException.

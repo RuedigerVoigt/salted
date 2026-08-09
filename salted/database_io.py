@@ -235,6 +235,19 @@ class DatabaseIO:
             'INSERT INTO fileAccessErrors VALUES (?, ?);',
             [file_path, reason])
 
+    def count_file_access_errors(self) -> int:
+        """Return the number of files that could not be read.
+
+        Covers every reason a file was skipped: missing, no permission,
+        over the size limit, or unparseable (such as a malformed BibTeX
+        file). Each one means links that were never checked.
+
+        Returns:
+            Total count of logged file access errors.
+        """
+        self.cursor.execute('SELECT COUNT(*) FROM fileAccessErrors;')
+        return self.cursor.fetchone()[0]
+
     def convert_doi_urls_to_dois(self) -> int:
         """Move doi.org and dx.doi.org URLs from the URL queue to the DOI queue.
 

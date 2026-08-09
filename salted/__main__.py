@@ -657,17 +657,50 @@ class Salted:
         # CI run would recheck everything on the next attempt.
         cache_handler.overwrite_cache_file()
         num_dead = db.count_errors() + db.count_internal_link_errors()
-        # A .bib file that could not be read for lack of pybtex counts as a
-        # failure, not as a pass: its links were never checked, and a run
-        # that silently ignored them while exiting 0 would hide dead links
-        # in exactly the pipeline meant to catch them.
-        num_unchecked_bib = file_io.cnt['bib_files_skipped']
-        if self.raise_for_dead_links and (num_dead + num_unchecked_bib) > 0:
-            if num_dead == 0:
-                raise err.DeadLinksException(
-                    f'{num_unchecked_bib} BibTeX file(s) could not be checked. '
-                    f'{parser.MISSING_PYBTEX_MSG}')
-            raise err.DeadLinksException("Found dead URLs")
+        # A file that could not be read counts as a failure, not as a pass:
+        # its links were never checked, and a run that listed it in the
+        # report while still exiting 0 would hide dead links in exactly the
+        # pipeline meant to catch them. This covers every reason a file was
+        # skipped - missing, no permission, over the size limit, a malformed
+        # .bib, or a .bib without pybtex installed.
+        num_unreadable = db.count_file_access_errors()
+        if self.raise_for_dead_links and (num_dead + num_unreadable) > 0:
+            raise err.DeadLinksException(
+                self._failure_message(
+                    num_dead, num_unreadable,
+                    file_io.cnt['bib_files_skipped']))
+
+    @staticmethod
+    def _failure_message(num_dead: int,
+                         num_unreadable: int,
+                         num_unchecked_bib: int) -> str:
+        """Build the message of the exception raised for a failed run.
+
+        In a CI log the exception may be the only thing that is read, so
+        it names every reason the run failed. Reporting just "Found dead
+        URLs" for a run that only had unreadable files would send someone
+        hunting for a broken link that does not exist.
+
+        Args:
+            num_dead: Number of dead external and internal links.
+            num_unreadable: Number of files that could not be read.
+            num_unchecked_bib: How many of the unreadable files are BibTeX
+                files skipped for want of pybtex. Only used to append the
+                install hint; these files are already part of
+                num_unreadable.
+
+        Returns:
+            The message for the DeadLinksException.
+        """
+        reasons = []
+        if num_dead:
+            reasons.append(f'Found {num_dead} dead link(s)')
+        if num_unreadable:
+            reasons.append(f'{num_unreadable} file(s) could not be checked')
+        message = '. '.join(reasons) + '.'
+        if num_unchecked_bib:
+            message = f'{message} {parser.MISSING_PYBTEX_MSG}'
+        return message
 
 
 if __name__ == '__main__':

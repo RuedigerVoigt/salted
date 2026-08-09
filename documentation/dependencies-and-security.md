@@ -33,7 +33,7 @@ A missing BibTeX dependency is never silent, because an unchecked file that is r
 
 * A `.bib` file named directly with `-i` stops the run with `MissingOptionalDependencyError`, naming the install command. On the command line this is reported as a plain error message and exit code 1, without a traceback.
 * A `.bib` file found while scanning a folder does not abort the run — the other files are still checked — but it is listed in the report's FILE ACCESS ERRORS section and counted as unchecked.
-* With `--raise_for_dead_links`, unchecked `.bib` files fail the run even when every URL that *was* checked is fine.
+* With `--raise_for_dead_links`, unchecked `.bib` files fail the run even when every URL that *was* checked is fine. This is not special-cased for BibTeX: any file salted could not read fails such a run.
 
 ## Dependency Graph
 
