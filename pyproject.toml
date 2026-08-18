@@ -72,7 +72,7 @@ pyfakefs = ">=6.2.0"
 pytest-cov = "*"
 pybtex = ">=0.26.1"
 ruff = ">=0.15.22"
-mypy = ">=2.3.0"
+mypy = ">=2.3.1"
 bandit = ">=1.9.4"
 
 [build-system]
