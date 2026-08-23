@@ -8,10 +8,14 @@ Smart, Asynchronous Link Tester with Database backend (SALTED)
 Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2026: Released under the Apache License 2.0
 
-Nothing else compares documentation/dependency-graph.md to the actual
+Nothing else compares the published dependency graph to the actual
 requirements, so the two drift apart silently: a floor raised in
 pyproject.toml alone leaves the published graph naming a version salted
 no longer supports. These tests make that drift a test failure.
+
+The graph is generated into dependency-graph-diagram.md by
+scripts/generate_dependency_graph.py; the prose about it lives in
+dependency-graph.md and is not machine-checked.
 """
 
 import pathlib
@@ -23,7 +27,8 @@ import pytest
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 PYPROJECT = REPO_ROOT / 'pyproject.toml'
-GRAPH = REPO_ROOT / 'documentation' / 'dependency-graph.md'
+GRAPH = REPO_ROOT / 'documentation' / 'dependency-graph-diagram.md'
+GRAPH_PROSE = REPO_ROOT / 'documentation' / 'dependency-graph.md'
 
 # 'salted -- ">=2.2.0" --> compatibility'  (required, solid arrow)
 # 'salted -. ">=6.1.1" .-> lxml'           (optional, dotted arrow)
@@ -176,3 +181,34 @@ class TestGraphInternalConsistency:
         for src, dst, _constraint, _dotted in edges:
             assert src in nodes, f'edge from undeclared node {src}'
             assert dst in nodes, f'edge to undeclared node {dst}'
+
+
+class TestGraphDocumentSplit:
+    """The prose and the generated graph must stay in separate files.
+
+    scripts/generate_dependency_graph.py overwrites the diagram file whole.
+    While the two lived together, every run deleted the hand-written notes -
+    which is why they were split. These tests keep them apart.
+    """
+
+    def test_the_prose_file_holds_no_mermaid_block(self):
+        """Anything put back here would be lost on the next regeneration."""
+        assert '```mermaid' not in GRAPH_PROSE.read_text(encoding='utf-8'), (
+            f'{GRAPH_PROSE.name} contains a mermaid block; it belongs in '
+            f'{GRAPH.name}, which the generator overwrites')
+
+    def test_the_prose_file_links_to_the_diagram(self):
+        """The graph has to stay reachable from the document about it."""
+        assert GRAPH.name in GRAPH_PROSE.read_text(encoding='utf-8'), (
+            f'{GRAPH_PROSE.name} no longer links to {GRAPH.name}')
+
+    def test_the_diagram_file_is_marked_as_generated(self, graph_text):
+        """A reader opening it must see not to edit it by hand."""
+        assert 'generate_dependency_graph.py' in graph_text
+
+    def test_the_diagram_file_carries_only_the_graph(self, graph_text):
+        """No prose may accumulate here: the generator would delete it."""
+        outside = graph_text.split('```')[0]
+        prose = [ln for ln in outside.splitlines()
+                 if ln.strip() and not ln.strip().startswith('<!--')]
+        assert not prose, f'unnamed prose above the graph: {prose}'
