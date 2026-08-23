@@ -11,7 +11,7 @@ flowchart TD
     classDef optional fill:#e8e8e8,stroke:#aaaaaa,color:#777777,stroke-dasharray:4
     aiodns["aiodns<br/>4.0.4"]
     aiohappyeyeballs["aiohappyeyeballs<br/>2.5.0"]
-    aiohttp["aiohttp<br/>3.14.1"]
+    aiohttp["aiohttp<br/>3.14.3"]
     aiosignal["aiosignal<br/>1.4.0"]
     attrs["attrs<br/>17.3.0"]
     beautifulsoup4["beautifulsoup4<br/>4.15.0"]
@@ -31,11 +31,11 @@ flowchart TD
     pyyaml["PyYAML<br/>3.01"]:::optional
     salted["salted<br/>2.0.0"]
     soupsieve["soupsieve<br/>1.6.1"]
-    tqdm["tqdm<br/>4.69.0"]
+    tqdm["tqdm<br/>4.70.0"]
     typing-extensions["typing_extensions<br/>4.0.0"]
     userprovided["userprovided<br/>2.6.0"]
     yarl["yarl<br/>1.17.0"]
-    lxml["lxml<br/>6.1.1"]:::optional
+    lxml["lxml<br/>6.1.2"]:::optional
     aiodns -- ">=5.0.0,<6" --> pycares
     aiohttp -- ">=0.2.0" --> propcache
     aiohttp -- ">=1.1.1" --> frozenlist
@@ -55,15 +55,15 @@ flowchart TD
     salted -- ">=2.2.0" --> compatibility
     salted -- ">=2.6.0" --> userprovided
     salted -- ">=3.1.6" --> jinja2
-    salted -- ">=3.14.1" --> aiohttp
+    salted -- ">=3.14.3" --> aiohttp
     salted -- ">=4.0.4" --> aiodns
     salted -- ">=4.15.0" --> beautifulsoup4
-    salted -- ">=4.69.0" --> tqdm
+    salted -- ">=4.70.0" --> tqdm
     tqdm -- "any" --> colorama
     yarl -- ">=0.2.1" --> propcache
     yarl -- ">=2.0" --> idna
     yarl -- ">=4.0" --> multidict
-    salted -. ">=6.1.1" .-> lxml
+    salted -. ">=6.1.2" .-> lxml
     salted -. ">=0.26.1" .-> pybtex
 ```
 

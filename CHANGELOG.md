@@ -24,7 +24,7 @@
   * Mailto links are now parsed and listed in the report. Each address is checked for basic format validity (not empty, has email address format), but no DNS lookup or delivery verification is performed. The mailto section only appears in the report when mailto links are actually present.
   * Improved documentation
 * Security:
-  * Updated dependencies; bumped minimum lxml to 6.1.0 to address CVE-2026-41066 (XXE in `iterparse`/`ETCompatXMLParser`)
+  * Updated dependencies. The minimum `lxml` is now 6.1.2, which covers CVE-2026-41066 (XXE in `iterparse`/`ETCompatXMLParser`) and Python 3.14 support.
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
   * GitHub Actions are pinned to commit SHAs instead of mutable tags, so a repointed tag cannot change what the workflows — including the one publishing to PyPI — actually run. `actions/setup-python` was bumped to v7 in the process.
   * The disk cache now stores only validated URLs and DOIs. Previously the whole in-memory database was copied to `salted-cache.sqlite3`, persisting absolute local file paths, link text, and e-mail addresses that are never read back — a leak if the cache file is shared or committed.
