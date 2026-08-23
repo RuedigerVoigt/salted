@@ -68,13 +68,25 @@ class TestRateLimitWait:
         # Simulate a request was just sent so the full interval is slept.
         doi_checker._last_send = asyncio.get_event_loop().time()
 
-        # With 50 req/s at 90%: interval = 1 / round(45) ≈ 0.022s
-        import time
-        start = time.time()
-        await doi_checker._DoiCheck__rate_limit_wait(50, 1)
-        elapsed = time.time() - start
+        # The duration asked for is asserted rather than the time actually
+        # spent: a wall-clock window is a race against whatever else the
+        # machine is doing, and this test failed in a full-suite run while
+        # passing on its own.
+        slept = []
 
-        assert 0.01 < elapsed < 0.05
+        async def record_sleep(duration):
+            slept.append(duration)
+
+        with patch('asyncio.sleep', record_sleep):
+            await doi_checker._DoiCheck__rate_limit_wait(50, 1)
+
+        # With 50 req/s at 90%: interval = 1 / round(45) = 0.0222...s.
+        # What is slept is that interval minus the time already elapsed
+        # since _last_send, so it is just under the interval, never over.
+        interval = 1 / 45
+        assert len(slept) == 1
+        assert 0 < slept[0] <= interval
+        assert slept[0] == pytest.approx(interval, rel=0.05)
 
     @pytest.mark.asyncio
     async def test_rate_limit_wait_invalid_max_queries_zero(self):

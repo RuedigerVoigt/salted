@@ -7,9 +7,6 @@ Uses a real temporary directory (tmp_path) because the checker's security
 containment is about actual filesystem path resolution.
 """
 
-import os
-import pathlib
-
 import pytest
 
 import salted
@@ -165,12 +162,16 @@ class TestSecurityContainment:
             site / 'index.html', 'page%00.html')
         assert is_error == 1
 
-    @pytest.mark.skipif(
-        os.name == 'nt',
-        reason='symlink creation needs elevated privileges on Windows')
     def test_symlink_escape_is_caught(self, site, checker, tmp_path):
+        # Windows only permits symlinks with Developer Mode or elevation.
+        # Skipping on os.name == 'nt' outright would retire this test on the
+        # whole Windows leg, so it is attempted and skipped only where the
+        # OS actually refuses.
         escape = site / 'escape.txt'
-        escape.symlink_to(tmp_path / 'secret.txt')
+        try:
+            escape.symlink_to(tmp_path / 'secret.txt')
+        except (OSError, NotImplementedError) as exc:
+            pytest.skip(f'this OS does not allow creating a symlink: {exc}')
         reason, is_error = checker.check_link(site / 'index.html', 'escape.txt')
         assert is_error == 0
         assert 'outside' in reason
