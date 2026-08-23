@@ -1080,3 +1080,183 @@ class TestOsc8InGeneratedReport:
             replace_path_by_url={'replace_with_url': None})
         assert '\x1b' not in capsys.readouterr().out
         mem_inst.tear_down_in_memory_db()
+
+
+class _NarrowStdout(io.StringIO):
+    """A stdout that only encodes a limited code page, as Windows does.
+
+    Redirected output on Windows uses the ANSI code page rather than UTF-8,
+    and io.StringIO has no encoding at all, so the real condition has to be
+    modelled: writes reject what the code page cannot represent.
+    """
+
+    encoding = 'cp1252'
+
+    def write(self, text: str) -> int:
+        text.encode(self.encoding)
+        return super().write(text)
+
+
+# A statistics dict complete enough for the packaged templates to render.
+_FULL_STATISTICS = {
+    'num_links': 1, 'num_checked': 1, 'timestamp': 'now', 'time_to_check': 1,
+    'checks_per_second': 1, 'num_fine': 0, 'needed_full_request': 0,
+    'percentage_full_request': 0, 'check_dois': False, 'num_valid_dois': 0,
+    'num_invalid_dois': 0, 'check_internal_links': False,
+    'num_internal_checked': 0, 'num_internal_fine': 0,
+}
+
+
+class _Utf8Stdout(io.StringIO):
+    """A stdout that reports UTF-8, as a real console does (PEP 528)."""
+
+    encoding = 'utf-8'
+
+
+class TestEncodableForStdout:
+    """The report must survive a console that is not UTF-8."""
+
+    def test_utf8_stdout_leaves_the_report_untouched(self, monkeypatch):
+        monkeypatch.setattr(sys, 'stdout', _Utf8Stdout())
+        report = 'Ünicode: 中文 Документ \U0001F600'
+        assert report_generator.encodable_for_stdout(report) == report
+
+    def test_unrepresentable_characters_become_question_marks(self,
+                                                              monkeypatch):
+        monkeypatch.setattr(sys, 'stdout', _NarrowStdout())
+        cleaned = report_generator.encodable_for_stdout('a 中文 b')
+        assert '中' not in cleaned
+        assert cleaned.startswith('a ') and cleaned.endswith(' b')
+
+    def test_characters_the_codepage_has_are_kept(self, monkeypatch):
+        """cp1252 covers latin-1 text, which must not be mangled."""
+        monkeypatch.setattr(sys, 'stdout', _NarrowStdout())
+        assert report_generator.encodable_for_stdout('Fußnote') == 'Fußnote'
+
+    def test_unknown_codec_does_not_raise(self, monkeypatch):
+        """A mistyped PYTHONIOENCODING must not defeat the guard itself.
+
+        The replacement pass would fail on the very same codec lookup, so
+        it must not be attempted.
+        """
+        class _UnknownCodecStdout(io.StringIO):
+            encoding = 'not-a-real-codec'
+
+        monkeypatch.setattr(sys, 'stdout', _UnknownCodecStdout())
+        report = 'Ünicode: 中文'
+        assert report_generator.encodable_for_stdout(report) == report
+
+    def test_missing_encoding_attribute_is_survivable(self, monkeypatch):
+        """io.StringIO and friends have no .encoding; assume UTF-8."""
+        monkeypatch.setattr(sys, 'stdout', io.StringIO())
+        report = 'Ünicode: 中文'
+        assert report_generator.encodable_for_stdout(report) == report
+
+    @pytest.mark.parametrize('text', ['中文', '\U0001F600', 'Документ'])
+    def test_report_prints_instead_of_raising(self, monkeypatch, text):
+        """The whole point: a run must not die on a traceback.
+
+        Link text comes out of the checked document, so any site with CJK,
+        Cyrillic or emoji anchors used to end the run with
+        UnicodeEncodeError as soon as stdout was redirected.
+        """
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        narrow = _NarrowStdout()
+        monkeypatch.setattr(sys, 'stdout', narrow)
+        try:
+            gen.generate_report(
+                statistics=dict(_FULL_STATISTICS),
+                template={'name': 'default.cli.jinja'},
+                write_to='cli',
+                replace_path_by_url={'replace_with_url': None})
+        finally:
+            mem_inst.tear_down_in_memory_db()
+        assert 'RESULTS' in narrow.getvalue()
+
+
+class TestC1ControlCharacters:
+    """C1 holds single-character forms of the C0 escape introducers."""
+
+    @pytest.mark.parametrize('codepoint,name', [
+        (0x9b, 'CSI'), (0x9d, 'OSC'), (0x9c, 'string terminator'),
+        (0x80, 'first of the range'), (0x9f, 'last of the range'),
+    ])
+    def test_c1_is_stripped(self, codepoint, name):
+        cleaned = report_generator.strip_control_characters(
+            f'a{chr(codepoint)}b')
+        assert cleaned == 'ab', f'{name} (U+{codepoint:04X}) survived'
+
+    def test_non_breaking_space_is_kept(self):
+        """U+00A0 sits just past C1 and is text, not a control character."""
+        assert report_generator.strip_control_characters(
+            'a\u00a0b') == 'a\u00a0b'
+
+    def test_c1_cannot_terminate_an_osc8_hyperlink(self):
+        """U+009C would close the sequence and free the rest to be markup."""
+        linked = report_generator.osc8_link(
+            'https://example.com/\u009c\u009d8;;boom')
+        assert '\u009c' not in linked
+        assert '\u009d' not in linked
+
+
+class TestBuiltinTemplateNameIsNotReserved:
+    """A custom template named like a built-in must not be ignored."""
+
+    @staticmethod
+    def _render(tmp_path, name, body):
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        template_dir = tmp_path / 'templates'
+        template_dir.mkdir(exist_ok=True)
+        (template_dir / name).write_text(body, encoding='utf-8')
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                gen.generate_report(
+                    statistics=dict(_FULL_STATISTICS, num_links=7),
+                    template={'searchpath': str(template_dir), 'name': name},
+                    write_to='cli',
+                    replace_path_by_url={'replace_with_url': None})
+        finally:
+            mem_inst.tear_down_in_memory_db()
+        return buf.getvalue()
+
+    @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
+    def test_custom_file_wins_over_the_packaged_one(self, tmp_path, name):
+        """Previously the packaged template was rendered without a word."""
+        out = self._render(tmp_path, name, 'MARKER {{ statistics.num_links }}')
+        assert 'MARKER 7' in out
+
+    def test_builtin_still_used_when_the_folder_lacks_that_name(self,
+                                                                tmp_path):
+        """Setting a searchpath alone must not break the default report."""
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        empty = tmp_path / 'empty'
+        empty.mkdir()
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                gen.generate_report(
+                    statistics=dict(_FULL_STATISTICS),
+                    template={'searchpath': str(empty),
+                              'name': 'default.cli.jinja'},
+                    write_to='cli',
+                    replace_path_by_url={'replace_with_url': None})
+        finally:
+            mem_inst.tear_down_in_memory_db()
+        assert 'RESULTS' in buf.getvalue()
+
+    def test_default_searchpath_uses_the_package_loader(self):
+        """The default sentinel is not read off the filesystem."""
+        assert report_generator.ReportGenerator._use_builtin_template(
+            {'name': 'default.cli.jinja',
+             'searchpath': report_generator.DEFAULT_TEMPLATE_SEARCHPATH})
+
+    def test_a_custom_name_is_never_treated_as_builtin(self, tmp_path):
+        assert not report_generator.ReportGenerator._use_builtin_template(
+            {'name': 'custom.jinja', 'searchpath': str(tmp_path)})

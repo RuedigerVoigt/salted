@@ -22,6 +22,12 @@ from salted import err, memory_instance
 # path that may come from the checked folder, i.e. from untrusted input.
 BUILTIN_TEMPLATES: Final[tuple] = ('default.cli.jinja', 'default.md.jinja')
 
+# The searchpath standing for "no custom template folder was chosen". It
+# names the package's own template directory, which is not read through the
+# filesystem at all: those templates come from the PackageLoader, so they
+# are found in an installed wheel as well.
+DEFAULT_TEMPLATE_SEARCHPATH: Final[str] = 'salted/templates'
+
 # External templates must carry this extension. Without it, template_name
 # can name any file the process can read — a .ini pointing at an SSH key
 # or a .env file would have it rendered into the report verbatim, as a
@@ -29,16 +35,25 @@ BUILTIN_TEMPLATES: Final[tuple] = ('default.cli.jinja', 'default.md.jinja')
 # rarely carry a .jinja extension, so this removes the easy targets.
 TEMPLATE_SUFFIX: Final[str] = '.jinja'
 
-# C0 control characters, plus DEL, except tab. Everything the report shows -
-# link text, URLs, file paths - is read out of the checked documents, so it
-# can carry terminal escape sequences. Printed unfiltered they are executed
-# rather than displayed: '\x1b[2K\x1b[32mAll links OK' erases the line and
-# writes a green success message inside the list of broken links, and a
-# carriage return overwrites what came before. The report is the product
-# here, so it must not be forgeable by the content it reports on.
+# C0 control characters, plus DEL and the C1 range, except tab. Everything
+# the report shows - link text, URLs, file paths - is read out of the checked
+# documents, so it can carry terminal escape sequences. Printed unfiltered
+# they are executed rather than displayed: '\x1b[2K\x1b[32mAll links OK'
+# erases the line and writes a green success message inside the list of
+# broken links, and a carriage return overwrites what came before. The report
+# is the product here, so it must not be forgeable by the content it reports
+# on.
+#
+# C1 (U+0080-U+009F) is included because it holds single-character forms of
+# the same introducers: U+009B is CSI, U+009D is OSC and U+009C is the string
+# terminator that ends an OSC 8 hyperlink. Terminals decoding UTF-8 mostly
+# ignore them, but that is a property of the terminal, not of this input, and
+# an 8-bit or legacy-codepage console does act on them. Stripping the whole
+# range costs nothing: these code points carry no text.
 _CONTROL_CHARACTERS: Final[dict] = {
     codepoint: None
-    for codepoint in list(range(0, 9)) + list(range(10, 32)) + [127]
+    for codepoint in list(range(0, 9)) + list(range(10, 32))
+    + list(range(127, 160))
 }
 
 # Characters that end a markdown link target. A URL containing them - a
@@ -84,6 +99,50 @@ def strip_control_characters(value: str) -> str:
         The string without control characters.
     """
     return value.translate(_CONTROL_CHARACTERS)
+
+
+def encodable_for_stdout(report: str) -> str:
+    """Replace characters the current stdout encoding cannot represent.
+
+    Attached to a console Python encodes stdout as UTF-8 (PEP 528), but a
+    redirected stdout uses the locale encoding - on Windows the ANSI code
+    page, e.g. cp1252. A report is built from the checked documents, so a
+    CJK, Cyrillic or emoji link text is enough to make printing it raise
+    UnicodeEncodeError and end the run with a traceback. That hits exactly
+    the pipeline use case: interactive runs are fine, while a redirect or a
+    CI runner capturing stdout fails.
+
+    Encoding here rather than catching the error keeps it all-or-nothing:
+    the text encoder writes into its buffer as it goes, so a failure
+    partway leaves a truncated report already emitted.
+
+    Args:
+        report: The rendered report.
+
+    Returns:
+        The report with unencodable characters replaced by '?'. Unchanged
+        whenever stdout can represent it - a UTF-8 stdout round-trips.
+    """
+    encoding = getattr(sys.stdout, 'encoding', None) or 'utf-8'
+    try:
+        report.encode(encoding)
+    except UnicodeEncodeError:
+        logging.warning(
+            "The console encoding (%s) cannot represent every character in "
+            'the report; those are shown as "?". Write the report to a file '
+            '(--write_to) to keep them - files are always written as UTF-8.',
+            encoding)
+        return report.encode(encoding, 'replace').decode(encoding, 'replace')
+    except LookupError:
+        # sys.stdout.encoding names a codec Python does not have - a
+        # mistyped PYTHONIOENCODING, say. The replacement pass would fail
+        # on the same lookup, so the report is left as it is: printing it
+        # is then whatever that stream does, but this function must not be
+        # the thing that raises.
+        logging.warning(
+            "Unknown console encoding '%s'; printing the report unchanged.",
+            encoding)
+    return report
 
 
 def markdown_cell(value: object) -> str:
@@ -498,6 +557,41 @@ class ReportGenerator:
                 f"must end in '{TEMPLATE_SUFFIX}'. Any other file would be "
                 'rendered into the report as its own content.')
 
+    @staticmethod
+    def _use_builtin_template(template: dict) -> bool:
+        """Decide whether to render the packaged template of that name.
+
+        The name alone cannot decide it. Someone who points
+        template_searchpath at their own folder and keeps the default
+        template_name - or names their file 'default.md.jinja' because that
+        is what they started from - would otherwise have the packaged
+        template rendered instead of theirs, with nothing said about it.
+
+        A custom folder therefore wins whenever it actually holds a file of
+        that name. If it does not, the built-in still applies, so setting a
+        searchpath without overriding the name keeps working.
+
+        Args:
+            template: The template dict with 'name' and 'searchpath'.
+
+        Returns:
+            True if the packaged template should be rendered.
+        """
+        if template['name'] not in BUILTIN_TEMPLATES:
+            return False
+        searchpath = template.get('searchpath')
+        if not searchpath or str(searchpath) == DEFAULT_TEMPLATE_SEARCHPATH:
+            return True
+        try:
+            shadowing = pathlib.Path(searchpath, template['name']).is_file()
+        except OSError:
+            return True
+        if shadowing:
+            logging.info(
+                "Rendering '%s' from %s instead of the template of that name "
+                'shipped with salted.', template['name'], searchpath)
+        return not shadowing
+
     def generate_report(self,
                         statistics: dict,
                         template: dict,
@@ -558,8 +652,11 @@ class ReportGenerator:
         # (value.__class__.__mro__ ... __subclasses__()) and reach code
         # execution. autoescape does not prevent that: it escapes the
         # *result* of an expression, not what the expression may evaluate.
-        if template['name'] in BUILTIN_TEMPLATES:
-            jinja_env = SandboxedEnvironment(  # nosec B701 - built-in templates output plain text/markdown, not HTML
+        if self._use_builtin_template(template):
+            # The built-in templates emit plain text and markdown, not HTML,
+            # so autoescape would corrupt their output rather than protect
+            # it. Bandit's B701 flags exactly that combination.
+            jinja_env = SandboxedEnvironment(  # nosec B701
                 loader=PackageLoader('salted', 'templates'),
                 autoescape=False)
         else:
@@ -587,7 +684,7 @@ class ReportGenerator:
             template['name']).render(**render_context)
 
         if write_to == 'cli':
-            print(rendered_report)
+            print(encodable_for_stdout(rendered_report))
             return
         try:
             with open(write_to, 'w', encoding='utf-8') as file:

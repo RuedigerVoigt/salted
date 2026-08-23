@@ -115,7 +115,8 @@ class Salted:
         self.cache_file: pathlib.Path | str = 'salted-cache.sqlite3'
         self.dont_check_again_within_hours: int = 24
         # Template
-        self.template_searchpath: str = 'salted/templates'
+        self.template_searchpath: str = (
+            report_generator.DEFAULT_TEMPLATE_SEARCHPATH)
         self.template_name: str = 'default.cli.jinja'
         self.write_to: str | pathlib.Path = 'cli'
         self.base_url: str | None = None
