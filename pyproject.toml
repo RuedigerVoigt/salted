@@ -36,11 +36,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-lxml = ["lxml>=6.1.2"]
+lxml = ["lxml>=6.1.3"]
 # BibTeX support. Optional because most users never check .bib files and
 # pybtex is only used to read the url and doi fields out of them.
 bibtex = ["pybtex>=0.26.1"]
-all = ["lxml>=6.1.2", "pybtex>=0.26.1"]
+all = ["lxml>=6.1.3", "pybtex>=0.26.1"]
 
 [project.urls]
 Homepage = "https://github.com/RuedigerVoigt/salted"
