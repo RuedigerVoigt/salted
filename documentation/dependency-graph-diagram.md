@@ -17,7 +17,7 @@ flowchart TD
     idna["idna<br/>2.0"]
     jinja2["Jinja2<br/>3.1.6"]
     latexcodec["latexcodec<br/>1.0.4"]:::optional
-    lxml["lxml<br/>6.1.2"]:::optional
+    lxml["lxml<br/>6.1.3"]:::optional
     markupsafe["MarkupSafe<br/>2.0"]
     multidict["multidict<br/>4.5"]
     propcache["propcache<br/>0.2.1"]
@@ -52,7 +52,7 @@ flowchart TD
     salted -- ">=4.15.0" --> beautifulsoup4
     salted -- ">=2.2.0" --> compatibility
     salted -- ">=3.1.6" --> jinja2
-    salted -. ">=6.1.2" .-> lxml
+    salted -. ">=6.1.3" .-> lxml
     salted -. ">=0.26.1" .-> pybtex
     salted -- ">=4.70.0" --> tqdm
     salted -- ">=2.6.0" --> userprovided
