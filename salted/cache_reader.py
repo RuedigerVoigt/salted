@@ -13,7 +13,7 @@ import os
 import pathlib
 import sqlite3
 
-from salted import memory_instance
+from salted import err, memory_instance
 
 
 class CacheReader:
@@ -57,7 +57,8 @@ class CacheReader:
         Checks if the given path is valid to fail early if it is not.
 
         Raises:
-            ValueError: If the path is a directory or if parent folders do not exist.
+            err.InvalidSettingError: If the path is a directory or if parent
+                folders do not exist.
             RuntimeError: If called without a path set.
         """
 
@@ -70,12 +71,13 @@ class CacheReader:
         # Established that the file does not exist, but check if it can
         # exist before returning False.
         if not self.cache_file_path.parent.is_dir():
-            raise ValueError('Incorrect path to cache_file. ' +
-                             'Parameter cache_file must be the path to ' +
-                             'a file and parent directories must exist.')
+            raise err.InvalidSettingError(
+                f'Incorrect path to cache_file ({self.cache_file_path}): '
+                'the folder it is in does not exist.')
         if self.cache_file_path.is_dir():
-            raise ValueError('Parameter cache_file is a directory, ' +
-                             'but must include file name!')
+            raise err.InvalidSettingError(
+                f'Parameter cache_file ({self.cache_file_path}) is a '
+                'directory, but must include a file name.')
 
     def load_disk_cache(self) -> None:
         """Load valid URLs from disk cache into in-memory database.

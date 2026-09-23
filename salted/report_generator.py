@@ -13,7 +13,12 @@ import pathlib
 import sys
 from typing import Final
 
-from jinja2 import FileSystemLoader, PackageLoader
+from jinja2 import (
+    FileSystemLoader,
+    PackageLoader,
+    TemplateNotFound,
+    TemplateSyntaxError,
+)
 from jinja2.sandbox import SandboxedEnvironment
 
 from salted import err, memory_instance
@@ -647,12 +652,91 @@ class ReportGenerator:
             'internal_links': internal_links,
         }
 
+        jinja_env = self._build_environment(template, write_to)
+        rendered_report = jinja_env.get_template(
+            template['name']).render(**render_context)
+
+        if write_to == 'cli':
+            print(encodable_for_stdout(rendered_report))
+            return
+        try:
+            with open(write_to, 'w', encoding='utf-8') as file:
+                file.write(rendered_report)
+            logging.info("Wrote report to file: %s",
+                         pathlib.Path(write_to).resolve())
+        except Exception:
+            logging.exception('Exception while writing to file!',
+                              exc_info=True)
+            raise
+
+    @classmethod
+    def check_report_settings(cls,
+                              template: dict,
+                              write_to: str | pathlib.Path) -> None:
+        """Verify the report can be produced, before any link is checked.
+
+        The report is the last step of a run. A template that cannot be
+        loaded or an output file in a folder that does not exist would
+        otherwise only fail once every link was checked, discarding the
+        results. The template is loaded and compiled here - which parses it
+        but does not render it, so nothing in it is executed.
+
+        Args:
+            template: The template dict with 'name' and 'searchpath'.
+            write_to: 'cli' for stdout, otherwise the report file path.
+
+        Raises:
+            err.UnsafeTemplateError: If the template name is refused.
+            err.InvalidSettingError: If the template does not exist or is
+                not valid Jinja2, or if write_to is a folder or lies in a
+                folder that does not exist.
+        """
+        name = template['name']
+        try:
+            cls._build_environment(template, write_to).get_template(name)
+        except TemplateNotFound as exc:
+            raise err.InvalidSettingError(
+                f"Report template '{name}' not found in "
+                f"{template.get('searchpath')}.") from exc
+        except TemplateSyntaxError as exc:
+            raise err.InvalidSettingError(
+                f"Report template '{name}' is not a valid Jinja2 template: "
+                f"{exc.message} (line {exc.lineno}).") from exc
+
+        if write_to == 'cli':
+            return
+        target = pathlib.Path(write_to).resolve()
+        if target.is_dir():
+            raise err.InvalidSettingError(
+                f'Cannot write the report to {target}: that is a folder, '
+                'but write_to must name a file.')
+        if not target.parent.is_dir():
+            raise err.InvalidSettingError(
+                f'Cannot write the report to {target}: the folder '
+                f'{target.parent} does not exist.')
+
+    @classmethod
+    def _build_environment(cls,
+                           template: dict,
+                           write_to: str | pathlib.Path) -> SandboxedEnvironment:
+        """Create the Jinja2 environment that renders the report.
+
+        Args:
+            template: The template dict with 'name' and 'searchpath'.
+            write_to: 'cli' for stdout, otherwise the report file path.
+
+        Returns:
+            A sandboxed environment with the loader and filters set.
+
+        Raises:
+            err.UnsafeTemplateError: If the template name is refused.
+        """
         # Rendering is sandboxed in both cases. A plain Environment lets a
         # template walk the object graph of any variable it is given
         # (value.__class__.__mro__ ... __subclasses__()) and reach code
         # execution. autoescape does not prevent that: it escapes the
         # *result* of an expression, not what the expression may evaluate.
-        if self._use_builtin_template(template):
+        if cls._use_builtin_template(template):
             # The built-in templates emit plain text and markdown, not HTML,
             # so autoescape would corrupt their output rather than protect
             # it. Bandit's B701 flags exactly that combination.
@@ -660,7 +744,7 @@ class ReportGenerator:
                 loader=PackageLoader('salted', 'templates'),
                 autoescape=False)
         else:
-            self._reject_unsafe_template_name(template['name'])
+            cls._reject_unsafe_template_name(template['name'])
             jinja_env = SandboxedEnvironment(
                 loader=FileSystemLoader(searchpath=template['searchpath']),
                 autoescape=True)
@@ -679,19 +763,4 @@ class ReportGenerator:
         else:
             jinja_env.filters['osc8'] = lambda value: strip_control_characters(
                 str(value))
-
-        rendered_report = jinja_env.get_template(
-            template['name']).render(**render_context)
-
-        if write_to == 'cli':
-            print(encodable_for_stdout(rendered_report))
-            return
-        try:
-            with open(write_to, 'w', encoding='utf-8') as file:
-                file.write(rendered_report)
-            logging.info("Wrote report to file: %s",
-                         pathlib.Path(write_to).resolve())
-        except Exception:
-            logging.exception('Exception while writing to file!',
-                              exc_info=True)
-            raise
+        return jinja_env

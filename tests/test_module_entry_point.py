@@ -111,3 +111,5 @@ class TestModuleEntryPoint:
         # Should mention the error (in stdout or stderr)
         output = result.stdout + result.stderr
         assert 'does not exist' in output.lower() or 'not found' in output.lower()
+        # A mistyped path is a user error: a message, not a stack trace.
+        assert 'Traceback' not in output

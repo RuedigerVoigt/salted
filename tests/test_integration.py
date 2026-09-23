@@ -285,3 +285,123 @@ def test_cache_is_written_when_dead_links_raise(mock_head, tmp_path):
     cached_urls = {row[0] for row in rows}
     assert 'https://www.example.com/good' in cached_urls
     assert 'https://www.example.com/broken' not in cached_urls
+
+
+class TestSettingsFailBeforeChecking:
+    """A setting that cannot work stops the run before any link is checked.
+
+    The report is rendered and written last. A mistyped template name or an
+    output folder that does not exist used to surface only then, after every
+    link had been checked, throwing the results away.
+    """
+
+    @staticmethod
+    def _site(tmp_path):
+        """Create a folder with one HTML file holding an external link."""
+        d = tmp_path / "site"
+        d.mkdir()
+        (d / "index.html").write_text(
+            "<a href='https://www.example.com/'>link</a>")
+        return d
+
+    @staticmethod
+    def _assert_fails_early(checker, searchpath, expected):
+        """Run check() and assert it raised before any URL was checked."""
+        with patch('salted.url_check.UrlCheck.check_urls') as mock_check_urls:
+            with pytest.raises(expected) as excinfo:
+                checker.check(searchpath=searchpath)
+        mock_check_urls.assert_not_called()
+        return excinfo.value
+
+    def test_missing_searchpath(self, tmp_path, caplog):
+        """Still a FileNotFoundError, so existing callers keep working."""
+        missing = tmp_path / "does-not-exist"
+        exc = self._assert_fails_early(
+            salted.Salted(), missing, err.SearchpathNotFoundError)
+        assert isinstance(exc, FileNotFoundError)
+        assert isinstance(exc, err.InvalidSettingError)
+        assert str(missing) in str(exc)
+        # logging.exception() outside an except block printed a bogus
+        # "NoneType: None" traceback; the library no longer logs this.
+        assert 'NoneType' not in caplog.text
+
+    def test_unsupported_single_file(self, tmp_path):
+        """Still a ValueError; the message names the supported formats."""
+        f = tmp_path / "document.xyz"
+        f.write_text("hello")
+        exc = self._assert_fails_early(
+            salted.Salted(), f, err.InvalidSettingError)
+        assert isinstance(exc, ValueError)
+        assert '.html' in str(exc)
+
+    def test_cache_file_is_a_folder(self, tmp_path):
+        """A folder given as cache_file is rejected up front."""
+        checker = salted.Salted()
+        checker.cache_file = tmp_path
+        self._assert_fails_early(
+            checker, self._site(tmp_path), err.InvalidSettingError)
+
+    def test_missing_template(self, tmp_path):
+        """A template that is not there is found out before checking."""
+        templates = tmp_path / "templates"
+        templates.mkdir()
+        checker = salted.Salted()
+        checker.template_searchpath = templates
+        checker.template_name = 'nope.jinja'
+        exc = self._assert_fails_early(
+            checker, self._site(tmp_path), err.InvalidSettingError)
+        assert 'nope.jinja' in str(exc)
+
+    def test_template_with_syntax_error(self, tmp_path):
+        """A template that does not compile is found out before checking."""
+        templates = tmp_path / "templates"
+        templates.mkdir()
+        (templates / "broken.jinja").write_text("{% for x in %}")
+        checker = salted.Salted()
+        checker.template_searchpath = templates
+        checker.template_name = 'broken.jinja'
+        exc = self._assert_fails_early(
+            checker, self._site(tmp_path), err.InvalidSettingError)
+        assert 'broken.jinja' in str(exc)
+
+    def test_unsafe_template_name(self, tmp_path):
+        """The template name check now also runs before checking."""
+        templates = tmp_path / "templates"
+        templates.mkdir()
+        (templates / "secret.txt").write_text("SECRET")
+        checker = salted.Salted()
+        checker.template_searchpath = templates
+        checker.template_name = 'secret.txt'
+        self._assert_fails_early(
+            checker, self._site(tmp_path), err.UnsafeTemplateError)
+
+    def test_write_to_in_missing_folder(self, tmp_path):
+        """The report file's folder must exist before checking starts."""
+        checker = salted.Salted()
+        checker.write_to = tmp_path / "no-such-folder" / "report.txt"
+        exc = self._assert_fails_early(
+            checker, self._site(tmp_path), err.InvalidSettingError)
+        assert 'no-such-folder' in str(exc)
+
+    def test_write_to_is_a_folder(self, tmp_path):
+        """write_to must name a file, not a folder."""
+        checker = salted.Salted()
+        checker.write_to = tmp_path
+        self._assert_fails_early(
+            checker, self._site(tmp_path), err.InvalidSettingError)
+
+    @patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock,
+           return_value=200)
+    def test_valid_custom_template_and_file_still_work(self, mock_head, tmp_path):
+        """The early checks must not reject a working setup."""
+        templates = tmp_path / "templates"
+        templates.mkdir()
+        (templates / "mine.jinja").write_text(
+            "links: {{ statistics.num_links }}")
+        report = tmp_path / "report.txt"
+        checker = salted.Salted()
+        checker.template_searchpath = templates
+        checker.template_name = 'mine.jinja'
+        checker.write_to = report
+        checker.check(searchpath=self._site(tmp_path))
+        assert report.read_text(encoding='utf-8') == 'links: 1'

@@ -428,6 +428,19 @@ class Salted:
 
         Args:
             searchpath: Path to a file or folder to check for links.
+
+        Raises:
+            err.SearchpathNotFoundError: If searchpath does not exist.
+            err.InvalidSettingError: If a setting names something that
+                cannot be used (see there). Raised before any link is
+                checked.
+            err.UnsafeTemplateError: If the report template is refused.
+            err.ConfigFileError: If an auto-discovered config file points
+                outside its own folder.
+            err.MissingOptionalDependencyError: If a single .bib file was
+                named but pybtex is not installed.
+            err.DeadLinksException: If raise_for_dead_links is set and the
+                run found dead links or unreadable files.
         """
         start_time = time.monotonic()
         self.check_parameters()
@@ -460,8 +473,8 @@ class Salted:
             which the caller reports rather than treating as an error.
 
         Raises:
-            ValueError: If a single file was named whose format is not
-                supported.
+            err.InvalidSettingError: If a single file was named whose format
+                is not supported.
         """
         excluded_paths = filesearch.resolve_exclusions(self.exclude_paths)
 
@@ -481,9 +494,9 @@ class Salted:
                 return []
             return [path]
 
-        msg = f"File format of {path} not supported"
-        logging.exception(msg)
-        raise ValueError(msg)
+        supported = ', '.join(sorted(filesearch.SUPPORTED_SUFFIX))
+        raise err.InvalidSettingError(
+            f"File format of {path} not supported (supported: {supported}).")
 
     def _run_check(self,
                    mem_instance: memory_instance.MemoryInstance,
@@ -500,15 +513,6 @@ class Salted:
             searchpath: Path to a file or folder to check for links.
             start_time: Monotonic start timestamp, for runtime statistics.
         """
-        db = database_io.DatabaseIO(mem_instance, self.cache_file, quiet=self.quiet)
-
-        cache_handler = cache_reader.CacheReader(
-            mem_instance,
-            self.dont_check_again_within_hours,
-            self.cache_file)
-
-        cache_handler.load_disk_cache()
-
         # Normalize path: strip quotes and resolve
         # This handles cases like 'C:\path\"' where trailing backslash
         # escapes the quote on Windows
@@ -521,9 +525,30 @@ class Salted:
         path = pathlib.Path(searchpath).resolve()
 
         if not path.exists():
-            msg = f"File or folder to check ({path}) does not exist."
-            logging.exception(msg)
-            raise FileNotFoundError(msg)
+            raise err.SearchpathNotFoundError(
+                f"File or folder to check ({path}) does not exist.")
+
+        db = database_io.DatabaseIO(mem_instance, self.cache_file, quiet=self.quiet)
+
+        # Validates the cache file path on creation.
+        cache_handler = cache_reader.CacheReader(
+            mem_instance,
+            self.dont_check_again_within_hours,
+            self.cache_file)
+
+        # The report is rendered and written only after every link was
+        # checked. A mistyped template name or an output folder that does
+        # not exist would otherwise surface after the whole run, throwing
+        # its results away - so both are tried here, before any request.
+        report_template = {
+            'searchpath': self.template_searchpath,
+            'name': self.template_name,
+            'foldername_to_replace': str(path),
+            'base_url': self.base_url}
+        report_generator.ReportGenerator.check_report_settings(
+            report_template, self.write_to)
+
+        cache_handler.load_disk_cache()
 
         filesearch = file_finder.FileFinder()
 
@@ -643,11 +668,7 @@ class Salted:
                     internal_checker.cnt['internal_fine']
                     if internal_checker else 0),
                           },
-            template={
-                'searchpath': self.template_searchpath,
-                'name': self.template_name,
-                'foldername_to_replace': str(path),
-                'base_url': self.base_url},
+            template=report_template,
             write_to=self.write_to,
             replace_path_by_url={
                 'path_to_be_replaced': str(relative_base),

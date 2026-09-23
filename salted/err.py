@@ -44,6 +44,27 @@ class UnsafeTemplateError(SaltedException):
     """
 
 
+class InvalidSettingError(SaltedException, ValueError):
+    """Raised when a setting names something salted cannot use.
+
+    Covers mistakes in what was asked for: a file to check with an
+    unsupported format, a cache file path that is a folder or lies in a
+    folder that does not exist, a report template that cannot be loaded,
+    or a report file in a folder that does not exist. All of them are
+    detected before any link is checked, so a typo does not cost a full
+    run. Derives from ValueError, which most of these situations raised
+    before this class existed.
+    """
+
+
+class SearchpathNotFoundError(InvalidSettingError, FileNotFoundError):
+    """Raised when the file or folder to check does not exist.
+
+    Also a FileNotFoundError, which is what this situation raised before
+    this class existed.
+    """
+
+
 class MissingOptionalDependencyError(SaltedException):
     """Raised when a file format needs an optional dependency that is absent.
 

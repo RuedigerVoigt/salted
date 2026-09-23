@@ -596,6 +596,39 @@ class TestExpectedErrorsExitCleanly:
         # Logged where the file was rejected - not a second time here.
         assert parser.MISSING_PYBTEX_MSG not in caplog.text
 
+    @pytest.mark.parametrize('exc', [
+        err.SearchpathNotFoundError('File or folder to check (x) does not exist.'),
+        err.InvalidSettingError("Report template 'nope.jinja' not found in t."),
+    ])
+    def test_invalid_setting_exits_without_traceback(self, exc, caplog):
+        """A mistyped path or template is a user error, not a crash."""
+        test_args = ['salted']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                mock_checker.check.side_effect = exc
+                mock_salted_class.return_value = mock_checker
+
+                with pytest.raises(SystemExit) as excinfo:
+                    command_line.main()
+
+        assert excinfo.value.code == 1
+        assert str(exc) in caplog.text
+
+    def test_missing_searchpath_end_to_end(self, tmp_path, caplog):
+        """The most common typo, run through the real checker."""
+        missing = tmp_path / 'does-not-exist'
+        test_args = ['salted', '-i', str(missing)]
+
+        with patch('sys.argv', test_args):
+            with pytest.raises(SystemExit) as excinfo:
+                command_line.main()
+
+        assert excinfo.value.code == 1
+        assert 'does not exist' in caplog.text
+        assert 'Traceback' not in caplog.text
+
     def test_unexpected_exception_is_not_swallowed(self):
         """Only expected errors are caught; a real defect must still surface."""
         test_args = ['salted']

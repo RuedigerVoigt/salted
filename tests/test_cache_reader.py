@@ -14,7 +14,7 @@ import sqlite3
 import tempfile
 import pytest
 
-from salted import cache_reader, memory_instance
+from salted import cache_reader, err, memory_instance
 
 
 class TestCacheReaderInitialization:
@@ -65,7 +65,7 @@ class TestCacheReaderInitialization:
 
         cache_file = pathlib.Path("/nonexistent/directory/cache.db")
 
-        with pytest.raises(ValueError, match="Incorrect path to cache_file"):
+        with pytest.raises(err.InvalidSettingError, match="Incorrect path to cache_file"):
             cache_reader.CacheReader(
                 mem_instance=mem_inst,
                 dont_check_again_within_hours=24,
@@ -80,7 +80,7 @@ class TestCacheReaderInitialization:
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = pathlib.Path(tmpdir)
 
-            with pytest.raises(ValueError, match="cache_file is a directory"):
+            with pytest.raises(err.InvalidSettingError, match="is a directory"):
                 cache_reader.CacheReader(
                     mem_instance=mem_inst,
                     dont_check_again_within_hours=24,

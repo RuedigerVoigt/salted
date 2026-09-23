@@ -21,6 +21,7 @@ from salted import parameter_rules
 from salted.err import (
     ConfigFileError,
     DeadLinksException,
+    InvalidSettingError,
     MissingOptionalDependencyError,
     UnsafeTemplateError,
 )
@@ -337,18 +338,20 @@ def main() -> None:
     _apply_special_overrides(checker, args)
 
     # Everything caught here is an expected, actionable outcome rather than a
-    # defect: a mistyped template name, a config file pointing outside its own
-    # folder, dead links found by a CI run, or a .bib file without the BibTeX
-    # extra installed. All of them are reported the way a bad config file is
-    # reported - a clear message and a non-zero exit code, no traceback. The
-    # exceptions still propagate for library use, which never goes through
-    # main().
+    # defect: a path that does not exist or a file in an unsupported format,
+    # a template or output folder that cannot be used, a config file pointing
+    # outside its own folder, dead links found by a CI run, or a .bib file
+    # without the BibTeX extra installed. All of them are reported the way a
+    # bad config file is reported - a clear message and a non-zero exit code,
+    # no traceback. The exceptions still propagate for library use, which
+    # never goes through main().
     try:
         checker.check(checker.searchpath)
     except MissingOptionalDependencyError:
         # The install hint was already logged where the file was rejected,
         # so repeating it here would only print the same message twice.
         sys.exit(1)
-    except (UnsafeTemplateError, ConfigFileError, DeadLinksException) as exc:
+    except (InvalidSettingError, UnsafeTemplateError, ConfigFileError,
+            DeadLinksException) as exc:
         logging.error(str(exc))
         sys.exit(1)
