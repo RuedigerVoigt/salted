@@ -12,7 +12,7 @@ flowchart TD
     beautifulsoup4["beautifulsoup4<br/>4.15.0"]
     cffi["cffi<br/>2.0.0b1"]
     colorama["colorama<br/>any"]
-    compatibility["compatibility<br/>2.2.0"]
+    compatibility["compatibility<br/>2.3.0"]
     frozenlist["frozenlist<br/>1.1.1"]
     idna["idna<br/>2.0"]
     jinja2["Jinja2<br/>3.1.6"]
@@ -27,9 +27,9 @@ flowchart TD
     pyyaml["PyYAML<br/>3.1"]:::optional
     salted["salted<br/>2.0.0"]
     soupsieve["soupsieve<br/>1.6.1"]
-    tqdm["tqdm<br/>4.70.0"]
+    tqdm["tqdm<br/>4.70.1"]
     typing-extensions["typing_extensions<br/>4.0.0"]
-    userprovided["userprovided<br/>2.6.0"]
+    userprovided["userprovided<br/>3.0.0"]
     yarl["yarl<br/>1.17.0"]
     aiodns -- ">=5.0.0,<6" --> pycares
     aiohttp -- ">=2.5.0" --> aiohappyeyeballs
@@ -50,12 +50,12 @@ flowchart TD
     salted -- ">=4.0.4" --> aiodns
     salted -- ">=3.14.3" --> aiohttp
     salted -- ">=4.15.0" --> beautifulsoup4
-    salted -- ">=2.2.0" --> compatibility
+    salted -- ">=2.3.0,<3" --> compatibility
     salted -- ">=3.1.6" --> jinja2
     salted -. ">=6.1.3" .-> lxml
     salted -. ">=0.26.1" .-> pybtex
-    salted -- ">=4.70.0" --> tqdm
-    salted -- ">=2.6.0" --> userprovided
+    salted -- ">=4.70.1" --> tqdm
+    salted -- ">=3.0.0,<4" --> userprovided
     tqdm -- "any" --> colorama
     yarl -- ">=2.0" --> idna
     yarl -- ">=4.0" --> multidict
