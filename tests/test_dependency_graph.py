@@ -23,6 +23,8 @@ import re
 import tomllib
 
 import pytest
+from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -76,20 +78,33 @@ def edges(graph_text) -> list:
     return found
 
 
+def _parse_requirement(raw: str, optional: bool) -> tuple[str, dict]:
+    """Split a pyproject requirement into its name and what the graph shows.
+
+    A requirement may carry an upper bound ('userprovided>=3.0.0,<4'): the
+    edge shows the whole specifier, the node only the '>=' floor.
+    """
+    req = Requirement(raw)
+    floors = [s.version for s in req.specifier if s.operator == '>=']
+    assert len(floors) == 1, f'{raw}: expected exactly one >= floor'
+    return _normalize(req.name), {'specifier': req.specifier,
+                                  'floor': floors[0],
+                                  'optional': optional}
+
+
 @pytest.fixture(scope='module')
 def requirements() -> dict:
-    """Map package name -> {'floor': str, 'optional': bool} from pyproject."""
+    """Map package name -> {'specifier', 'floor', 'optional'} from pyproject."""
     data = tomllib.loads(PYPROJECT.read_text(encoding='utf-8'))['project']
     result = {}
-    for spec in data['dependencies']:
-        name, _, floor = spec.partition('>=')
-        result[_normalize(name)] = {'floor': floor.strip(), 'optional': False}
+    for raw in data['dependencies']:
+        name, spec = _parse_requirement(raw, optional=False)
+        result[name] = spec
     for extra in data.get('optional-dependencies', {}).values():
-        for spec in extra:
-            name, _, floor = spec.partition('>=')
+        for raw in extra:
+            name, spec = _parse_requirement(raw, optional=True)
             # 'all' repeats what the single-feature extras already declare.
-            result.setdefault(
-                _normalize(name), {'floor': floor.strip(), 'optional': True})
+            result.setdefault(name, spec)
     return result
 
 
@@ -115,11 +130,12 @@ class TestGraphMatchesPyproject:
 
     def test_edge_constraints_match_the_floors(self, requirements,
                                                salted_edges):
-        """A raised floor must be raised in the graph too"""
+        """A raised floor or a new upper bound must show in the graph too"""
         for name, spec in requirements.items():
             constraint, _dotted = salted_edges[name]
-            assert constraint == f">={spec['floor']}", (
-                f'{name}: pyproject says >={spec["floor"]}, '
+            # Compared as sets, so the order of the parts does not matter.
+            assert SpecifierSet(constraint) == spec['specifier'], (
+                f'{name}: pyproject says {spec["specifier"]}, '
                 f'graph says {constraint}')
 
     def test_node_versions_are_the_floors(self, requirements, nodes):
