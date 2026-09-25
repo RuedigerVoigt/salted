@@ -225,6 +225,57 @@ def test_unreadable_file_fails_the_run(mock_head, tmp_path):
 
 
 @patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_malformed_links_are_reported_not_fatal(mock_head, tmp_path):
+    """Links without a host or with an invalid port must not abort the run.
+
+    userprovided refuses to normalize them. They are listed in the report
+    as exceptions, and only the valid link is requested.
+    """
+    d = tmp_path / "malformed"
+    d.mkdir()
+    (d / "links.md").write_text(
+        "[no host](http://:8080/)\n"
+        "[bad port](http://example.com:99999/)\n"
+        "[fine](https://www.example.com/)\n")
+    report = tmp_path / "report.txt"
+
+    my_check = salted.Salted()
+    # A shared cache from other tests would skip the valid link.
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.write_to = report
+    my_check.check(searchpath=d)
+
+    assert mock_head.await_count == 1
+    assert mock_head.await_args.args[0] == 'https://www.example.com/'
+    text = report.read_text(encoding='utf-8')
+    assert 'http://:8080/' in text
+    assert 'http://example.com:99999/' in text
+    assert text.count('Malformed URL - not checked') == 2
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_malformed_link_fails_the_run(mock_head, tmp_path):
+    """No client can reach a malformed link, so it fails --raise_for_dead_links."""
+    d = tmp_path / "malformed_fail"
+    d.mkdir()
+    (d / "links.md").write_text(
+        "[no host](http://:8080/)\n"
+        "[again](http://:8080/)\n"
+        "[fine](https://www.example.com/)\n")
+
+    my_check = salted.Salted()
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.raise_for_dead_links = True
+    with pytest.raises(err.DeadLinksException) as excinfo:
+        my_check.check(searchpath=d)
+
+    message = str(excinfo.value)
+    # Counted once per distinct link, like dead links.
+    assert 'Found 1 malformed link(s)' in message
+    assert 'dead link' not in message
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
 def test_unreadable_file_passes_without_the_flag(mock_head, tmp_path):
     """Without --raise_for_dead_links an unreadable file only gets reported."""
     d = tmp_path / "unreadable_no_flag"
@@ -251,6 +302,12 @@ def test_failure_message_names_every_reason():
     with_bib = salted.Salted._failure_message(0, 1, 1)
     assert '1 file(s) could not be checked' in with_bib
     assert 'salted[bibtex]' in with_bib
+
+    all_three = salted.Salted._failure_message(2, 1, 0, num_malformed=4)
+    assert 'Found 2 dead link(s)' in all_three
+    assert 'Found 4 malformed link(s)' in all_three
+    assert '1 file(s) could not be checked' in all_three
+    assert 'malformed' not in both
 
 
 @patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock)

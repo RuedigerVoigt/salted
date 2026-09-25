@@ -686,16 +686,23 @@ class Salted:
         # skipped - missing, no permission, over the size limit, a malformed
         # .bib, or a .bib without pybtex installed.
         num_unreadable = db.count_file_access_errors()
-        if self.raise_for_dead_links and (num_dead + num_unreadable) > 0:
+        # A link without a host or with an invalid port cannot be reached
+        # by any client, so it is as broken as one that yields a 404.
+        num_malformed = db.count_malformed_urls()
+        if (self.raise_for_dead_links
+                and (num_dead + num_unreadable + num_malformed) > 0):
             raise err.DeadLinksException(
                 self._failure_message(
                     num_dead, num_unreadable,
-                    file_io.cnt['bib_files_skipped']))
+                    file_io.cnt['bib_files_skipped'],
+                    num_malformed=num_malformed))
 
     @staticmethod
     def _failure_message(num_dead: int,
                          num_unreadable: int,
-                         num_unchecked_bib: int) -> str:
+                         num_unchecked_bib: int,
+                         *,
+                         num_malformed: int = 0) -> str:
         """Build the message of the exception raised for a failed run.
 
         In a CI log the exception may be the only thing that is read, so
@@ -710,6 +717,8 @@ class Salted:
                 files skipped for want of pybtex. Only used to append the
                 install hint; these files are already part of
                 num_unreadable.
+            num_malformed: Number of distinct links that are too malformed
+                to be requested (no host, invalid port).
 
         Returns:
             The message for the DeadLinksException.
@@ -717,6 +726,8 @@ class Salted:
         reasons = []
         if num_dead:
             reasons.append(f'Found {num_dead} dead link(s)')
+        if num_malformed:
+            reasons.append(f'Found {num_malformed} malformed link(s)')
         if num_unreadable:
             reasons.append(f'{num_unreadable} file(s) could not be checked')
         message = '. '.join(reasons) + '.'

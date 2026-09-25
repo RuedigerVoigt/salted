@@ -14,6 +14,10 @@ import urllib.parse
 
 from salted import memory_instance
 
+# Report text for a link userprovided cannot normalize, e.g. one without a
+# host, with an invalid port, or longer than it accepts.
+MALFORMED_URL_REASON = 'Malformed URL - not checked'
+
 
 class DatabaseIO:
     """Log the crawler's results to SQLite database.
@@ -75,10 +79,15 @@ class DatabaseIO:
     def urls_to_check(self) -> list:
         """Return a list of all distinct URLs to check.
 
+        URLs that already have an exception at this point were rejected
+        while reading the files (see log_malformed_url) and are left out.
+
         Returns:
             List of tuples containing distinct normalized URLs; empty list if none.
         """
-        self.cursor.execute('SELECT DISTINCT normalizedUrl FROM queue;')
+        self.cursor.execute('''SELECT DISTINCT normalizedUrl FROM queue
+                            WHERE normalizedUrl NOT IN (
+                            SELECT normalizedUrl FROM exceptions);''')
         return self.cursor.fetchall()
 
     def get_dois_to_check(self) -> list | None:
@@ -221,6 +230,34 @@ class DatabaseIO:
         """
         self.cursor.execute('''INSERT INTO exceptions VALUES (?, ?);''',
                             [url, exception_str])
+
+    def log_malformed_url(self,
+                          url: str) -> None:
+        """Log a link that cannot be requested because it is malformed.
+
+        Stored as an exception under the link's own spelling, which is also
+        its normalizedUrl in the queue. Logged only once per URL: the report
+        joins exceptions with the queue, so a second row would list every
+        occurrence of the link twice.
+
+        Args:
+            url: The link exactly as written in the document.
+        """
+        self.cursor.execute('''INSERT INTO exceptions
+                            SELECT ?, ?
+                            WHERE NOT EXISTS (
+                            SELECT 1 FROM exceptions WHERE normalizedUrl = ?);''',
+                            [url, MALFORMED_URL_REASON, url])
+
+    def count_malformed_urls(self) -> int:
+        """Return the number of distinct malformed links.
+
+        Returns:
+            Count of links logged by log_malformed_url.
+        """
+        self.cursor.execute('SELECT COUNT(*) FROM exceptions WHERE reason = ?;',
+                            [MALFORMED_URL_REASON])
+        return self.cursor.fetchone()[0]
 
     def log_file_access_error(self,
                               file_path: str,

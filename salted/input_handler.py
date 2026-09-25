@@ -135,7 +135,27 @@ class InputHandler:
         return True
 
     @staticmethod
-    def _queue_row(file_path: pathlib.Path,
+    def _normalize(url: str) -> str | None:
+        """Return the normalized form of url, or None if it is malformed.
+
+        Args:
+            url: The link exactly as written in the document.
+
+        Returns:
+            The normalized URL, or None if userprovided rejects it, e.g.
+            because it has no host or its port is not a number in range.
+        """
+        try:
+            try:
+                return userprovided.url.normalize_url(url)
+            except userprovided.err.QueryKeyConflict:
+                return userprovided.url.normalize_url(
+                    url, do_not_change_query_part=True)
+        except ValueError:
+            return None
+
+    def _queue_row(self,
+                   file_path: pathlib.Path,
                    url: str,
                    parsed_url: urllib.parse.ParseResult,
                    linktext: str) -> list:
@@ -146,6 +166,11 @@ class InputHandler:
         stored as well: if the link turns out to be broken, that is the
         spelling shown to the user, as it is what stands in the document.
 
+        A link that cannot be normalized (no host, invalid port) cannot be
+        requested either. It is queued under its own spelling, so the report
+        can name the file it stands in, and logged as an exception, which
+        keeps it out of the URLs sent to the network.
+
         Args:
             file_path: The file the link was found in.
             url: The link exactly as written in the document.
@@ -155,17 +180,16 @@ class InputHandler:
         Returns:
             The row to insert into the check queue.
         """
-        try:
-            normalized_url = userprovided.url.normalize_url(url)
-        except userprovided.err.QueryKeyConflict:
-            normalized_url = userprovided.url.normalize_url(
-                url, do_not_change_query_part=True)
+        normalized_url = self._normalize(url)
+        if normalized_url is None:
+            normalized_url = url
+            self.db.log_malformed_url(url)
+            self.cnt['malformed_urls'] += 1
 
         try:
             hostname = parsed_url.hostname
         except ValueError:
-            # Malformed authority, e.g. an out-of-range port. The URL is
-            # still checked; only the hostname is unknown.
+            # Malformed authority, e.g. an out-of-range port.
             hostname = None
 
         return [str(file_path), hostname, url, normalized_url, linktext]

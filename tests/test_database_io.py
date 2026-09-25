@@ -145,6 +145,61 @@ class TestUrlsToCheck:
         assert len(urls) == 1
         mem_inst.tear_down_in_memory_db()
 
+    def test_urls_to_check_skips_malformed_urls(self):
+        """A link logged as malformed is never handed to the URL checker"""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+
+        links = [
+            ('test.md', None, 'http://:8080/', 'http://:8080/', 'Broken'),
+            ('test.md', 'example.com', 'http://example.com', 'http://example.com', 'Fine')
+        ]
+        db_io.save_found_links(links)
+        db_io.log_malformed_url('http://:8080/')
+
+        assert db_io.urls_to_check() == [('http://example.com',)]
+        mem_inst.tear_down_in_memory_db()
+
+
+class TestLogMalformedUrl:
+    """Test logging links that cannot be requested"""
+
+    def test_logged_once_per_url(self):
+        """The same malformed link in several files yields one exception"""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+
+        links = [
+            ('a.md', None, 'http://:8080/', 'http://:8080/', 'Broken'),
+            ('b.md', None, 'http://:8080/', 'http://:8080/', 'Broken')
+        ]
+        db_io.save_found_links(links)
+        db_io.log_malformed_url('http://:8080/')
+        db_io.log_malformed_url('http://:8080/')
+
+        cursor = mem_inst.get_cursor()
+        cursor.execute('SELECT * FROM exceptions')
+        assert cursor.fetchall() == [
+            ('http://:8080/', database_io.MALFORMED_URL_REASON)]
+        # One report row per occurrence, not per occurrence and exception
+        mem_inst.generate_db_views()
+        cursor.execute('SELECT filePath FROM v_exceptionsByFile ORDER BY filePath')
+        assert cursor.fetchall() == [('a.md',), ('b.md',)]
+        mem_inst.tear_down_in_memory_db()
+
+    def test_count_malformed_urls(self):
+        """Only malformed links are counted, not network exceptions"""
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+
+        assert db_io.count_malformed_urls() == 0
+        db_io.log_malformed_url('http://:8080/')
+        db_io.log_malformed_url('http://:8080/')
+        db_io.log_malformed_url('http://example.com:99999/')
+        db_io.log_exception('http://example.com', 'Connection timeout')
+        assert db_io.count_malformed_urls() == 2
+        mem_inst.tear_down_in_memory_db()
+
 
 class TestGetDoisToCheck:
     """Test retrieving DOIs to check"""

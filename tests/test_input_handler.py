@@ -269,6 +269,47 @@ class TestHandleFoundUrls:
         assert mock_normalize.call_count == 2
         assert handler.cnt['links_found'] == 1
 
+    @pytest.mark.parametrize('url', [
+        'http://:8080/',                  # no host, only a port
+        'http://user@/x',                 # no host, only userinfo
+        'http:///path',                   # empty authority
+        'http://example.com:99999/',      # port out of range
+        'https://example.com:notaport/',  # port is not a number
+    ])
+    def test_handle_found_urls_malformed_url(self, url):
+        """A link userprovided cannot normalize must not abort the run.
+
+        It stays in the queue under its own spelling, so the report can name
+        its file, and is logged as malformed instead of being requested.
+        """
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(pathlib.Path('test.md'), [[url, 'Broken']])
+
+        assert handler.cnt['links_found'] == 1
+        assert handler.cnt['malformed_urls'] == 1
+        db_mock.log_malformed_url.assert_called_once_with(url)
+        saved = db_mock.save_found_links.call_args[0][0]
+        assert saved[0][2] == url  # as written
+        assert saved[0][3] == url  # used as its normalized form
+
+    def test_handle_found_urls_malformed_url_does_not_affect_others(self):
+        """Valid links in the same file are still normalized and queued."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(pathlib.Path('test.md'), [
+            ['http://:8080/', 'Broken'],
+            ['https://Example.com:443/page', 'Fine'],
+        ])
+
+        assert handler.cnt['links_found'] == 2
+        assert handler.cnt['malformed_urls'] == 1
+        db_mock.log_malformed_url.assert_called_once_with('http://:8080/')
+        saved = db_mock.save_found_links.call_args[0][0]
+        assert saved[1][3] == 'https://example.com/page'
+
     def test_handle_found_urls_mailto_links(self):
         """Test handling of mailto links (currently just logged)"""
         db_mock = Mock(spec=database_io.DatabaseIO)
