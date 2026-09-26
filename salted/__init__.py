@@ -8,12 +8,19 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
+import logging
 import pathlib
 import re
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 
 from salted.user_agents import get_user_agent, list_presets
+
+# Every module logs to its own logger below 'salted'. As a library, salted
+# leaves configuring output to the application: the NullHandler keeps
+# Python's last-resort handler from printing salted's messages when the
+# application has not set up logging. The CLI configures it in main().
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 NAME = "salted"
 __author__ = "Rüdiger Voigt"

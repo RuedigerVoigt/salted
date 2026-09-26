@@ -15,6 +15,8 @@ import sqlite3
 
 from salted import err, memory_instance
 
+logger = logging.getLogger(__name__)
+
 
 class CacheReader:
     """Handle the cache file for storing previously validated URLs.
@@ -39,7 +41,7 @@ class CacheReader:
         self.cache_file_path: pathlib.Path | None = None
 
         if not cache_file:
-            logging.debug('No path to cache file provided.')
+            logger.debug('No path to cache file provided.')
             return
 
         self.mem_instance = mem_instance
@@ -48,7 +50,7 @@ class CacheReader:
         self.dont_check_again_within_hours = dont_check_again_within_hours
 
         self.cache_file_path = pathlib.Path(cache_file).resolve()
-        logging.debug('Absolute path to cache file: %s', self.cache_file_path)
+        logger.debug('Absolute path to cache file: %s', self.cache_file_path)
         self.__check_cache_file_path()
 
     def __check_cache_file_path(self) -> None:
@@ -95,7 +97,7 @@ class CacheReader:
 
         disk_cache = None
         try:
-            logging.debug('Trying to load disk cache')
+            logger.debug('Trying to load disk cache')
             disk_cache = sqlite3.connect(
                 self.cache_file_path,
                 isolation_level=None  # reenable autocommit
@@ -113,13 +115,13 @@ class CacheReader:
             valid_dois = disk_cache_cursor.fetchall()
 
         except Exception:
-            logging.debug('No cache file or could not read it.', exc_info=True)
+            logger.debug('No cache file or could not read it.', exc_info=True)
         finally:
             if disk_cache is not None:
                 try:
                     disk_cache.close()
                 except Exception:
-                    logging.debug('Failed closing disk cache connection.', exc_info=True)
+                    logger.debug('Failed closing disk cache connection.', exc_info=True)
 
         if valid_urls:
             self.cursor.executemany('''

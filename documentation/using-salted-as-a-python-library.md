@@ -26,3 +26,7 @@ linkcheck.check('path_to_your_files/')
 ```
 
 This starts the check. By default the results will be displayed on the command line interface you are using.
+
+## Logging
+
+salted never configures logging itself: that is left to your program. Its messages go to loggers below `salted` (for example `salted.url_check`), so you can adjust them without touching other libraries, e.g. `logging.getLogger('salted').setLevel(logging.DEBUG)`. Until your program configures logging, salted prints no log messages. The report is not affected, as it is not written through logging.

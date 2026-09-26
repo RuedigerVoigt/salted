@@ -28,6 +28,8 @@ from salted.err import (
 from salted.file_finder import separated_paths_to_set
 from salted.user_agents import get_user_agent, list_presets
 
+logger = logging.getLogger(__name__)
+
 # ##################### CLI argument -> Salted attribute maps #####################
 #
 # The application defaults live in Salted.__init__ and may be changed by a
@@ -318,7 +320,11 @@ def main() -> None:
     Parses command line arguments, overrides defaults and config file settings,
     and runs the link checker.
     """
-    logging.debug('salted called via the CLI')
+    # The library itself never configures logging (see salted/__init__.py),
+    # so the CLI does: warnings and errors go to stderr as before.
+    logging.basicConfig(level=logging.WARNING,
+                        format='%(levelname)s: %(message)s')
+    logger.debug('salted called via the CLI')
 
     parser = _build_arg_parser()
     args = parser.parse_args()
@@ -353,5 +359,5 @@ def main() -> None:
         sys.exit(1)
     except (InvalidSettingError, UnsafeTemplateError, ConfigFileError,
             DeadLinksException) as exc:
-        logging.error(str(exc))
+        logger.error(str(exc))
         sys.exit(1)

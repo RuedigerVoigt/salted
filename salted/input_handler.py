@@ -20,6 +20,8 @@ from tqdm.asyncio import tqdm  # type: ignore
 
 from salted import database_io, internal_link_check, parser
 
+logger = logging.getLogger(__name__)
+
 
 class InputHandler:
     """Read files and extract the hyperlinks inside them."""
@@ -84,7 +86,7 @@ class InputHandler:
                 with open(path_to_file, encoding='utf-8') as code:
                     content = code.read()
             except UnicodeDecodeError:
-                logging.warning("File %s is not UTF-8, retrying with latin-1", path_to_file)
+                logger.warning("File %s is not UTF-8, retrying with latin-1", path_to_file)
                 with open(path_to_file, encoding='latin-1') as code:
                     content = code.read()
         except FileNotFoundError:
@@ -347,7 +349,7 @@ class InputHandler:
             files_to_check: List of file paths to scan for links.
         """
         if not files_to_check:
-            logging.warning('No files to check')
+            logger.warning('No files to check')
             return None
 
         # Reset counter as check_links might be used multiple times and this
@@ -374,7 +376,7 @@ class InputHandler:
         # all of them.
         skipped = self.cnt['bib_files_skipped']
         if skipped:
-            logging.warning(
+            logger.warning(
                 '%s BibTeX file(s) were NOT checked: %s',
                 skipped, parser.MISSING_PYBTEX_MSG)
 

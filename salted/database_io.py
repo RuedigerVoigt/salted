@@ -14,6 +14,8 @@ import urllib.parse
 
 from salted import memory_instance
 
+logger = logging.getLogger(__name__)
+
 # Report text for a link userprovided cannot normalize, e.g. one without a
 # host, with an invalid port, or longer than it accepts.
 MALFORMED_URL_REASON = 'Malformed URL - not checked'
@@ -52,7 +54,7 @@ class DatabaseIO:
                 (filePath, hostname, url, normalizedUrl, linktext).
         """
         if not links_found:
-            logging.debug('No links in this file to save them.')
+            logger.debug('No links in this file to save them.')
         else:
             self.cursor.executemany('''
             INSERT INTO queue
@@ -68,7 +70,7 @@ class DatabaseIO:
                 (filePath, doi, description).
         """
         if not dois_found:
-            logging.debug('No DOI in this file to save them.')
+            logger.debug('No DOI in this file to save them.')
             return None
         self.cursor.executemany('''
         INSERT INTO queue_doi
@@ -314,7 +316,7 @@ class DatabaseIO:
                 to_insert.append((file_path, doi, description))
                 to_delete.append((normalized_url,))
             else:
-                logging.warning("doi.org URL has unexpected path, leaving in URL queue: %s", url)
+                logger.warning("doi.org URL has unexpected path, leaving in URL queue: %s", url)
 
         if to_insert:
             self.cursor.executemany('''

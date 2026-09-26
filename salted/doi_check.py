@@ -22,6 +22,8 @@ from tqdm.asyncio import tqdm  # type: ignore
 from salted import database_io
 from salted.checker_base import AsyncCheckerBase
 
+logger = logging.getLogger(__name__)
+
 # DOI format: prefix 10.NNNN[NN...] / suffix (at least one non-whitespace char)
 _DOI_PATTERN: Final = re.compile(r'^10\.\d{4,}/\S+$')
 
@@ -52,7 +54,7 @@ class DoiCheck(AsyncCheckerBase):
         except PackageNotFoundError:
             _version = "unknown"
         if not mailto:
-            logging.warning(
+            logger.warning(
                 "No mailto address configured for CrossRef API requests. "
                 "Without contact information in the User-Agent, requests are "
                 "not routed to CrossRef's polite pool and may be rate-limited "
@@ -112,7 +114,7 @@ class DoiCheck(AsyncCheckerBase):
             elapsed = now - self._last_send
             if elapsed < self._min_interval:
                 wait = self._min_interval - elapsed
-                logging.debug("CrossRef rate limit: sleeping %.3fs", wait)
+                logger.debug("CrossRef rate limit: sleeping %.3fs", wait)
                 await asyncio.sleep(wait)
             self._last_send = asyncio.get_event_loop().time()
 
@@ -129,7 +131,7 @@ class DoiCheck(AsyncCheckerBase):
                 - seconds: Time window in seconds.
                 - status: HTTP status code (200 if DOI exists, 404 if not).
         """
-        logging.debug("Sending head request to Crossref API: check %s", doi)
+        logger.debug("Sending head request to Crossref API: check %s", doi)
         # The HTTP HEAD method requests the headers, but not the page's body.
         # Requesting this way reduces load on the server and network traffic.
         # Percent-encode the DOI before it goes into the URL: the preflight
@@ -162,10 +164,10 @@ class DoiCheck(AsyncCheckerBase):
         try:
             api_response = await self.__api_send_head_request(item)
             if api_response['status'] == 200:
-                logging.debug("DOI %s is valid", item)
+                logger.debug("DOI %s is valid", item)
                 self.valid_doi_list.append(item)
             elif api_response['status'] == 404:
-                logging.debug("DOI %s does not exist!", item)
+                logger.debug("DOI %s does not exist!", item)
                 self.invalid_doi_list.append(item)
             else:
                 if not self.quiet:
@@ -174,7 +176,7 @@ class DoiCheck(AsyncCheckerBase):
                 int(api_response['max_queries']),
                 int(api_response['seconds']))
         except Exception:
-            logging.exception("Failed to check DOI %s", item)
+            logger.exception("Failed to check DOI %s", item)
 
     def _fill_queue(self,
                     items: list,
@@ -191,7 +193,7 @@ class DoiCheck(AsyncCheckerBase):
             if self._is_valid_doi_format(entry):
                 queue.put_nowait(entry)
             else:
-                logging.warning("DOI '%s' fails basic format check — skipping API call.", entry)
+                logger.warning("DOI '%s' fails basic format check — skipping API call.", entry)
                 self.invalid_doi_list.append(entry)
 
     def check_dois(self) -> None:
@@ -201,7 +203,7 @@ class DoiCheck(AsyncCheckerBase):
         """
         dois_to_check = self.db.get_dois_to_check()
         if not dois_to_check:
-            logging.debug('No DOIs to check.')
+            logger.debug('No DOIs to check.')
             return
         num_doi = len(dois_to_check)
         if not self.quiet:

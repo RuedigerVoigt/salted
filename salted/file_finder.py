@@ -14,6 +14,8 @@ from typing import Final
 
 from userprovided.parameters import separated_string_to_set
 
+logger = logging.getLogger(__name__)
+
 
 def separated_paths_to_set(raw: str | None) -> set[str] | None:
     """Parse a comma-separated list of file system paths into a set.
@@ -95,13 +97,13 @@ class FileFinder:
             try:
                 candidate = pathlib.Path(text).resolve()
             except (OSError, ValueError, RuntimeError):
-                logging.warning(
+                logger.warning(
                     "Cannot resolve excluded path '%s' - ignored.", entry)
                 continue
             if not candidate.exists():
                 # Not an error: the exclusion simply matches nothing. Say so,
                 # as a typo here silently checks files meant to be skipped.
-                logging.warning(
+                logger.warning(
                     "Excluded path '%s' does not exist. Note that a relative "
                     "path is resolved against the current working directory.",
                     entry)
@@ -165,7 +167,7 @@ class FileFinder:
                     num_excluded += 1
                     continue
                 files_to_check.append(resolved)
-        logging.debug('Found %s files', len(files_to_check))
+        logger.debug('Found %s files', len(files_to_check))
         if num_excluded:
-            logging.debug('Left out %s excluded files', num_excluded)
+            logger.debug('Left out %s excluded files', num_excluded)
         return files_to_check

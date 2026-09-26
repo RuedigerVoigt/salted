@@ -17,14 +17,31 @@ from bs4 import BeautifulSoup  # type: ignore
 
 from salted import err
 
+logger = logging.getLogger(__name__)
+
+# Detected silently: logging at import time would run logging.basicConfig()
+# on the root logger of a program that imports salted, so its own later
+# basicConfig() call would do nothing. log_html_backend() reports the result
+# once a check starts.
 try:
     import lxml  # type: ignore[import-untyped]
     _BS_PARSER = 'lxml'
-    logging.info("lxml %s available — using it as HTML parser backend.", lxml.__version__)
 except ImportError:
     _BS_PARSER = 'html.parser'
-    logging.warning("lxml not installed — falling back to html.parser. "
-                    'Install "salted[lxml]" for faster HTML parsing.')
+
+
+def log_html_backend() -> None:
+    """Log which HTML parser backend BeautifulSoup uses.
+
+    Info level, not warning: lxml is only an optimization, and html.parser
+    handles every file correctly.
+    """
+    if _BS_PARSER == 'lxml':
+        logger.info("lxml %s available — using it as HTML parser backend.",
+                    lxml.__version__)
+    else:
+        logger.info('lxml not installed — using html.parser. Install '
+                    '"salted[lxml]" for faster HTML parsing.')
 
 # BibTeX support is optional. Unlike lxml - which only swaps the HTML
 # backend for a faster one - pybtex has no fallback: without it a .bib

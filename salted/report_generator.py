@@ -23,6 +23,8 @@ from jinja2.sandbox import SandboxedEnvironment
 
 from salted import err, memory_instance
 
+logger = logging.getLogger(__name__)
+
 # Templates shipped inside the package. Anything else is loaded from a
 # path that may come from the checked folder, i.e. from untrusted input.
 BUILTIN_TEMPLATES: Final[tuple] = ('default.cli.jinja', 'default.md.jinja')
@@ -132,7 +134,7 @@ def encodable_for_stdout(report: str) -> str:
     try:
         report.encode(encoding)
     except UnicodeEncodeError:
-        logging.warning(
+        logger.warning(
             "The console encoding (%s) cannot represent every character in "
             'the report; those are shown as "?". Write the report to a file '
             '(--write_to) to keep them - files are always written as UTF-8.',
@@ -144,7 +146,7 @@ def encodable_for_stdout(report: str) -> str:
         # on the same lookup, so the report is left as it is: printing it
         # is then whatever that stream does, but this function must not be
         # the thing that raises.
-        logging.warning(
+        logger.warning(
             "Unknown console encoding '%s'; printing the report unchanged.",
             encoding)
     return report
@@ -592,7 +594,7 @@ class ReportGenerator:
         except OSError:
             return True
         if shadowing:
-            logging.info(
+            logger.info(
                 "Rendering '%s' from %s instead of the template of that name "
                 'shipped with salted.', template['name'], searchpath)
         return not shadowing
@@ -662,10 +664,10 @@ class ReportGenerator:
         try:
             with open(write_to, 'w', encoding='utf-8') as file:
                 file.write(rendered_report)
-            logging.info("Wrote report to file: %s",
+            logger.info("Wrote report to file: %s",
                          pathlib.Path(write_to).resolve())
         except Exception:
-            logging.exception('Exception while writing to file!',
+            logger.exception('Exception while writing to file!',
                               exc_info=True)
             raise
 

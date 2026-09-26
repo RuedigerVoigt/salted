@@ -23,6 +23,8 @@ from salted import database_io, err
 from salted.checker_base import AsyncCheckerBase
 from salted.rate_limiter import DomainRateLimiter
 
+logger = logging.getLogger(__name__)
+
 
 class UrlCheck(AsyncCheckerBase):
     """Interact with the network to check URLs."""
@@ -115,7 +117,7 @@ class UrlCheck(AsyncCheckerBase):
                     "or 'automatic'.")
         # Set the logging message here to flush the cache. Cannot use
         # flush() as it is unknown which or how many logging methods are used.
-        logging.debug("Using %s workers to check %s hyperlinks.",
+        logger.debug("Using %s workers to check %s hyperlinks.",
                       recommendation, num_checks)
         return recommendation
 
@@ -287,7 +289,7 @@ class UrlCheck(AsyncCheckerBase):
         except aiohttp.client_exceptions.ServerDisconnectedError:
             self.db.log_exception(url, 'Server disconnected')
         except Exception as exc:
-            logging.exception('Exception. URL %s', url, exc_info=True)
+            logger.exception('Exception. URL %s', url, exc_info=True)
             self.db.log_exception(url, f"Unexpected error ({type(exc).__name__})")
 
     async def _process_item(self, item: str) -> None:
@@ -315,7 +317,7 @@ class UrlCheck(AsyncCheckerBase):
         if not urls_to_check:
             msg = ("No URLs to check after skipping cached results." +
                    "All hyperlinks are considered valid.")
-            logging.info(msg)
+            logger.info(msg)
             return
         num_checks = len(urls_to_check)
         # Set of number of workers here instead of __distribute_work as

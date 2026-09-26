@@ -11,13 +11,15 @@ Released under the Apache License 2.0
 import logging
 import sqlite3
 
+logger = logging.getLogger(__name__)
+
 
 class MemoryInstance:
     """Handles the in-memory instance of the database."""
 
     def __init__(self) -> None:
         """Initialize the in-memory instance of SQLite."""
-        logging.debug('Initializing in memory database.')
+        logger.debug('Initializing in memory database.')
         self.conn = sqlite3.connect(
             ':memory:',
             isolation_level=None  # reenable autocommit
@@ -43,7 +45,7 @@ class MemoryInstance:
         All data not stored elsewhere will be lost.
         """
         if self.conn:
-            logging.debug("tear down in memory instance")
+            logger.debug("tear down in memory instance")
             self.conn.close()
 
     def create_schema(self) -> None:
@@ -116,7 +118,7 @@ class MemoryInstance:
             reason text,
             isError integer);''')
 
-        logging.debug("Created database schema.")
+        logger.debug("Created database schema.")
 
     def generate_indices(self) -> None:
         """Add indices to the in-memory database.
@@ -127,7 +129,7 @@ class MemoryInstance:
         # While adding links to the database the index is not needed,
         # but would be updated with every insert. It is faster to create it
         # once the table has it contents.
-        logging.debug('Generating indices')
+        logger.debug('Generating indices')
         self.cursor.execute('''
             CREATE INDEX IF NOT EXISTS index_timestamp
             ON validUrls (lastValid);''')
@@ -146,7 +148,7 @@ class MemoryInstance:
         """
         # Separate function to execute after all links have been checked
         # and the respective tables are stable."""
-        logging.debug('Generating database views')
+        logger.debug('Generating database views')
         self.cursor.execute('''
             CREATE VIEW IF NOT EXISTS v_errorCountByFile AS
             SELECT COUNT(*) AS numErrors, filePath
@@ -199,4 +201,4 @@ class MemoryInstance:
             INNER JOIN exceptions
             ON queue.normalizedUrl = exceptions.normalizedUrl;''')
 
-        logging.debug('Created Views for analytics and output generating.')
+        logger.debug('Created Views for analytics and output generating.')

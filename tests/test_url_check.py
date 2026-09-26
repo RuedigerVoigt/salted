@@ -378,7 +378,7 @@ class TestNetworkExceptionHandling:
         """Unexpected exceptions are logged AND recorded so the URL still
         appears in the report instead of silently vanishing."""
         with patch.object(url_checker, 'head_request', side_effect=ValueError("boom")):
-            with patch('salted.url_check.logging.exception') as mock_log:
+            with patch('salted.url_check.logger.exception') as mock_log:
                 await url_checker.validate_url("https://unexpected.com")
 
                 # Logged for debugging (with a traceback) ...

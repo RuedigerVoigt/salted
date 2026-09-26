@@ -38,6 +38,8 @@ from salted import (
     url_check,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def _normalize_url_set(raw: set[str] | None) -> set[str]:
     """Return a set of URLs in a normalized form suitable for matching.
@@ -159,7 +161,7 @@ class Salted:
                 domain = user_url.extract_domain(url_to_parse)
                 valid.add(domain)
             except ValueError:
-                logging.warning("'%s' is not a valid domain — ignored.", entry)
+                logger.warning("'%s' is not a valid domain — ignored.", entry)
         return valid
 
     def _from_config(self,
@@ -190,7 +192,7 @@ class Salted:
             return parameter_rules.validate(
                 key, raw, f"in config file {target}")
         except ValueError as exc:
-            logging.error(str(exc))
+            logger.error(str(exc))
             raise err.ConfigFileError(str(exc)) from exc
 
     def __adopt_path_setting(self,
@@ -251,7 +253,7 @@ class Salted:
             except (OSError, ValueError, RuntimeError) as exc:
                 msg = (f"Cannot resolve '{name}' from the config file in "
                        f"{jail}: {value}")
-                logging.error(msg)
+                logger.error(msg)
                 raise err.ConfigFileError(msg) from exc
             if resolved != jail and not resolved.is_relative_to(jail):
                 msg = (
@@ -261,7 +263,7 @@ class Salted:
                     'only reference paths inside its own directory. Pass '
                     '--config to use it deliberately, or set the value on '
                     'the command line.')
-                logging.error(msg)
+                logger.error(msg)
                 raise err.ConfigFileError(msg)
 
     def __parse_configfile(self, config_path: pathlib.Path | None = None) -> None:
@@ -294,7 +296,7 @@ class Salted:
             if not config_path.is_file():
                 msg = (f"Config file not found: {config_path} - check the path "
                        "passed via --config (or config_path).")
-                logging.error(msg)
+                logger.error(msg)
                 raise err.ConfigFileError(msg)
             target = config_path
         else:
@@ -302,7 +304,7 @@ class Salted:
             # Its absence is fine — fall back to defaults.
             default = pathlib.Path(self.CONFIG_NAME)
             if not default.is_file():
-                logging.info('No configfile found. Using defaults.')
+                logger.info('No configfile found. Using defaults.')
                 return
             target = default
 
@@ -319,14 +321,14 @@ class Salted:
             config_text = target.read_text(encoding='utf-8-sig')
         except (OSError, UnicodeDecodeError) as exc:
             msg = f"Config file could not be read: {target} - {exc}"
-            logging.error(msg)
+            logger.error(msg)
             raise err.ConfigFileError(msg) from exc
 
         try:
             cfg.read_string(config_text, source=str(target))
         except configparser.Error as exc:
             msg = f"Config file is corrupted (not valid INI): {target} - {exc}"
-            logging.error(msg)
+            logger.error(msg)
             raise err.ConfigFileError(msg) from exc
 
         # A config file the operator named with --config is trusted input.
@@ -342,7 +344,7 @@ class Salted:
                 msg = (f"Config file contains unknown section '{section}': "
                        f"{target} - allowed sections are BEHAVIOR, CACHE, "
                        "FILES, TEMPLATE.")
-                logging.error(msg)
+                logger.error(msg)
                 raise err.ConfigFileError(msg)
 
         if 'BEHAVIOR' in cfg.sections():
@@ -444,6 +446,7 @@ class Salted:
         """
         start_time = time.monotonic()
         self.check_parameters()
+        parser.log_html_backend()
 
         # check might be reused with the same salted object. Therefore
         # the in memory database has to initialized here instead of on
@@ -479,7 +482,7 @@ class Salted:
         excluded_paths = filesearch.resolve_exclusions(self.exclude_paths)
 
         if path.is_dir():
-            logging.info('Base folder: %s', path)
+            logger.info('Base folder: %s', path)
             return filesearch.find_files_by_extensions(
                 path, suffixes=suffixes, exclude=excluded_paths)
 
@@ -489,7 +492,7 @@ class Salted:
             # "nothing to check" path the caller already has for a folder
             # without supported files.
             if filesearch.is_excluded(path, excluded_paths):
-                logging.warning(
+                logger.warning(
                     'The file to check (%s) is on the exclusion list.', path)
                 return []
             return [path]
@@ -584,12 +587,12 @@ class Salted:
         # handled in InputHandler, which keeps the rest of the run going.
         if (not parser.PYBTEX_AVAILABLE
                 and path.is_file() and path.suffix.lower() == '.bib'):
-            logging.error(parser.MISSING_PYBTEX_MSG)
+            logger.error(parser.MISSING_PYBTEX_MSG)
             raise err.MissingOptionalDependencyError(parser.MISSING_PYBTEX_MSG)
 
         # Scan and prune for both directory and single-file modes
         if not files_to_check:
-            logging.warning("No supported files in this folder or its subfolders.")
+            logger.warning("No supported files in this folder or its subfolders.")
             return
 
         file_io.scan_files(files_to_check)

@@ -17,6 +17,8 @@ from bs4 import BeautifulSoup  # type: ignore
 
 from salted.parser import _BS_PARSER
 
+logger = logging.getLogger(__name__)
+
 
 class InternalLinkCheck:
     """Resolve internal links on disk and verify their targets exist.
@@ -232,10 +234,10 @@ class InternalLinkCheck:
                     str(tag['name'])
                     for tag in soup.find_all('a', attrs={'name': True}))
             else:
-                logging.warning(
+                logger.warning(
                     'File too large for fragment verification: %s', target)
         except OSError as exc:
-            logging.warning('Cannot read %s for fragment verification: %s',
+            logger.warning('Cannot read %s for fragment verification: %s',
                             target, exc)
 
         self._anchor_cache[target] = anchors

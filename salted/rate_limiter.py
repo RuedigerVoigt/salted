@@ -15,6 +15,8 @@ import time
 
 from userprovided.url import extract_domain
 
+logger = logging.getLogger(__name__)
+
 
 class DomainRateLimiter:
     """
@@ -62,7 +64,7 @@ class DomainRateLimiter:
         try:
             return extract_domain(url, drop_subdomain=self.drop_subdomain)
         except ValueError as e:
-            logging.warning(f"Failed to extract domain from {url}: {e}")
+            logger.warning(f"Failed to extract domain from {url}: {e}")
             # Re-raise to let caller handle
             raise
 
@@ -113,7 +115,7 @@ class DomainRateLimiter:
 
                 if time_since_last_request < self.delay_seconds:
                     sleep_time = self.delay_seconds - time_since_last_request
-                    logging.debug(
+                    logger.debug(
                         f"Rate limiting {domain}: sleeping {sleep_time:.3f}s "
                         f"(last request {time_since_last_request:.3f}s ago)"
                     )
