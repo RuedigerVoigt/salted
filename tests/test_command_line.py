@@ -504,6 +504,21 @@ class TestArgumentParsingEdgeCases:
                 mock_salted_class.assert_not_called()
                 mock_checker.check.assert_not_called()
 
+    def test_version_argument(self, capsys):
+        """--version prints the version and exits 0 without checking anything."""
+        import salted
+        test_args = ['salted', '--version']
+
+        with patch('sys.argv', test_args):
+            with patch('salted.Salted') as mock_salted_class:
+                with pytest.raises(SystemExit) as excinfo:
+                    command_line.main()
+
+                assert excinfo.value.code == 0
+                mock_salted_class.assert_not_called()
+
+        assert capsys.readouterr().out.strip() == f'salted {salted.__version__}'
+
     def test_invalid_file_types_argument(self):
         """Test CLI with invalid --file_types argument."""
         test_args = ['salted', '--file_types', 'invalid_type']

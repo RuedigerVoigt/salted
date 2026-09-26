@@ -11,7 +11,7 @@ salted -i ./
 On the command line salted supports all parameters. To get an overview, simply type `salted -h` and it will display this help message with all available options.
 
 ```
-usage: salted [-h] [--config <path>] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>]
+usage: salted [-h] [--version] [--config <path>] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>]
               [--timeout <seconds>] [--raise_for_dead_links | --no-raise_for_dead_links]
               [--check_dois | --no-check_dois] [--check_internal_links | --no-check_internal_links]
               [--user_agent <preset or custom string>] [--mailto <email>]
@@ -27,6 +27,7 @@ It checks external links and - for HTML files - internal links.
 
 options:
   -h, --help            show this help message and exit
+  --version             Show the version number and exit.
   --config <path>       Path to an alternative config file (default: salted-linkcheck.ini in the
                         current directory). Raises an error if the specified file does not exist.
   -i, --searchpath <path>

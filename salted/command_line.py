@@ -86,6 +86,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {salted.__version__}",
+        help="Show the version number and exit.")
+
+    parser.add_argument(
         "--config",
         type=pathlib.Path,
         default=None,
