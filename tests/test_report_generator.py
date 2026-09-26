@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for report_generator module
@@ -11,14 +10,15 @@ Source: https://github.com/RuedigerVoigt/salted
 
 import contextlib
 import io
+import pathlib
 import re
 import sys
-import pytest
-import pathlib
+from typing import ClassVar
 
+import pytest
 from jinja2.exceptions import SecurityError
 
-from salted import err, report_generator, memory_instance
+from salted import err, memory_instance, report_generator
 
 
 class _FakeTTY(io.StringIO):
@@ -871,7 +871,7 @@ class TestGenerateReport:
 
     def test_generate_report_write_to_file_exception(self, tmp_path):
         """Test exception handling when writing to file fails (covers lines 286-289)."""
-        from unittest.mock import patch, mock_open
+        from unittest.mock import mock_open, patch
         mem_inst = memory_instance.MemoryInstance()
         mem_inst.generate_db_views()
         gen = report_generator.ReportGenerator(mem_inst)
@@ -997,7 +997,7 @@ class TestTerminalSupportsHyperlinks:
 class TestOsc8InGeneratedReport:
     """Test hyperlink emission end to end through generate_report"""
 
-    STATS = {
+    STATS: ClassVar[dict] = {
         'timestamp': '2026-01-01 12:00h',
         'num_links': 1, 'num_checked': 1,
         'time_to_check': 1, 'checks_per_second': 1.0,

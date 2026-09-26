@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Tests that the report receives percentage_full_request derived from counters.
@@ -34,7 +33,7 @@ class NoopDoiCheck:
 captured_stats = {}
 
 
-def capture_report(statistics, template, write_to, replace_path_by_url):  # noqa: D401
+def capture_report(statistics, template, write_to, replace_path_by_url):
     global captured_stats
     captured_stats = statistics
 

@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for BibTeX support as an optional dependency
@@ -16,7 +15,6 @@ import pytest
 
 import salted
 from salted import database_io, err, input_handler, memory_instance, parser
-
 
 BIBTEX_EXAMPLE = r"""
 @Article{Doe2021,

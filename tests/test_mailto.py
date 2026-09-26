@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for mailto link handling.
@@ -7,10 +6,8 @@ Tests for mailto link handling.
 
 from unittest.mock import patch
 
-
-from salted.parser import Parser
 import salted
-
+from salted.parser import Parser
 
 # ---------------------------------------------------------------------------
 # Unit tests for extract_mails_from_mailto

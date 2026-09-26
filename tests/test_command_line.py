@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Unit Tests for Command Line Interface in SALTED
@@ -8,7 +7,8 @@ This addresses the 0% coverage gap in command_line.py
 """
 
 import pathlib
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from salted import command_line, err, parser

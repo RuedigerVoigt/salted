@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for path handling edge cases, particularly Windows-specific issues.
@@ -7,10 +6,10 @@ Tests for path handling edge cases, particularly Windows-specific issues.
 
 import subprocess
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from salted import command_line
 import salted
+from salted import command_line
 
 
 class TestPathQuoteStripping:
@@ -45,7 +44,7 @@ class TestPathQuoteStripping:
         test_file = tmp_path / "test.html"
         test_file.write_text('<html><body><a href="https://example.com">Link</a></body></html>')
 
-        path_with_quote = f"'{str(tmp_path)}'"
+        path_with_quote = f"'{tmp_path!s}'"
 
         test_args = ['salted', '-i', path_with_quote]
 

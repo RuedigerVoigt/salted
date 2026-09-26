@@ -741,8 +741,9 @@ class ReportGenerator:
         if cls._use_builtin_template(template):
             # The built-in templates emit plain text and markdown, not HTML,
             # so autoescape would corrupt their output rather than protect
-            # it. Bandit's B701 flags exactly that combination.
-            jinja_env = SandboxedEnvironment(  # nosec B701
+            # it. No nosec marker: bandit's B701 inspects only
+            # jinja2.Environment, never SandboxedEnvironment.
+            jinja_env = SandboxedEnvironment(
                 loader=PackageLoader('salted', 'templates'),
                 autoescape=False)
         else:

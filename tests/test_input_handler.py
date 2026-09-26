@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for input handler functionality
@@ -9,12 +8,14 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 import pathlib
-import pytest
-from unittest.mock import Mock, patch, mock_open
+from typing import ClassVar
+from unittest.mock import Mock, mock_open, patch
 
-from salted.input_handler import InputHandler
+import pytest
+
 from salted import database_io, memory_instance
 from salted.file_finder import FileFinder
+from salted.input_handler import InputHandler
 
 
 class TestUppercaseFileExtensions:
@@ -25,7 +26,7 @@ class TestUppercaseFileExtensions:
     checked and never reported - the run just looked clean.
     """
 
-    SAMPLES = {
+    SAMPLES: ClassVar[dict[str, str]] = {
         'lower.html': '<a href="https://a.example/1">x</a>',
         'UPPER.HTML': '<a href="https://b.example/2">x</a>',
         'Mixed.Html': '<a href="https://c.example/3">x</a>',
@@ -117,7 +118,7 @@ class TestReadFileContent:
     def test_read_file_content_utf8(self, tmp_path):
         """A valid UTF-8 file is read correctly."""
         f = tmp_path / "test.html"
-        f.write_bytes("Héllo Wörld".encode('utf-8'))
+        f.write_bytes("Héllo Wörld".encode())
         db_mock = Mock(spec=database_io.DatabaseIO)
         handler = InputHandler(db_mock)
         content = handler.read_file_content(f)
@@ -494,7 +495,7 @@ class TestExtractLinksAndDois:
 
         with patch.object(handler.parser, 'extract_links_from_html',
                           return_value=[]) as mock_extract:
-            url_list, doi_list = handler._extract_links_and_dois(
+            _url_list, doi_list = handler._extract_links_and_dois(
                 pathlib.Path('legacy.htm'), 'content')
 
         mock_extract.assert_called_once_with('content')
@@ -521,7 +522,7 @@ class TestExtractLinksAndDois:
 
         with patch.object(handler.parser, 'extract_links_from_tex',
                           return_value=[['http://example.com', '']]) as mock_extract:
-            url_list, doi_list = handler._extract_links_and_dois(
+            _url_list, doi_list = handler._extract_links_and_dois(
                 pathlib.Path('test.tex'), r'\url{http://example.com}')
 
         mock_extract.assert_called_once()

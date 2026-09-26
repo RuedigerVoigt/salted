@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for DOI checking functionality
@@ -9,12 +8,13 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import aiohttp
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from salted.doi_check import DoiCheck
 from salted import database_io
+from salted.doi_check import DoiCheck
 
 
 class TestDoiCheckInitialization:

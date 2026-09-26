@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for parser module
@@ -130,7 +129,7 @@ class TestBibtexParsing:
         }
         """
         result = parser.extract_links_from_bib(bib)
-        url_list, doi_list = result
+        _url_list, doi_list = result
 
         # DOI should be stripped of whitespace
         assert doi_list[0][0] == '10.1234/test'

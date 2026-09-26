@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Unit Tests for URL Checking functionality in SALTED
 Focuses on testing previously untested components with mocking.
 """
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import aiohttp
+import pytest
 from aiohttp import ClientResponse
 
-from salted import url_check, database_io
+from salted import database_io, url_check
 
 
 @pytest.fixture
@@ -244,7 +243,7 @@ class TestValidateUrlStatusCodes:
             (307, "Temporary Redirect")
         ]
 
-        for status_code, description in test_cases:
+        for status_code, _description in test_cases:
             with patch.object(url_checker, 'head_request', return_value=status_code):
                 await url_checker.validate_url("https://example.com")
 
@@ -260,7 +259,7 @@ class TestValidateUrlStatusCodes:
             (308, "Permanent Redirect")
         ]
 
-        for status_code, description in test_cases:
+        for status_code, _description in test_cases:
             with patch.object(url_checker, 'head_request', return_value=status_code):
                 await url_checker.validate_url("https://moved.com")
 
@@ -275,7 +274,7 @@ class TestValidateUrlStatusCodes:
             (410, "Gone")
         ]
 
-        for status_code, description in test_cases:
+        for status_code, _description in test_cases:
             with patch.object(url_checker, 'head_request', return_value=status_code):
                 await url_checker.validate_url("https://broken.com")
 
@@ -332,7 +331,7 @@ class TestNetworkExceptionHandling:
     @pytest.mark.asyncio
     async def test_validate_url_timeout(self, url_checker, mock_db):
         """Test timeout exception handling."""
-        with patch.object(url_checker, 'head_request', side_effect=asyncio.TimeoutError()):
+        with patch.object(url_checker, 'head_request', side_effect=TimeoutError()):
             await url_checker.validate_url("https://slow.com")
 
             mock_db.log_exception.assert_called_with("https://slow.com", 'Timeout')

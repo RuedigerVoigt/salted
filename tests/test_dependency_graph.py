@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests that the dependency documentation matches pyproject.toml
@@ -25,7 +24,6 @@ import tomllib
 import pytest
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 PYPROJECT = REPO_ROOT / 'pyproject.toml'

@@ -99,7 +99,7 @@ class TestResolution:
         assert checker.check_link(site / 'index.html', 'blog/') is None
 
     def test_missing_directory_is_error(self, site, checker):
-        reason, is_error = checker.check_link(site / 'index.html', 'nope/')
+        _reason, is_error = checker.check_link(site / 'index.html', 'nope/')
         assert is_error == 1
 
     def test_directory_without_trailing_slash(self, site, checker):
@@ -158,7 +158,7 @@ class TestSecurityContainment:
         assert InternalLinkCheck.is_internal_link('//host/share/file') is False
 
     def test_control_characters_rejected(self, site, checker):
-        reason, is_error = checker.check_link(
+        _reason, is_error = checker.check_link(
             site / 'index.html', 'page%00.html')
         assert is_error == 1
 
@@ -199,7 +199,7 @@ class TestFragments:
             site / 'index.html', 'blog/post.html#section-1') is None
 
     def test_fragment_in_other_file_missing(self, site, checker):
-        reason, is_error = checker.check_link(
+        _reason, is_error = checker.check_link(
             site / 'index.html', 'blog/post.html#missing')
         assert is_error == 1
 
@@ -242,7 +242,7 @@ class TestInputHandlerIntegration:
         return mem, db, handler, checker
 
     def test_broken_internal_link_is_logged(self, site):
-        mem, db, handler, checker = self._handler(site)
+        mem, db, handler, _checker = self._handler(site)
         try:
             handler.handle_found_urls(
                 site / 'index.html', [['gone.html', 'broken link']])
@@ -273,7 +273,7 @@ class TestInputHandlerIntegration:
 
     def test_markdown_source_not_internally_checked(self, site):
         # Issue #1 scope: internal resolution only for HTML sources.
-        mem, db, handler, checker = self._handler(site)
+        mem, _db, handler, checker = self._handler(site)
         try:
             handler.handle_found_urls(
                 site / 'readme.md', [['gone.html', 'md link']])

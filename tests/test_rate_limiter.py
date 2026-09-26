@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for the domain-based rate limiter
@@ -10,6 +9,7 @@ Source: https://github.com/RuedigerVoigt/salted
 
 import asyncio
 import time
+
 import pytest
 
 from salted.rate_limiter import DomainRateLimiter

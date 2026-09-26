@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Automatic Tests for salted - Integration Tests
@@ -19,13 +18,12 @@ Source: https://github.com/RuedigerVoigt/salted
 """
 
 import sqlite3
+from unittest.mock import AsyncMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, patch
 
 import salted
 from salted import err, file_finder, memory_instance
-
 
 html_example = r"""
 <html>

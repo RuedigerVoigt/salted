@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for user agent presets
@@ -10,7 +9,7 @@ Source: https://github.com/RuedigerVoigt/salted
 
 import pytest
 
-from salted.user_agents import get_user_agent, list_presets, USER_AGENTS
+from salted.user_agents import USER_AGENTS, get_user_agent, list_presets
 
 
 class TestListPresets:

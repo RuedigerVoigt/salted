@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for the central parameter validation rules
@@ -12,7 +11,6 @@ Source: https://github.com/RuedigerVoigt/salted
 import pytest
 
 from salted import parameter_rules
-
 
 SRC = 'in a test'
 
@@ -27,7 +25,7 @@ class TestValidateDispatch:
 
     def test_source_appears_in_error_message(self):
         """The error message must name the origin of the bad value."""
-        with pytest.raises(ValueError, match='in config file test.ini'):
+        with pytest.raises(ValueError, match=r'in config file test\.ini'):
             parameter_rules.validate(
                 'timeout', 'five', 'in config file test.ini')
 

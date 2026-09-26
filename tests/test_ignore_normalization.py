@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """
 Tests that ignore_urls are normalized before being used for matching.
@@ -16,7 +15,7 @@ class FakeUrlCheck:
     last_ignore = None
 
     def __init__(self, user_agent, db, workers, timeout_sec, ignore_urls,
-                 domain_delay, ignore_domains=None, quiet=False):  # noqa: D401 - constructor
+                 domain_delay, ignore_domains=None, quiet=False):
         FakeUrlCheck.last_ignore = ignore_urls
         self.cnt = {
             'checked_urls': 0,

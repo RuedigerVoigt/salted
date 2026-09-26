@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-# -*- coding: utf-8 -*-
 
 """
 Tests for cache_reader module
@@ -12,6 +11,7 @@ Source: https://github.com/RuedigerVoigt/salted
 import pathlib
 import sqlite3
 import tempfile
+
 import pytest
 
 from salted import cache_reader, err, memory_instance
