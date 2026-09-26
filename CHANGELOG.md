@@ -3,7 +3,7 @@
 ## Version 2.0.0 (upcoming)
 
 * Breaking Changes:
-  * Drop support for Python 3.10 (EOL October 2026). Supported versions are now Python 3.11 to 3.14.
+  * Drop support for Python 3.10 (EOL October 2026). Supported versions are now Python 3.11 to 3.15.
   * `--raise_for_dead_links` no longer accepts a string argument (`True`/`False`/`yes`/`no`). Use the bare flag `--raise_for_dead_links` to enable and `--no-raise_for_dead_links` to explicitly disable. Default is off (no exception raised). Scripts using `--raise_for_dead_links True` must be updated.
   * **BibTeX support is now an optional extra**: `pybtex` moved out of the default dependencies. Install `salted[bibtex]` to check `.bib` files. Anyone checking BibTeX must change their install command, but a missing dependency is never silent: a `.bib` file named with `-i` raises `MissingOptionalDependencyError`, and one found while scanning a folder is recorded as a file access error, listed in the report, and counted for `--raise_for_dead_links` — so a CI run fails rather than passing on unchecked files. A new `salted[all]` extra installs both `bibtex` and `lxml`.
 * New features:

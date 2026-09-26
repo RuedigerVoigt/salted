@@ -41,4 +41,4 @@ The GitHub Actions workflows run the tests on Linux, macOS and Windows, so pleas
 * Please provide useful log and error messages. Use `logging.debug` for handled validation failures so the library does not spam the host application's logs.
 * Docstrings are required for all functions and classes using [Google style](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings).
 
-This project supports Python 3.11 to 3.14 and uses [Poetry](https://python-poetry.org/) for packaging and dependency management.
+This project supports Python 3.11 to 3.15 and uses [Poetry](https://python-poetry.org/) for packaging and dependency management.

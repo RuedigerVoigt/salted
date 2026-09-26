@@ -88,7 +88,7 @@ class Salted:
             python_version_support={
                 'min_version': '3.11',
                 'incompatible_versions': ['3.6', '3.7', '3.8', '3.9', '3.10'],
-                'max_tested_version': '3.14'},
+                'max_tested_version': '3.15'},
             nag_over_update={
                     'nag_days_after_release': 365,
                     'nag_in_hundred': 10},
