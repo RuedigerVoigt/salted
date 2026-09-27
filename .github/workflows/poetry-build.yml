@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Set up Python 3.14
       uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
@@ -19,12 +21,12 @@ jobs:
     - name: Install Poetry
       run: |
         python -m pip install --upgrade pip
-        pip install poetry
+        pip install -r .github/requirements/poetry.txt
     - name: Install dependencies
       run: poetry install --with dev
     - name: Build package
       run: poetry build
     - name: Validate package
       run: |
-        pip install twine
+        pip install -r .github/requirements/twine.txt
         twine check dist/*

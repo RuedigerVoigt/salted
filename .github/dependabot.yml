@@ -12,6 +12,13 @@ updates:
     allow:
       - dependency-type: direct
     target-branch: "develop"
+  # Pinned tools for the workflows: Poetry, twine and the hash-checked
+  # release build tools (release.txt is compiled from release.in).
+  - package-ecosystem: "pip"
+    directory: "/.github/requirements"
+    schedule:
+      interval: "weekly"
+    target-branch: "develop"
   # Keep the GitHub Actions used in .github/workflows/ up to date too.
   - package-ecosystem: "github-actions"
     directory: "/"

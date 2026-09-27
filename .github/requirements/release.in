@@ -1,0 +1,8 @@
+# Build tools for .github/workflows/release.yml. The release is built with
+# `python -m build --no-isolation`, so only these pinned, hash-checked
+# packages take part - build isolation would fetch the build backend
+# unpinned. Recompile release.txt after changing this file:
+#   cd .github/requirements
+#   uv pip compile --universal --generate-hashes --python-version 3.14 release.in -o release.txt
+build==1.6.1
+poetry-core==2.5.0

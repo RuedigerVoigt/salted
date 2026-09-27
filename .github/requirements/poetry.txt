@@ -1,0 +1,4 @@
+# Poetry for the CI workflows. Pinned here rather than in the workflow files
+# so that Dependabot keeps it current. (The release does not use Poetry, see
+# release.in.)
+poetry==2.5.1

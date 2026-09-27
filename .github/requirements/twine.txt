@@ -1,0 +1,3 @@
+# twine for the `twine check` in poetry-build.yml. Pinned here rather than in
+# the workflow file so that Dependabot keeps it current.
+twine==7.0.0
