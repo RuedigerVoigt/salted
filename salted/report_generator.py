@@ -568,36 +568,41 @@ class ReportGenerator:
     def _use_builtin_template(template: dict) -> bool:
         """Decide whether to render the packaged template of that name.
 
-        The name alone cannot decide it. Someone who points
-        template_searchpath at their own folder and keeps the default
-        template_name - or names their file 'default.md.jinja' because that
-        is what they started from - would otherwise have the packaged
-        template rendered instead of theirs, with nothing said about it.
-
-        A custom folder therefore wins whenever it actually holds a file of
-        that name. If it does not, the built-in still applies, so setting a
-        searchpath without overriding the name keeps working.
+        A custom folder that holds a file named like a built-in template is
+        refused. Rendering either one would be a guess: the packaged
+        template would silently ignore the user's file, and theirs would
+        make the report depend on whether some folder happens to contain
+        that name, while looking like the default report. If the folder
+        holds no such file, the built-in applies, so setting a searchpath
+        without overriding the name keeps working.
 
         Args:
             template: The template dict with 'name' and 'searchpath'.
 
         Returns:
             True if the packaged template should be rendered.
+
+        Raises:
+            err.InvalidSettingError: If the custom folder holds a file with
+                the name of a built-in template.
         """
-        if template['name'] not in BUILTIN_TEMPLATES:
+        name = template['name']
+        if name not in BUILTIN_TEMPLATES:
             return False
         searchpath = template.get('searchpath')
         if not searchpath or str(searchpath) == DEFAULT_TEMPLATE_SEARCHPATH:
             return True
         try:
-            shadowing = pathlib.Path(searchpath, template['name']).is_file()
+            clash = pathlib.Path(searchpath, name).is_file()
         except OSError:
             return True
-        if shadowing:
-            logger.info(
-                "Rendering '%s' from %s instead of the template of that name "
-                'shipped with salted.', template['name'], searchpath)
-        return not shadowing
+        if clash:
+            raise err.InvalidSettingError(
+                f"Report template '{name}' in {searchpath} has the name of a "
+                'template shipped with salted. Rename it (for example to '
+                f"'{name.replace('default.', 'my.', 1)}') and set "
+                'template_name to the new name.')
+        return True
 
     def generate_report(self,
                         statistics: dict,
@@ -689,9 +694,10 @@ class ReportGenerator:
 
         Raises:
             err.UnsafeTemplateError: If the template name is refused.
-            err.InvalidSettingError: If the template does not exist or is
-                not valid Jinja2, or if write_to is a folder or lies in a
-                folder that does not exist.
+            err.InvalidSettingError: If the template does not exist, is
+                not valid Jinja2, or has the name of a built-in template
+                while lying in a custom folder, or if write_to is a folder or
+                lies in a folder that does not exist.
         """
         name = template['name']
         try:
@@ -732,6 +738,8 @@ class ReportGenerator:
 
         Raises:
             err.UnsafeTemplateError: If the template name is refused.
+            err.InvalidSettingError: If a custom template has the name of a
+                built-in one.
         """
         # Rendering is sandboxed in both cases. A plain Environment lets a
         # template walk the object graph of any variable it is given

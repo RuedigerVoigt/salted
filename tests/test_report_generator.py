@@ -1202,8 +1202,8 @@ class TestC1ControlCharacters:
         assert '\u009d' not in linked
 
 
-class TestBuiltinTemplateNameIsNotReserved:
-    """A custom template named like a built-in must not be ignored."""
+class TestCustomTemplateNamedLikeBuiltin:
+    """A custom template named like a built-in is refused, not guessed at."""
 
     @staticmethod
     def _render(tmp_path, name, body):
@@ -1226,10 +1226,27 @@ class TestBuiltinTemplateNameIsNotReserved:
         return buf.getvalue()
 
     @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
-    def test_custom_file_wins_over_the_packaged_one(self, tmp_path, name):
-        """Previously the packaged template was rendered without a word."""
-        out = self._render(tmp_path, name, 'MARKER {{ statistics.num_links }}')
-        assert 'MARKER 7' in out
+    def test_rendering_refuses_the_clash(self, tmp_path, name):
+        """Neither template may be picked silently."""
+        with pytest.raises(err.InvalidSettingError, match='Rename it') as exc:
+            self._render(tmp_path, name, 'MARKER {{ statistics.num_links }}')
+        assert name in str(exc.value)
+        assert name.replace('default.', 'my.') in str(exc.value)
+
+    @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
+    def test_settings_check_refuses_the_clash(self, tmp_path, name):
+        """The clash stops the run before any link is checked."""
+        (tmp_path / name).write_text('MARKER', encoding='utf-8')
+        with pytest.raises(err.InvalidSettingError, match='shipped with'):
+            report_generator.ReportGenerator.check_report_settings(
+                {'searchpath': str(tmp_path), 'name': name}, 'cli')
+
+    def test_other_files_in_the_folder_do_not_clash(self, tmp_path):
+        """Only the requested name counts, not what else the folder holds."""
+        (tmp_path / 'default.cli.jinja').write_text('X', encoding='utf-8')
+        (tmp_path / 'my.cli.jinja').write_text('MARKER', encoding='utf-8')
+        report_generator.ReportGenerator.check_report_settings(
+            {'searchpath': str(tmp_path), 'name': 'my.cli.jinja'}, 'cli')
 
     def test_builtin_still_used_when_the_folder_lacks_that_name(self,
                                                                 tmp_path):
