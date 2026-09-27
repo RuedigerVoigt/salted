@@ -472,3 +472,19 @@ class TestOverwriteCacheFile:
             # Note: The old data might still be there if it was loaded first
             conn.close()
         mem_inst.tear_down_in_memory_db()
+
+
+class TestCachingDisabled:
+    """Without a cache file, writing the cache is a no-op."""
+
+    def test_overwrite_without_cache_file_writes_nothing(self, tmp_path,
+                                                        monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        mem_inst = memory_instance.MemoryInstance()
+        reader = cache_reader.CacheReader(
+            mem_instance=mem_inst,
+            dont_check_again_within_hours=24,
+            cache_file=None)
+        reader.overwrite_cache_file()
+        assert list(tmp_path.iterdir()) == []
+        mem_inst.tear_down_in_memory_db()

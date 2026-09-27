@@ -569,3 +569,47 @@ class TestIgnoreDomains:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestWithoutUserAgent:
+    """Without a user agent, no User-Agent header is set by salted."""
+
+    @pytest.mark.parametrize('user_agent', [None, ''])
+    def test_no_header(self, mock_db, user_agent):
+        checker = url_check.UrlCheck(user_agent=user_agent, db=mock_db,
+                                     workers='automatic')
+        assert checker.headers == {}
+
+
+class TestQuietRun:
+    """quiet=True suppresses the progress message of check_urls."""
+
+    @pytest.mark.parametrize('quiet', [True, False])
+    def test_progress_message(self, mock_db, capsys, quiet):
+        mock_db.urls_to_check.return_value = [('https://example.com/',)]
+        checker = url_check.UrlCheck(user_agent='x', db=mock_db,
+                                     workers='automatic', quiet=quiet)
+        with patch.object(url_check.UrlCheck, '_distribute_work',
+                          new=AsyncMock()):
+            checker.check_urls()
+        printed = capsys.readouterr().out
+        assert ('1 URLs to check' in printed) is not quiet
+
+
+class TestWorkersWithoutProgressBar:
+    """The workers do not depend on a progress bar being set."""
+
+    @pytest.mark.asyncio
+    async def test_items_processed_without_pbar(self, url_checker):
+        processed = []
+
+        async def record(item):
+            processed.append(item)
+
+        url_checker.pbar = None
+        with patch.object(url_checker, '_process_item', side_effect=record), \
+             patch.object(url_checker, '_create_session', new=AsyncMock()), \
+             patch.object(url_checker, '_close_session', new=AsyncMock()):
+            await url_checker._distribute_work(
+                [('https://a.example/',), ('https://b.example/',)], 2)
+        assert sorted(processed) == ['https://a.example/', 'https://b.example/']

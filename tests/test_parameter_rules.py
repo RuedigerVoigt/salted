@@ -145,3 +145,15 @@ class TestChoiceParameters:
     def test_empty_choice_raises(self):
         with pytest.raises(ValueError, match='file_types'):
             parameter_rules.validate('file_types', '', SRC)
+
+
+class TestValuesOfTheWrongType:
+    """Library callers can pass any type; the wrong one is rejected."""
+
+    def test_float_is_not_an_integer(self):
+        with pytest.raises(ValueError, match='timeout'):
+            parameter_rules.validate('timeout', 5.5, SRC)
+
+    def test_number_is_not_a_file_type(self):
+        with pytest.raises(ValueError, match='file_types'):
+            parameter_rules.validate('file_types', 5, SRC)

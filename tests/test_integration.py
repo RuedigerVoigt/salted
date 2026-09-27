@@ -561,3 +561,30 @@ class TestSettingsFailBeforeChecking:
         checker.write_to = report
         checker.check(searchpath=self._site(tmp_path))
         assert report.read_text(encoding='utf-8') == 'links: 1'
+
+
+def test_internal_links_not_checked_when_disabled(tmp_path):
+    """check_internal_links = False leaves internal links alone."""
+    d = tmp_path / "no_internal"
+    d.mkdir()
+    (d / "index.html").write_text(
+        "<a href='missing.html'>gone</a><a href='#nowhere'>anchor</a>",
+        encoding='utf-8')
+
+    runs = []
+
+    def capture(self, statistics, template, write_to,
+                replace_path_by_url=None):
+        runs.append((statistics, self.generate_internal_link_list()))
+
+    with patch('salted.report_generator.ReportGenerator.generate_report',
+               capture):
+        my_check = salted.Salted()
+        my_check.cache_file = tmp_path / "cache.sqlite3"
+        my_check.check_internal_links = False
+        my_check.raise_for_dead_links = True
+        my_check.check(searchpath=d)   # would raise if they were checked
+
+    statistics, internal_links = runs[0]
+    assert statistics['num_internal_checked'] == 0
+    assert internal_links is None

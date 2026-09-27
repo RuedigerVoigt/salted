@@ -787,3 +787,68 @@ class TestConfigArgument:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestConfigFileErrorExit:
+    """A broken config file ends the CLI with exit code 1, no traceback."""
+
+    def test_config_file_error_exits_with_1(self):
+        with patch('sys.argv', ['salted', '--config', 'broken.ini']):
+            with patch('salted.Salted',
+                       side_effect=err.ConfigFileError('broken')):
+                with pytest.raises(SystemExit) as exc:
+                    command_line.main()
+        assert exc.value.code == 1
+
+
+class TestEffectivelyEmptyListOptions:
+    """A list option holding only separators falls through to the config.
+
+    It used to replace the config value with an empty set, although the
+    docstring of _apply_set_overrides promises the opposite.
+    """
+
+    @pytest.mark.parametrize('option,attribute', [
+        ('--ignore_urls', 'ignore_urls'),
+        ('--ignore_domains', 'ignore_domains'),
+        ('--exclude_paths', 'exclude_paths'),
+    ])
+    def test_value_from_config_is_kept(self, option, attribute):
+        from_config = {'from-config'}
+        with patch('sys.argv', ['salted', option, ' , ']):
+            with patch('salted.Salted') as mock_salted_class:
+                mock_checker = MagicMock()
+                setattr(mock_checker, attribute, from_config)
+                mock_salted_class.return_value = mock_checker
+
+                command_line.main()
+
+        assert getattr(mock_checker, attribute) is from_config
+        mock_checker._validate_domains.assert_not_called()
+
+
+class TestValidateDomains:
+    """Salted._validate_domains normalizes and filters --ignore_domains."""
+
+    def test_nothing_given(self):
+        import salted
+        assert salted.Salted._validate_domains(None) == set()
+        assert salted.Salted._validate_domains(set()) == set()
+
+    def test_blank_entries_are_skipped(self):
+        import salted
+        assert salted.Salted._validate_domains(
+            {'example.com', '   '}) == {'example.com'}
+
+    def test_url_is_reduced_to_its_host(self):
+        import salted
+        assert salted.Salted._validate_domains(
+            {'https://Example.com/path'}) == {'example.com'}
+
+    def test_entry_without_host_is_dropped_with_warning(self, caplog):
+        import salted
+        with caplog.at_level('WARNING', logger='salted'):
+            result = salted.Salted._validate_domains(
+                {'https://', 'example.com'})
+        assert result == {'example.com'}
+        assert "'https://' is not a valid domain" in caplog.text

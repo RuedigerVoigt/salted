@@ -18,7 +18,7 @@ from typing import ClassVar
 import pytest
 from jinja2.exceptions import SecurityError
 
-from salted import err, memory_instance, report_generator
+from salted import database_io, err, memory_instance, report_generator
 
 
 class _FakeTTY(io.StringIO):
@@ -885,33 +885,25 @@ class TestGenerateReport:
         assert output_file.exists()
         mem_inst.tear_down_in_memory_db()
 
-    def test_generate_report_write_to_file_exception(self, tmp_path):
-        """Test exception handling when writing to file fails (covers lines 286-289)."""
-        from unittest.mock import mock_open, patch
+    def test_generate_report_write_to_file_exception(self, tmp_path, caplog):
+        """A report that cannot be written is logged and the error re-raised.
+
+        write_to names a folder, which open() refuses on every system. (This
+        test used to patch builtins.open, which made loading the template
+        fail first, so the write was never reached.)
+        """
         mem_inst = memory_instance.MemoryInstance()
         mem_inst.generate_db_views()
         gen = report_generator.ReportGenerator(mem_inst)
 
-        full_stats = {
-            'timestamp': '2026-01-01 12:00h',
-            'num_links': 0, 'num_checked': 0,
-            'time_to_check': 1, 'checks_per_second': 0.0,
-            'num_fine': 0, 'needed_full_request': 0,
-            'percentage_full_request': 0,
-            'num_dois': 0,
-            'num_malformed_dois': 0,
-            'num_confirmed_dois': 0,
-        }
-
-        with patch('builtins.open', mock_open()) as mocked_open:
-            mocked_open.side_effect = OSError("disk full")
+        with caplog.at_level('ERROR', logger='salted'):
             with pytest.raises(OSError):
                 gen.generate_report(
-                    statistics=full_stats,
+                    statistics=dict(_FULL_STATISTICS),
                     template={'name': 'default.cli.jinja'},
-                    write_to='/some/report.txt',
-                    replace_path_by_url={'replace_with_url': None}
-                )
+                    write_to=str(tmp_path),
+                    replace_path_by_url={'replace_with_url': None})
+        assert 'Exception while writing to file' in caplog.text
         mem_inst.tear_down_in_memory_db()
 
 
@@ -1388,3 +1380,44 @@ class TestDoiSections:
                            num_confirmed_dois=0)
         assert 'Found 1 DOI in BibTeX files and checked its format.' in out
         assert 'confirmed' not in out
+
+
+class TestDisplayPathWithoutBase:
+    """A path mapping without a base folder leaves paths unchanged."""
+
+    def test_path_is_left_as_is(self):
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        gen.replace_path_by_url = {'path_to_be_replaced': '',
+                                   'replace_with_url': None}
+        assert gen._display_path('/local/a.html') == '/local/a.html'
+        mem_inst.tear_down_in_memory_db()
+
+
+class TestHiddenSections:
+    """show_redirects / show_exceptions switch those sections off."""
+
+    def test_redirects_and_exceptions_can_be_left_out(self):
+        mem_inst = memory_instance.MemoryInstance()
+        db = database_io.DatabaseIO(mem_inst)
+        db.save_found_links([
+            ('a.html', 'moved.example', 'https://moved.example/',
+             'https://moved.example/', 'moved'),
+            ('a.html', 'slow.example', 'https://slow.example/',
+             'https://slow.example/', 'slow')])
+        db.log_redirect('https://moved.example/', 301)
+        db.log_exception('https://slow.example/', 'Timeout')
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(
+            mem_inst, show_redirects=False, show_exceptions=False)
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            gen.generate_report(
+                statistics=dict(_FULL_STATISTICS),
+                template={'name': 'default.cli.jinja'},
+                write_to='cli',
+                replace_path_by_url={'replace_with_url': None})
+        mem_inst.tear_down_in_memory_db()
+        out = buf.getvalue()
+        assert 'moved.example' not in out
+        assert 'slow.example' not in out

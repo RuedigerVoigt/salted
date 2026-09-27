@@ -261,19 +261,19 @@ def _apply_set_overrides(checker: 'salted.Salted',
     """
     if args.ignore_urls:
         parsed_ignores = separated_string_to_set(args.ignore_urls)
-        if parsed_ignores is not None:
+        if parsed_ignores:
             checker.ignore_urls = parsed_ignores
 
     if args.ignore_domains:
         parsed_domains = separated_string_to_set(args.ignore_domains)
-        if parsed_domains is not None:
+        if parsed_domains:
             checker.ignore_domains = checker._validate_domains(parsed_domains)
 
     if args.exclude_paths:
         # A dedicated parser: in a path a backslash is a separator, not an
         # escape character (see salted.file_finder.separated_paths_to_set).
         parsed_exclusions = separated_paths_to_set(args.exclude_paths)
-        if parsed_exclusions is not None:
+        if parsed_exclusions:
             checker.exclude_paths = parsed_exclusions
 
 

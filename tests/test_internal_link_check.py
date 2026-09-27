@@ -331,3 +331,19 @@ class TestConfiguration:
         with pytest.raises(ValueError, match='check_internal_links'):
             parameter_rules.validate(
                 'check_internal_links', 'maybe', 'in test')
+
+
+class TestFragmentInLatin1File:
+    """A target that is not UTF-8 is read as Latin-1 to find its anchors."""
+
+    def test_anchor_found_in_latin1_target(self, site, checker):
+        (site / 'alt.html').write_bytes(
+            '<html><body><p id="grüße">Grüße</p></body></html>'.encode('latin-1'))
+        assert checker.check_link(site / 'index.html', 'alt.html#grüße') is None
+
+    def test_missing_anchor_in_latin1_target(self, site, checker):
+        (site / 'alt.html').write_bytes(
+            '<html><body><p id="grüße">Grüße</p></body></html>'.encode('latin-1'))
+        _reason, is_error = checker.check_link(
+            site / 'index.html', 'alt.html#nope')
+        assert is_error == 1
