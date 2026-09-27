@@ -4,15 +4,22 @@ title: Results of Linkcheck
 
 generated: {{ statistics.timestamp }}
 
-Found {{ statistics.num_links }} links which had {{ statistics.num_checked }} distinct targets.
-Checked those in {{ statistics.time_to_check }} seconds.
+Found {{ statistics.num_links }} links which had {{ statistics.num_distinct }} distinct targets.
+{% if statistics.num_cached %}
+{{ statistics.num_cached }} of those were still valid in the cache and not checked again.
+{% endif %}
+{% if statistics.num_checked %}
+Checked {{ statistics.num_checked }} target{{ 's' if statistics.num_checked != 1 else '' }} in {{ statistics.time_to_check }} seconds.
 This averages to {{ statistics.checks_per_second }} checks/second.
+{% endif %}
 
 {% if statistics.needed_full_request > 0 %}
 {{ statistics.needed_full_request }} times ({{ statistics.percentage_full_request }} %) a HEAD request was insufficient.
 {% endif %}
 
-{{ statistics.num_fine }} of those hyperlinks are fine.
+{% if statistics.num_checked %}
+{{ statistics.num_fine }} of the {{ statistics.num_checked }} checked targets are fine.
+{% endif %}
 
 {% if access_errors %}
 # FILE ACCESS ERRORS

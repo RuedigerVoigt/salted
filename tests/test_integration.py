@@ -342,6 +342,48 @@ def test_cache_is_written_when_dead_links_raise(mock_head, tmp_path):
     assert 'https://www.example.com/broken' not in cached_urls
 
 
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock,
+       return_value=200)
+def test_statistics_count_targets_served_from_the_cache(mock_head, tmp_path):
+    """A run answered from the cache still reports its targets.
+
+    Regression test: the report took the number of distinct targets from
+    the URLs actually requested, so a fully cached run said the links had
+    "0 distinct targets" and that "0 of those hyperlinks are fine".
+    """
+    d = tmp_path / "cached_site"
+    d.mkdir()
+    # Three hyperlinks, two targets: the fragment is normalized away.
+    (d / "links.html").write_text(
+        "<a href='https://www.example.com/a'>A</a>"
+        "<a href='https://www.example.com/a#part'>A again</a>"
+        "<a href='https://www.example.com/b'>B</a>")
+    cache_file = tmp_path / "test-cache.sqlite3"
+
+    runs = []
+
+    def capture_statistics(self, statistics, template, write_to,
+                           replace_path_by_url=None):
+        runs.append(statistics)
+
+    with patch('salted.report_generator.ReportGenerator.generate_report',
+               capture_statistics):
+        for _ in range(2):
+            my_check = salted.Salted()
+            my_check.cache_file = cache_file
+            my_check.domain_delay = 0
+            my_check.check(searchpath=d)
+
+    first, second = runs
+    assert (first['num_links'], first['num_distinct'],
+            first['num_cached'], first['num_checked'],
+            first['num_fine']) == (3, 2, 0, 2, 2)
+    assert (second['num_links'], second['num_distinct'],
+            second['num_cached'], second['num_checked'],
+            second['num_fine']) == (3, 2, 2, 0, 0)
+    assert mock_head.await_count == 2, "the second run sent requests"
+
+
 class TestSettingsFailBeforeChecking:
     """A setting that cannot work stops the run before any link is checked.
 

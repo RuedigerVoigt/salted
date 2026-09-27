@@ -454,6 +454,36 @@ class TestLogFileAccessError:
         mem_inst.tear_down_in_memory_db()
 
 
+class TestCountDistinctAndCachedUrls:
+    """Counts used for the statistics at the top of the report."""
+
+    def test_counts_distinct_normalized_urls(self):
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_found_links([
+            ('a.html', 'example.com', 'http://example.com#x', 'http://example.com', 'A'),
+            ('b.html', 'example.com', 'http://example.com', 'http://example.com', 'B'),
+            ('b.html', 'example.org', 'http://example.org', 'http://example.org', 'C'),
+        ])
+        assert db_io.count_distinct_urls() == 2
+        assert db_io.count_cached_urls() == 0
+        mem_inst.tear_down_in_memory_db()
+
+    def test_cached_url_counted_once_however_often_linked(self):
+        mem_inst = memory_instance.MemoryInstance()
+        db_io = database_io.DatabaseIO(mem_inst)
+        db_io.save_found_links([
+            ('a.html', 'example.com', 'http://example.com', 'http://example.com', 'A'),
+            ('b.html', 'example.com', 'http://example.com', 'http://example.com', 'B'),
+            ('b.html', 'example.org', 'http://example.org', 'http://example.org', 'C'),
+        ])
+        db_io.log_url_is_fine('http://example.com')
+        assert db_io.count_cached_urls() == 1
+        db_io.del_links_that_can_be_skipped()
+        assert db_io.count_cached_urls() == 0
+        mem_inst.tear_down_in_memory_db()
+
+
 class TestDelLinksThatCanBeSkipped:
     """Test deleting links that can be skipped"""
 

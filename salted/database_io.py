@@ -329,6 +329,30 @@ class DatabaseIO:
                 print(f"Rerouted {count} doi.org URL{'s' if count != 1 else ''} to CrossRef API check")
         return len(to_insert)
 
+    def count_distinct_urls(self) -> int:
+        """Return the number of distinct normalized URLs in the check queue.
+
+        Returns:
+            Number of distinct targets the found hyperlinks point to.
+        """
+        self.cursor.execute(
+            'SELECT COUNT(DISTINCT normalizedUrl) FROM queue;')
+        return self.cursor.fetchone()[0]
+
+    def count_cached_urls(self) -> int:
+        """Return how many distinct queued URLs are still valid in the cache.
+
+        Must be called before del_links_that_can_be_skipped removes them
+        from the queue.
+
+        Returns:
+            Number of distinct targets that need no new request.
+        """
+        self.cursor.execute('''SELECT COUNT(DISTINCT normalizedUrl) FROM queue
+                            WHERE normalizedUrl IN (
+                            SELECT normalizedUrl FROM validUrls);''')
+        return self.cursor.fetchone()[0]
+
     def del_links_that_can_be_skipped(self) -> int:
         """Delete links from the check queue that are still valid in the cache.
 

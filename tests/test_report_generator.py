@@ -1099,7 +1099,8 @@ class _NarrowStdout(io.StringIO):
 
 # A statistics dict complete enough for the packaged templates to render.
 _FULL_STATISTICS = {
-    'num_links': 1, 'num_checked': 1, 'timestamp': 'now', 'time_to_check': 1,
+    'num_links': 1, 'num_distinct': 1, 'num_cached': 0,
+    'num_checked': 1, 'timestamp': 'now', 'time_to_check': 1,
     'checks_per_second': 1, 'num_fine': 0, 'needed_full_request': 0,
     'percentage_full_request': 0, 'check_dois': False, 'num_valid_dois': 0,
     'num_invalid_dois': 0, 'check_internal_links': False,
@@ -1260,3 +1261,52 @@ class TestBuiltinTemplateNameIsNotReserved:
     def test_a_custom_name_is_never_treated_as_builtin(self, tmp_path):
         assert not report_generator.ReportGenerator._use_builtin_template(
             {'name': 'custom.jinja', 'searchpath': str(tmp_path)})
+
+
+class TestStatisticsSummary:
+    """The summary at the top of the packaged templates."""
+
+    @staticmethod
+    def _render(name: str, **stats) -> str:
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                gen.generate_report(
+                    statistics=dict(_FULL_STATISTICS, **stats),
+                    template={'name': name},
+                    write_to='cli',
+                    replace_path_by_url={'replace_with_url': None})
+        finally:
+            mem_inst.tear_down_in_memory_db()
+        return buf.getvalue()
+
+    @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
+    def test_run_served_from_the_cache(self, name):
+        """Previously: "0 distinct targets" and "0 of those ... are fine"."""
+        out = self._render(name, num_links=3, num_distinct=2, num_cached=2,
+                           num_checked=0, num_fine=0)
+        assert 'which had 2 distinct targets' in out
+        assert '2 of those were still valid in the cache' in out
+        assert 'Checked' not in out
+        assert 'checks/second' not in out
+        assert 'are fine' not in out
+
+    @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
+    def test_run_partly_served_from_the_cache(self, name):
+        out = self._render(name, num_links=4, num_distinct=3, num_cached=2,
+                           num_checked=1, num_fine=1)
+        assert 'which had 3 distinct targets' in out
+        assert '2 of those were still valid in the cache' in out
+        assert 'Checked 1 target in' in out
+        assert '1 of the 1 checked targets are fine' in out
+
+    @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
+    def test_run_without_cache_hits(self, name):
+        out = self._render(name, num_links=3, num_distinct=2, num_cached=0,
+                           num_checked=2, num_fine=1)
+        assert 'cache' not in out
+        assert 'Checked 2 targets in' in out
+        assert '1 of the 2 checked targets are fine' in out

@@ -597,8 +597,12 @@ class Salted:
 
         file_io.scan_files(files_to_check)
         mem_instance.generate_indices()
+        num_distinct = db.count_distinct_urls()
         if self.check_dois:
             db.convert_doi_urls_to_dois()
+        # Counted before they leave the queue: without this, a run served
+        # from the cache reports zero targets and zero fine links.
+        num_cached = db.count_cached_urls()
         db.del_links_that_can_be_skipped()
         db.del_dois_that_can_be_skipped()
 
@@ -650,6 +654,8 @@ class Salted:
             statistics={
                 'timestamp': f'{datetime.datetime.now():%Y-%b-%d %H:%Mh}',
                 'num_links': file_io.cnt['links_found'],
+                'num_distinct': num_distinct,
+                'num_cached': num_cached,
                 'num_checked': urls.cnt['checked_urls'],
                 'time_to_check': (round(runtime_check)),
                 'checks_per_second': (
