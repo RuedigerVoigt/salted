@@ -203,6 +203,34 @@ class TestLoadDiskCache:
             assert count == 1
         mem_inst.tear_down_in_memory_db()
 
+    def test_old_cache_with_two_spellings_of_a_doi(self, tmp_path):
+        """Caches of older versions kept DOIs as written.
+
+        Loaded in lower case, two spellings of one DOI would become
+        duplicates and break the unique index created after loading.
+        """
+        cache_file = tmp_path / "cache.db"
+        cache_conn = sqlite3.connect(cache_file)
+        cache_conn.execute(
+            'CREATE TABLE validUrls (normalizedUrl text, lastValid integer)')
+        cache_conn.execute('CREATE TABLE validDois (doi text)')
+        cache_conn.executemany('INSERT INTO validDois VALUES (?)',
+                               [('10.1038/NATURE14539',),
+                                ('10.1038/nature14539',)])
+        cache_conn.commit()
+        cache_conn.close()
+
+        mem_inst = memory_instance.MemoryInstance()
+        cache_reader.CacheReader(
+            mem_instance=mem_inst,
+            dont_check_again_within_hours=24,
+            cache_file=cache_file).load_disk_cache()
+        mem_inst.generate_indices()
+
+        mem_inst.cursor.execute('SELECT doi FROM validDois')
+        assert mem_inst.cursor.fetchall() == [('10.1038/nature14539',)]
+        mem_inst.tear_down_in_memory_db()
+
     def test_load_disk_cache_expired_urls(self):
         """Test that expired URLs are not loaded"""
         mem_inst = memory_instance.MemoryInstance()

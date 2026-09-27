@@ -18,15 +18,17 @@
   * **URLs in the terminal report are now clickable** (OSC 8 hyperlinks). This fixes URLs containing characters terminals treat as delimiters, such as `https://de.wikipedia.org/wiki/Normalisierung_(Datenbank)`, which was previously cut short at the parenthesis. Only written when the report goes to an interactive terminal: file output and pipes stay plain text, and `NO_COLOR` / `TERM=dumb` are honoured.
   * Add `--ignore_domains` CLI argument and `ignore_domains` config key (under `[BEHAVIOR]`): comma-separated list of hostnames whose URLs are skipped without checking. Invalid entries are logged as warnings and dropped. Matching is exact (e.g. `example.com` does not match `sub.example.com`).
   * `lxml` is now an optional dependency (`pip install "salted[lxml]"`). If installed, it is used as the BeautifulSoup HTML parser backend (faster, more lenient with malformed HTML). Falls back to Python's built-in `html.parser` if not available. salted logs which parser is active at startup.
-  * Invalid DOIs (CrossRef returns 404) are now stored and shown in reports under a dedicated "INVALID DOIs" section, grouped by source file. A basic preflight format check (`10.NNNN/suffix`) is applied before any API call is made, so obviously malformed entries (typos, broken strings) are flagged immediately without hitting the network. Validated DOIs are cached permanently — `dont_check_again_within_hours` applies to URLs only.
-  * BibTeX (`.bib`) support now fully working — URL and DOI fields are extracted and checked; `.bib` files are included under `--file_types tex`
-  * Add `--check_dois` / `--no-check_dois` CLI flag and `check_dois` config key (under `[BEHAVIOR]`): set to `False` to skip DOI validation entirely (default: `True`).
-  * Add `--mailto` CLI argument and `mailto` config key (under `[BEHAVIOR]`): a contact e-mail address included in the CrossRef API User-Agent to opt into the polite pool (higher rate limits, dedicated infrastructure). Optional but recommended when checking DOIs. A warning is logged if no address is configured.
+  * DOIs:
+    * Links to doi.org and other registrars in documents are checked as regular links. A DOI confirmed that way is cached permanently, and the same DOI in a `.bib` field counts as confirmed in the report.
+    * DOIs in BibTeX files are checked for their form, without any network request and listed under "MALFORMED DOIs" if that test fails. A better check whether a DOI is registered is planned for a later version.
+    * Outdated DOI forms are reported: a `doi:` prefix and the old link forms `http://doi.org/…` and `http(s)://dx.doi.org/…`, in `.bib` fields and in document links, are listed under "OUTDATED DOI LINKS" with the recommended `https://doi.org/…` form. This is a notice and never fails a run.
+  * BibTeX (`.bib`) support now fully working — URL and DOI fields are extracted; `.bib` files are included under `--file_types tex`
   * Mailto links are now parsed and listed in the report. Each address is checked for basic format validity (not empty, has email address format), but no DNS lookup or delivery verification is performed. The mailto section only appears in the report when mailto links are actually present.
   * Improved documentation
 * Security:
-  * Updated dependencies. The minimum `lxml` is now 6.1.3, which covers CVE-2026-41066 (XXE in `iterparse`/`ETCompatXMLParser`), a default-XML-entity-handling fix (LP#2165901), and Python 3.14 support.
-  * salted now requires `userprovided` 3.0 (`>=3.0.0,<4`). Its SSRF guard also recognises IPv4 addresses in shorthand and mixed-base notation (`http://127.1/`, `http://0x7f.0.0.1/`) and hostnames with a trailing dot (`http://localhost./`), all of which previously passed as external targets and were requested. Its URL normalization also collapses runs of slashes in the path, so `//a` and `///a` count as one link.
+  * Updated dependencies:
+    * Minimum `lxml` is now 6.1.3, which covers CVE-2026-41066 (XXE in `iterparse`/`ETCompatXMLParser`), a default-XML-entity-handling fix (LP#2165901), and Python 3.14 support.
+    * salted now requires `userprovided` 3.0 (`>=3.0.0,<4`) with improved SSRF guard.
   * [Document direct and indirect dependencies](documentation/dependencies-and-security.md)
   * GitHub Actions are pinned to commit SHAs instead of mutable tags, so a repointed tag cannot change what the workflows — including the one publishing to PyPI — actually run. `actions/setup-python` was bumped to v7 in the process.
   * The disk cache now stores only validated URLs and DOIs. Previously the whole in-memory database was copied to `salted-cache.sqlite3`, persisting absolute local file paths, link text, and e-mail addresses that are never read back — a leak if the cache file is shared or committed.
@@ -40,7 +42,6 @@
   * `template_name` must now end in `.jinja`. Jinja2 renders a file that contains no template syntax as its own content, so any other name turned `template_name` into a file-read primitive that copied an arbitrary readable file (an SSH key, a `.env` file) into the report.
   * The HTTP GET fallback (triggered on 405 Method Not Allowed) follows at most 3 redirects and now validates every redirect target against the SSRF preflight before requesting it. Redirects to private/internal addresses or non-HTTP schemes are blocked and reported in the results; overlong redirect chains are reported as "Too many redirects".
   * Fix a denial-of-service risk in the TeX parser (ReDoS): the optional-argument part of the `\href` pattern used a greedy `.*`, so a `.tex` file containing many `\href[` without a closing bracket forced the regex engine into quadratic backtracking — roughly 0.6 seconds at 96 KB but 73 seconds at 1 MB, while files up to `max_file_size_mb` (20 MB by default) are accepted. A crafted or accidentally malformed document could stall a check for hours. The optional argument is now matched by a length-bounded character class that cannot span lines, which makes the scan linear.
-  * DOIs are now percent-encoded before being placed in the CrossRef API URL. Previously a DOI read from a `.bib` file was concatenated onto the query URL raw, so URL-significant characters (`?`, `#`, `&`, spaces) could inject a query string or fragment into the request, and a legitimate DOI containing such a character resolved to the wrong resource (a false "invalid DOI"). The slash separating DOI prefix and suffix is preserved.
 * Robustness:
   * The disk cache is now written atomically. Previously the existing cache file was deleted and then rebuilt in place, so an interruption mid-write (crash, error, or power loss) could leave no cache at all. The new cache is built in a sibling temporary file and moved into place with `os.replace`, so any existing cache stays intact on failure.
 * Bug Fixes:
@@ -64,10 +65,8 @@
   * Fix `--file_types` having no effect on directory scans
   * Fix BibTeX URL and DOI extraction silently failing due to wrong field name casing (`'Url'`/`'Doi'` → `'url'`/`'doi'`)
   * Fix `AttributeError` in `CacheReader.overwrite_cache_file()` when caching is disabled
-  * Fix DOI checks using GET instead of HEAD against the CrossRef API
   * Fix a leaked in-memory SQLite connection (`ResourceWarning: unclosed database`) when `check()` exited early or raised (e.g. `DeadLinksException` with `raise_for_dead_links`). The database is now always torn down via `try`/`finally`.
   * Fix CLI integer options `--num_workers`, `--timeout`, and `--dont_check_again_within_hours` silently ignoring an explicit `0` (they used a truthy check). `--dont_check_again_within_hours 0` (force a recheck) is now honored; `--num_workers 0` and `--timeout 0` are rejected with an error instead of being ignored — a timeout of 0 would disable the timeout entirely and let a never-responding server occupy a worker forever. Negative values are also rejected.
-  * Fix DOIs being silently dropped from the report when the CrossRef response lacked the `X-Rate-Limit-*` headers. These headers are now read defensively (with a conservative fallback), so a DOI's 200/404 status is always recorded regardless of rate-limit header presence.
   * HTTP 403 (Forbidden) is no longer reported as a dead link. Because 403 is frequently bot/WAF blocking rather than a broken link, it is now logged as an inconclusive exception ("Forbidden (403) - may be bot detection") instead of a hard error, reducing false positives.
   * Fix `base_url` trailing slash not being normalized
   * Fix a config file setting `base_url = None` being read as the literal string `"None"`, which silently rewrote every report path to `None/…`. The literal `"None"` and empty values are now treated as unset. The example `salted-linkcheck.ini` no longer ships `base_url = None`.
@@ -77,10 +76,7 @@
 * Internal:
   * Replaced flake8 with [ruff](https://docs.astral.sh/ruff/) for linting (config under `[tool.ruff]` in `pyproject.toml`). Keeps the previous coverage (pycodestyle E/W, pyflakes F, mccabe complexity ≤ 10, line length 127) and adds pyupgrade (UP), flake8-bugbear (B), isort (I), flake8-async (ASYNC), and ruff-native (RUF) rules. The CI workflow lints the library only and still hard-fails only on syntax errors and undefined names; everything else is advisory.
   * Modernized all type hints to PEP 604 (`X | Y`) and PEP 585 (`list`/`dict`/`set` builtins), dropping the corresponding `typing.Optional`/`Union`/`List`/`Dict`/`Set` imports. No runtime or API change (Python 3.11+ already required).
-  * Removed the unused async variants `UrlCheck.check_urls_async` and `DoiCheck.check_dois_async` — they were never reachable through the documented API.
-  * Removed the dead `doi` column from the in-memory `queue` table — it was never written or read (DOIs live in the separate `queue_doi` table).
-  * Refactor `command_line.main()` into a parser builder plus table-driven override helpers (no behavior change).
-  * De-duplicated the async scaffolding shared by `UrlCheck` and `DoiCheck`: session lifecycle, the worker loop, and work distribution now live in a common base class (`salted/checker_base.py`, `AsyncCheckerBase`); each checker only implements how a single item is checked and how the queue is filled (no behavior change).
+  * Moved the async scaffolding of the URL check into a base class (`salted/checker_base.py`, `AsyncCheckerBase`): session lifecycle, the worker loop, and work distribution; the checker only implements how a single item is checked and how the queue is filled (no behavior change).
 
 ## Version 1.0.1 (2025-11-04)
 

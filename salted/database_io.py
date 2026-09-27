@@ -10,9 +10,8 @@ Released under the Apache License 2.0
 
 import logging
 import pathlib
-import urllib.parse
 
-from salted import memory_instance
+from salted import doi_format, memory_instance
 
 logger = logging.getLogger(__name__)
 
@@ -63,20 +62,92 @@ class DatabaseIO:
 
     def save_found_dois(self,
                         dois_found: list) -> None:
-        """Save a list of DOIs into the in memory database.
+        """Save DOIs from BibTeX doi fields into the in memory database.
 
         Args:
-            dois_found: List of tuples containing DOI information
-                (filePath, doi, description).
+            dois_found: List of tuples (filePath, doi, description,
+                wellFormed) where wellFormed is 1 or 0.
         """
         if not dois_found:
             logger.debug('No DOI in this file to save them.')
-            return None
+            return
         self.cursor.executemany('''
-        INSERT INTO queue_doi
-        (filePath, doi, description)
-        VALUES (?, ?, ?);''', dois_found)
-        return None
+        INSERT INTO foundDois
+        (filePath, doi, description, wellFormed)
+        VALUES (?, ?, ?, ?);''', dois_found)
+
+    def log_outdated_doi_links(self,
+                               outdated: list) -> None:
+        """Save DOIs written in an outdated form.
+
+        Args:
+            outdated: List of tuples (filePath, found, recommended,
+                description).
+        """
+        if not outdated:
+            return
+        self.cursor.executemany('''
+        INSERT INTO outdatedDoiLinks
+        (filePath, found, recommended, description)
+        VALUES (?, ?, ?, ?);''', outdated)
+
+    def confirm_dois_from_links(self) -> None:
+        """Store the DOIs of doi.org links that answered as fine.
+
+        doi.org answers 302 for a registered DOI and 404 for an unknown one,
+        for every registration agency, without the publisher being
+        contacted. A doi.org link that was checked as fine therefore
+        confirms its DOI - also for the same DOI in a BibTeX doi field.
+
+        Covers links checked in this run and links still valid in the URL
+        cache, as long as they are in the queue. Call it before cached
+        links are removed from the queue and again after the URL check.
+        """
+        self.cursor.execute('''
+            SELECT DISTINCT queue.url FROM queue
+            INNER JOIN validUrls
+            ON queue.normalizedUrl = validUrls.normalizedUrl
+            WHERE queue.hostname IN ('doi.org', 'dx.doi.org');''')
+        confirmed = []
+        for (url, ) in self.cursor.fetchall():
+            doi = doi_format.doi_from_link(url)
+            if doi and doi_format.is_well_formed(doi):
+                confirmed.append((doi.lower(), ))
+        self.cursor.executemany(
+            'INSERT OR IGNORE INTO validDois (doi) VALUES (?);', confirmed)
+
+    def count_dois(self) -> int:
+        """Return the number of distinct DOIs found in BibTeX doi fields.
+
+        Returns:
+            Count of distinct DOIs, compared case-insensitively.
+        """
+        self.cursor.execute(
+            'SELECT COUNT(DISTINCT lower(doi)) FROM foundDois;')
+        return self.cursor.fetchone()[0]
+
+    def count_malformed_dois(self) -> int:
+        """Return the number of distinct DOIs that fail the format check.
+
+        Returns:
+            Count of distinct malformed DOIs, compared case-insensitively.
+        """
+        self.cursor.execute('''SELECT COUNT(DISTINCT lower(doi))
+                            FROM foundDois WHERE wellFormed = 0;''')
+        return self.cursor.fetchone()[0]
+
+    def count_confirmed_dois(self) -> int:
+        """Return how many distinct found DOIs a doi.org link confirmed.
+
+        Returns:
+            Count of distinct DOIs from BibTeX doi fields that are stored as
+            confirmed, in this run or in the cache.
+        """
+        self.cursor.execute('''SELECT COUNT(DISTINCT lower(doi))
+                            FROM foundDois
+                            WHERE wellFormed = 1 AND lower(doi) IN (
+                            SELECT lower(doi) FROM validDois);''')
+        return self.cursor.fetchone()[0]
 
     def urls_to_check(self) -> list:
         """Return a list of all distinct URLs to check.
@@ -92,19 +163,6 @@ class DatabaseIO:
                             SELECT normalizedUrl FROM exceptions);''')
         return self.cursor.fetchall()
 
-    def get_dois_to_check(self) -> list | None:
-        """Return all DOIs that are not validated yet.
-
-        Returns:
-            List of DOI strings, or None if DOI queue is empty.
-        """
-        # Maybe replace it with a generator but for several thousnad DOIs
-        # this way should be no problem!
-        self.cursor.execute('SELECT DISTINCT doi FROM queue_doi;')
-        query_result = self.cursor.fetchall()
-        doi_list = [doi[0] for doi in query_result]
-        return doi_list if doi_list else None
-
     def log_url_is_fine(self,
                         url: str) -> None:
         """Log a URL as valid with a timestamp.
@@ -116,19 +174,6 @@ class DatabaseIO:
             INSERT INTO validUrls
             (normalizedUrl, lastValid)
             VALUES (?, strftime('%s','now'));''', [url])
-
-    def save_valid_dois(self, valid_dois: list) -> None:
-        """Permanently store a list of valid DOIs in the cache.
-
-        Contrary to URLs, DOIs are made to be persistent identifiers,
-        so no need to recheck them once they have been validated.
-
-        Args:
-            valid_dois: List of validated DOI strings to store in cache.
-        """
-        # TO DO: batches!!
-        self.cursor.executemany('''
-        INSERT OR IGNORE INTO validDois (doi) VALUES (?);''', valid_dois)
 
     def save_mailto_links(self,
                           mailto_links: list) -> None:
@@ -143,19 +188,6 @@ class DatabaseIO:
         self.cursor.executemany('''
             INSERT INTO mailtoLinks (filePath, url, address, valid)
             VALUES (?, ?, ?, ?);''', mailto_links)
-
-    def log_invalid_dois(self,
-                         invalid_dois: list) -> None:
-        """Log invalid DOIs (those that returned 404 from the CrossRef API).
-
-        Args:
-            invalid_dois: List of (doi,) tuples to log.
-        """
-        if not invalid_dois:
-            return
-        self.cursor.executemany('''
-            INSERT INTO invalidDois (doi)
-            VALUES (?);''', invalid_dois)
 
     def log_internal_link_finding(self,
                                   file_path: str,
@@ -287,48 +319,6 @@ class DatabaseIO:
         self.cursor.execute('SELECT COUNT(*) FROM fileAccessErrors;')
         return self.cursor.fetchone()[0]
 
-    def convert_doi_urls_to_dois(self) -> int:
-        """Move doi.org and dx.doi.org URLs from the URL queue to the DOI queue.
-
-        URLs like https://doi.org/10.1234/suffix are better validated via the
-        CrossRef API than via an HTTP redirect chain. This method extracts the
-        DOI from the URL path, inserts it into queue_doi, and removes the
-        original URL from queue.
-
-        Returns:
-            Number of URLs converted.
-        """
-        from salted.doi_check import _DOI_PATTERN  # local import breaks circular dep
-        self.cursor.execute('''
-            SELECT filePath, url, normalizedUrl, linktext
-            FROM queue
-            WHERE hostname IN ('doi.org', 'dx.doi.org')''')
-        rows = self.cursor.fetchall()
-        if not rows:
-            return 0
-
-        to_insert = []
-        to_delete = []
-        for file_path, url, normalized_url, linktext in rows:
-            doi = urllib.parse.urlparse(url).path.lstrip('/')
-            if _DOI_PATTERN.match(doi):
-                description = linktext if linktext else url
-                to_insert.append((file_path, doi, description))
-                to_delete.append((normalized_url,))
-            else:
-                logger.warning("doi.org URL has unexpected path, leaving in URL queue: %s", url)
-
-        if to_insert:
-            self.cursor.executemany('''
-                INSERT INTO queue_doi (filePath, doi, description)
-                VALUES (?, ?, ?)''', to_insert)
-            self.cursor.executemany(
-                'DELETE FROM queue WHERE normalizedUrl = ?', to_delete)
-            count = len(to_insert)
-            if not self.quiet:
-                print(f"Rerouted {count} doi.org URL{'s' if count != 1 else ''} to CrossRef API check")
-        return len(to_insert)
-
     def count_distinct_urls(self) -> int:
         """Return the number of distinct normalized URLs in the check queue.
 
@@ -378,26 +368,6 @@ class DatabaseIO:
             if not self.quiet:
                 print(f"Skipped {num_skipped} cached URL{'s' if num_skipped != 1 else ''} (still valid in cache)")
         return num_links_after
-
-    def del_dois_that_can_be_skipped(self) -> None:
-        """Delete DOIs from the check queue that were already validated.
-
-        DOIs that have been previously validated are removed from the
-        queue to avoid redundant checks.
-        """
-        self.cursor.execute('SELECT COUNT(*) FROM queue_doi;')
-        num_dois_before = self.cursor.fetchone()[0]
-
-        self.cursor.execute('''DELETE FROM queue_doi
-                            WHERE doi IN (
-                            SELECT doi FROM validDois);''')
-        self.cursor.execute('SELECT COUNT(*) FROM queue_doi;')
-        num_dois_after = self.cursor.fetchone()[0]
-
-        if num_dois_before > num_dois_after:
-            num_skipped = num_dois_before - num_dois_after
-            if not self.quiet:
-                print(f"Skipped {num_skipped} cached DOI{'s' if num_skipped != 1 else ''} (already validated)")
 
     def count_errors(self) -> int:
         """Return the number of errors.

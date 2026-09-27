@@ -111,7 +111,11 @@ class CacheReader:
                 [self.dont_check_again_within_hours])
             valid_urls = disk_cache_cursor.fetchall()
 
-            disk_cache_cursor.execute('SELECT doi FROM validDois;')
+            # Lower case: DOIs are case-insensitive, and caches written by
+            # older versions kept the DOI as it was written. DISTINCT, as the
+            # unique index on validDois is only created after loading.
+            disk_cache_cursor.execute(
+                'SELECT DISTINCT lower(doi) FROM validDois;')
             valid_dois = disk_cache_cursor.fetchall()
 
         except Exception:
@@ -131,7 +135,7 @@ class CacheReader:
 
         if valid_dois:
             self.cursor.executemany(
-                'INSERT INTO validDois (doi) VALUES (?);',
+                'INSERT OR IGNORE INTO validDois (doi) VALUES (?);',
                 valid_dois)
 
     def overwrite_cache_file(self) -> None:

@@ -16,46 +16,26 @@ from salted import Salted
 from salted.err import ConfigFileError
 
 
-class TestMailtoFromConfig:
-    """A bad mailto in a config file stops the run, naming the file."""
+class TestRemovedDoiSettings:
+    """Config files written for the CrossRef DOI check keep working.
 
-    def test_valid_address_is_kept(self, tmp_path, monkeypatch):
+    mailto and check_dois configured that check, which was removed before
+    2.0.0 was released. Unknown keys are ignored, so such a file must not
+    stop the run - not even with a value the old rules rejected.
+    """
+
+    @pytest.mark.parametrize('line', [
+        'mailto = you@example.com', 'mailto = nonsense',
+        'check_dois = False', 'check_dois = maybe'])
+    def test_leftover_key_is_ignored(self, tmp_path, monkeypatch, line):
         (tmp_path / "salted-linkcheck.ini").write_text(
-            "[BEHAVIOR]\nmailto = you@example.com\n", encoding='utf-8')
+            f"[BEHAVIOR]\n{line}\ntimeout = 7\n", encoding='utf-8')
         monkeypatch.chdir(tmp_path)
 
-        assert Salted().mailto == 'you@example.com'
-
-    def test_invalid_address_raises_config_file_error(self, tmp_path,
-                                                      monkeypatch):
-        (tmp_path / "salted-linkcheck.ini").write_text(
-            "[BEHAVIOR]\nmailto = nonsense\n", encoding='utf-8')
-        monkeypatch.chdir(tmp_path)
-
-        with pytest.raises(ConfigFileError, match='mailto'):
-            Salted()
-
-    def test_newline_via_continuation_line_is_rejected(self, tmp_path,
-                                                       monkeypatch):
-        """configparser joins indented lines, so a value can hold a newline.
-
-        That is the one way a config file can carry a header separator into
-        the User-Agent sent to the CrossRef API.
-        """
-        (tmp_path / "salted-linkcheck.ini").write_text(
-            "[BEHAVIOR]\nmailto = me@x.com\n    X-Injected: yes\n",
-            encoding='utf-8')
-        monkeypatch.chdir(tmp_path)
-
-        with pytest.raises(ConfigFileError, match='mailto'):
-            Salted()
-
-    def test_absent_mailto_stays_none(self, tmp_path, monkeypatch):
-        (tmp_path / "salted-linkcheck.ini").write_text(
-            "[BEHAVIOR]\ntimeout = 7\n", encoding='utf-8')
-        monkeypatch.chdir(tmp_path)
-
-        assert Salted().mailto is None
+        checker = Salted()
+        assert checker.timeout == 7
+        assert not hasattr(checker, 'mailto')
+        assert not hasattr(checker, 'check_dois')
 
 
 class TestByteOrderMark:
@@ -545,7 +525,7 @@ class TestConfigTypedValueValidation:
         ('BEHAVIOR', 'timeout = -1', 'timeout'),
         ('BEHAVIOR', 'timeout = 0', 'timeout'),
         ('BEHAVIOR', 'raise_for_dead_links = maybe', 'raise_for_dead_links'),
-        ('BEHAVIOR', 'check_dois = maybe', 'check_dois'),
+        ('BEHAVIOR', 'check_internal_links = maybe', 'check_internal_links'),
         ('BEHAVIOR', 'domain_delay = fast', 'domain_delay'),
         ('BEHAVIOR', 'domain_delay = -0.5', 'domain_delay'),
         ('BEHAVIOR', 'max_file_size_mb = 0', 'max_file_size_mb'),

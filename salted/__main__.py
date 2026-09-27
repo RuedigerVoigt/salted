@@ -26,7 +26,6 @@ from userprovided.parameters import separated_string_to_set
 from salted import (
     cache_reader,
     database_io,
-    doi_check,
     err,
     file_finder,
     input_handler,
@@ -109,8 +108,6 @@ class Salted:
         self.ignore_urls: set = set()
         self.ignore_domains: set = set()
         self.domain_delay: float = 0.25
-        self.mailto: str | None = None
-        self.check_dois: bool = True
         self.check_internal_links: bool = True
         self.max_file_size_mb: int = 20
         # Cache
@@ -361,8 +358,6 @@ class Salted:
             parsed_domains = separated_string_to_set(behavior.get('ignore_domains'))
             if parsed_domains is not None:
                 self.ignore_domains = self._validate_domains(parsed_domains)
-            self.mailto = self._from_config(behavior, 'mailto', target)
-            self.check_dois = self._from_config(behavior, 'check_dois', target)
             self.check_internal_links = self._from_config(
                 behavior, 'check_internal_links', target)
             self.max_file_size_mb = self._from_config(
@@ -598,13 +593,13 @@ class Salted:
         file_io.scan_files(files_to_check)
         mem_instance.generate_indices()
         num_distinct = db.count_distinct_urls()
-        if self.check_dois:
-            db.convert_doi_urls_to_dois()
         # Counted before they leave the queue: without this, a run served
         # from the cache reports zero targets and zero fine links.
         num_cached = db.count_cached_urls()
+        # doi.org links still valid in the cache confirm their DOIs, and
+        # they are about to leave the queue.
+        db.confirm_dois_from_links()
         db.del_links_that_can_be_skipped()
-        db.del_dois_that_can_be_skipped()
 
         # ##### START CHECKS #####
 
@@ -621,14 +616,7 @@ class Salted:
             ignore_domains=self.ignore_domains,
             quiet=self.quiet)
         urls.check_urls()
-
-        num_valid_dois = 0
-        num_invalid_dois = 0
-        if self.check_dois:
-            doi = doi_check.DoiCheck(db, quiet=self.quiet, mailto=self.mailto)
-            doi.check_dois()
-            num_valid_dois = len(doi.valid_doi_list)
-            num_invalid_dois = len(doi.invalid_doi_list)
+        db.confirm_dois_from_links()
 
         # ##### END CHECKS #####
 
@@ -666,9 +654,9 @@ class Salted:
                     round((urls.cnt['neededFullRequest'] / urls.cnt['checked_urls']) * 100, 2)
                     if urls.cnt['checked_urls'] > 0 else 0
                 ),
-                'check_dois': self.check_dois,
-                'num_valid_dois': num_valid_dois,
-                'num_invalid_dois': num_invalid_dois,
+                'num_dois': db.count_dois(),
+                'num_malformed_dois': db.count_malformed_dois(),
+                'num_confirmed_dois': db.count_confirmed_dois(),
                 'check_internal_links': self.check_internal_links,
                 'num_internal_checked': (
                     internal_checker.cnt['internal_checked']
@@ -698,20 +686,25 @@ class Salted:
         # A link without a host or with an invalid port cannot be reached
         # by any client, so it is as broken as one that yields a 404.
         num_malformed = db.count_malformed_urls()
+        # A malformed DOI cannot resolve, however it is linked.
+        num_malformed_dois = db.count_malformed_dois()
         if (self.raise_for_dead_links
-                and (num_dead + num_unreadable + num_malformed) > 0):
+                and (num_dead + num_unreadable + num_malformed
+                     + num_malformed_dois) > 0):
             raise err.DeadLinksException(
                 self._failure_message(
                     num_dead, num_unreadable,
                     file_io.cnt['bib_files_skipped'],
-                    num_malformed=num_malformed))
+                    num_malformed=num_malformed,
+                    num_malformed_dois=num_malformed_dois))
 
     @staticmethod
     def _failure_message(num_dead: int,
                          num_unreadable: int,
                          num_unchecked_bib: int,
                          *,
-                         num_malformed: int = 0) -> str:
+                         num_malformed: int = 0,
+                         num_malformed_dois: int = 0) -> str:
         """Build the message of the exception raised for a failed run.
 
         In a CI log the exception may be the only thing that is read, so
@@ -728,6 +721,8 @@ class Salted:
                 num_unreadable.
             num_malformed: Number of distinct links that are too malformed
                 to be requested (no host, invalid port).
+            num_malformed_dois: Number of distinct DOIs in BibTeX doi fields
+                that fail the format check.
 
         Returns:
             The message for the DeadLinksException.
@@ -737,6 +732,8 @@ class Salted:
             reasons.append(f'Found {num_dead} dead link(s)')
         if num_malformed:
             reasons.append(f'Found {num_malformed} malformed link(s)')
+        if num_malformed_dois:
+            reasons.append(f'Found {num_malformed_dois} malformed DOI(s)')
         if num_unreadable:
             reasons.append(f'{num_unreadable} file(s) could not be checked')
         message = '. '.join(reasons) + '.'

@@ -53,14 +53,12 @@ _TRUTHY_OVERRIDES = (
 # None, so an explicit 0/False is honored; an invalid value aborts via
 # parser.error() with a message naming the CLI option.
 _VALIDATED_OVERRIDES = (
-    'mailto',
     'num_workers',
     'timeout',
     'dont_check_again_within_hours',
     'max_file_size_mb',
     'domain_delay',
     'raise_for_dead_links',
-    'check_dois',
     'check_internal_links',
     'file_types',
 )
@@ -135,11 +133,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         metavar="<preset or custom string>"
     )
     parser.add_argument(
-        "--check_dois",
-        action=argparse.BooleanOptionalAction,
-        default=None,
-        help="Check DOIs via the CrossRef API (default: True). Use --no-check_dois to skip DOI validation.")
-    parser.add_argument(
         "--check_internal_links",
         action=argparse.BooleanOptionalAction,
         default=None,
@@ -147,11 +140,6 @@ def _build_arg_parser() -> argparse.ArgumentParser:
               "/root-relative paths, #fragments) point to existing files "
               "within the checked folder (default: True). "
               "Use --no-check_internal_links to skip."))
-    parser.add_argument(
-        "--mailto",
-        type=str,
-        help="Contact e-mail address included in the CrossRef API User-Agent to opt into the polite pool (faster, less rate-limited).",
-        metavar="<email>")
     parser.add_argument(
         "--ignore_urls",
         type=str,

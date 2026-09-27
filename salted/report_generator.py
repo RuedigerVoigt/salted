@@ -517,22 +517,19 @@ class ReportGenerator:
             })
         return result
 
-    def generate_invalid_doi_list(self) -> list | None:
-        """Generate a list of invalid DOIs and the files that reference them.
-
-        Joins the invalidDois table with queue_doi to find which files
-        contain each invalid DOI.
+    def generate_malformed_doi_list(self) -> list | None:
+        """Generate a list of DOIs that fail the format check.
 
         Returns:
-            List of dicts with keys 'doi', 'path', 'description',
-            or None if no invalid DOIs were found.
+            List of dicts with keys 'doi', 'path', 'description', ordered
+            by file, or None if every DOI is well-formed.
         """
         cursor = self.db.get_cursor()
         cursor.execute('''
-            SELECT invalidDois.doi, queue_doi.filePath, queue_doi.description
-            FROM invalidDois
-            INNER JOIN queue_doi ON invalidDois.doi = queue_doi.doi
-            ORDER BY queue_doi.filePath, invalidDois.doi;''')
+            SELECT doi, filePath, description
+            FROM foundDois
+            WHERE wellFormed = 0
+            ORDER BY filePath, doi;''')
         rows = cursor.fetchall()
         if not rows:
             return None
@@ -541,6 +538,31 @@ class ReportGenerator:
             result.append({
                 'doi': strip_control_characters(doi),
                 'path': self._display_path(file_path),
+                'description': strip_control_characters(description),
+            })
+        return result
+
+    def generate_outdated_doi_list(self) -> list | None:
+        """Generate a list of DOIs written in an outdated form.
+
+        Returns:
+            List of dicts with keys 'path', 'found', 'recommended',
+            'description', ordered by file, or None if there are none.
+        """
+        cursor = self.db.get_cursor()
+        cursor.execute('''
+            SELECT filePath, found, recommended, description
+            FROM outdatedDoiLinks
+            ORDER BY filePath, found;''')
+        rows = cursor.fetchall()
+        if not rows:
+            return None
+        result = []
+        for file_path, found, recommended, description in rows:
+            result.append({
+                'path': self._display_path(file_path),
+                'found': strip_control_characters(found),
+                'recommended': strip_control_characters(recommended),
                 'description': strip_control_characters(description),
             })
         return result
@@ -635,7 +657,8 @@ class ReportGenerator:
 
         access_errors = self.generate_access_error_list()
         mailto_links = self.generate_mailto_list()
-        invalid_dois = self.generate_invalid_doi_list()
+        malformed_dois = self.generate_malformed_doi_list()
+        outdated_doi_links = self.generate_outdated_doi_list()
         internal_links = self.generate_internal_link_list()
 
         permanent_errors = self.generate_error_list()
@@ -655,7 +678,8 @@ class ReportGenerator:
             'redirects': permanent_redirects,
             'exceptions': crawl_exceptions,
             'mailto_links': mailto_links,
-            'invalid_dois': invalid_dois,
+            'malformed_dois': malformed_dois,
+            'outdated_doi_links': outdated_doi_links,
             'internal_links': internal_links,
         }
 

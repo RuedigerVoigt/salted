@@ -18,7 +18,7 @@ import userprovided
 import userprovided.mail as mail_check
 from tqdm.asyncio import tqdm  # type: ignore
 
-from salted import database_io, internal_link_check, parser
+from salted import database_io, doi_format, internal_link_check, parser
 
 logger = logging.getLogger(__name__)
 
@@ -255,34 +255,61 @@ class InputHandler:
             self.db.save_found_links(links_found)
         if mailto_found:
             self.db.save_mailto_links(mailto_found)
+        self.db.log_outdated_doi_links(self._outdated_doi_links(links_found))
+
+    @staticmethod
+    def _outdated_doi_links(links_found: list) -> list:
+        """Pick the DOI links written as http:// or with dx.doi.org.
+
+        They are checked like any other link. This only records them, so
+        the report can suggest the https://doi.org/ form.
+
+        Args:
+            links_found: Queue rows as built by _queue_row.
+
+        Returns:
+            List of tuples (filePath, found, recommended, description).
+        """
+        outdated = []
+        for file_path, _, url, _, linktext in links_found:
+            recommended = doi_format.recommended_link(url)
+            if recommended:
+                outdated.append((file_path, url, recommended, linktext))
+        return outdated
 
     def handle_found_dois(self,
                           file_path: pathlib.Path,
                           doi_list: list) -> None:
-        """Convert DOI list to the needed format and save to database.
+        """Check the format of DOIs and save them to the database.
 
-        Sends DOIs to the database in batches for performance.
+        Only the form of a DOI is checked, without network access. A DOI
+        written with a 'doi:' prefix or as an outdated link is recorded
+        with the recommended https://doi.org/ form. Sends DOIs to the
+        database in batches for performance.
 
         Args:
             file_path: Path to the file where DOIs were found.
-            doi_list: List of [doi, text] pairs extracted from the file.
+            doi_list: List of [doi, text] pairs extracted from the file,
+                text being the BibTeX key and the field name.
         """
         if not doi_list:
-            return None
-        # The parser generated a list in the format [[doi, text], [doi, text]]
-        #  - text being the key-value of the bibtex-entry and the field in
-        # which the DOI was found.
-        dois_found = list()
-        for entry in doi_list:
-            dois_found.append([str(file_path), entry[0], entry[1]])
+            return
+        dois_found = []
+        outdated = []
+        for value, description in doi_list:
+            field = doi_format.parse_doi_field(value)
+            dois_found.append(
+                (str(file_path), field.doi, description, int(field.well_formed)))
+            if field.well_formed and field.outdated:
+                outdated.append((str(file_path), value.strip(),
+                                 doi_format.RECOMMENDED_PREFIX + field.doi,
+                                 description))
         # In case of a bibliography that can be a very long list.
         # So feed it to sqlite in little pieces
-        first = 0
         step = 50
-        while first < len(dois_found):
+        for first in range(0, len(dois_found), step):
             self.db.save_found_dois(dois_found[first:first + step])
-            first += step
-        return None
+        self.db.log_outdated_doi_links(outdated)
 
     def _extract_links_and_dois(self,
                                 file_path: pathlib.Path,

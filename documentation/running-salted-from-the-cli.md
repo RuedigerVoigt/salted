@@ -13,8 +13,8 @@ On the command line salted supports all parameters. To get an overview, simply t
 ```
 usage: salted [-h] [--version] [--config <path>] [-i <path>] [--file_types {supported,html,tex,markdown}] [-w <num>]
               [--timeout <seconds>] [--raise_for_dead_links | --no-raise_for_dead_links]
-              [--check_dois | --no-check_dois] [--check_internal_links | --no-check_internal_links]
-              [--user_agent <preset or custom string>] [--mailto <email>]
+              [--check_internal_links | --no-check_internal_links]
+              [--user_agent <preset or custom string>]
               [--ignore_urls <str,str,str>] [--ignore_domains <domain,domain>]
               [--exclude_paths <path,path>]
               [--domain_delay <seconds>] [--max_file_size_mb <MB>]
@@ -43,16 +43,10 @@ options:
   --user_agent <preset or custom string>
                         User agent to identify itself. Use a preset (chrome, firefox, edge, safari,
                         chrome-mac, chrome-linux) or provide a custom string. (Default: salted / version)
-  --check_dois, --no-check_dois
-                        Check DOIs via the CrossRef API (default: True). Use --no-check_dois
-                        to skip DOI validation entirely.
   --check_internal_links, --no-check_internal_links
                         Verify that internal links in HTML files (relative paths, /root-relative
                         paths, #fragments) point to existing files within the checked folder
                         (default: True). Use --no-check_internal_links to skip.
-  --mailto <email>      A contact e-mail address included in the CrossRef API User-Agent to opt
-                        into the polite pool (higher rate limits). Optional but recommended if
-                        you check DOIs.
   --ignore_urls <str,str,str>
                         String with URLs that will not be checked. Separate them with commas.
   --ignore_domains <domain,domain>
@@ -73,7 +67,7 @@ options:
   --cache_file <path>   Path to the cache file (default: salted-cache.sqlite3 in the current working directory)
   --dont_check_again_within_hours <hours>
                         Number of hours an already verified URL is considered valid (default: 24).
-                        Note: validated DOIs are cached permanently and are never re-checked.
+                        Note: DOIs confirmed by a working doi.org link are cached permanently.
   --template_searchpath <path to folder>
                         Path to *folder* in which the template file can be found.
   --template_name <filename>

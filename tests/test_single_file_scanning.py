@@ -31,15 +31,6 @@ class FakeUrlCheck:
         self.cnt['checked_urls'] = len(urls) if urls else 0
 
 
-class NoopDoiCheck:
-    """Skip DOI checks to avoid network and progress bars in tests."""
-
-    def __init__(self, db, quiet=False, mailto=None):
-        self.valid_doi_list = []
-        self.invalid_doi_list = []
-
-    def check_dois(self):
-        return None
 
 
 def write_html(tmp_dir: Path, name: str, html_body: str) -> Path:
@@ -58,8 +49,7 @@ def test_single_file_scanning_enqueues_urls(tmp_path):
     )
     file_path = write_html(tmp_path / 'one', 'test.html', html)
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.check(file_path)
 
@@ -79,8 +69,7 @@ def test_directory_mode_still_enqueues_urls(tmp_path):
     dir_path = tmp_path / 'dir'
     write_html(dir_path, 'index.html', html)
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.check(dir_path)
 
@@ -98,8 +87,7 @@ def test_file_types_html_excludes_markdown(tmp_path):
     (dir_path / 'notes.md').write_text(
         "[link](https://markdown-link.example.com/)")
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.file_types = 'html'
         checker.check(dir_path)
@@ -119,8 +107,7 @@ def test_file_types_markdown_excludes_html(tmp_path):
     (dir_path / 'notes.md').write_text(
         "[link](https://markdown-link.example.com/)")
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.file_types = 'markdown'
         checker.check(dir_path)
@@ -138,8 +125,7 @@ def test_excluded_folder_is_not_scanned(tmp_path):
     write_html(dir_path / 'vendor', 'bundled.html',
                "<html><body><a href='https://vendored.example.com/'>x</a></body></html>")
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.exclude_paths = {str(dir_path / 'vendor')}
         checker.check(dir_path)
@@ -157,8 +143,7 @@ def test_excluded_single_file_is_not_scanned(tmp_path):
     write_html(dir_path, 'draft.html',
                "<html><body><a href='https://drafted.example.com/'>x</a></body></html>")
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.exclude_paths = {str(dir_path / 'draft.html')}
         checker.check(dir_path)
@@ -179,8 +164,7 @@ def test_excluded_file_named_as_searchpath_is_honored(tmp_path):
         "<html><body><a href='https://drafted.example.com/'>x</a></body></html>")
 
     FakeUrlCheck.last_urls = None
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.exclude_paths = {str(file_path)}
         checker.check(file_path)  # returns early, does not raise
@@ -194,8 +178,7 @@ def test_exclusion_of_an_unrelated_path_changes_nothing(tmp_path):
     write_html(dir_path, 'index.html',
                "<html><body><a href='https://kept.example.com/'>x</a></body></html>")
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.exclude_paths = {str(tmp_path / 'does-not-exist')}
         checker.check(dir_path)
@@ -214,8 +197,7 @@ def test_file_types_supported_scans_all(tmp_path):
     (dir_path / 'notes.md').write_text(
         "[link](https://markdown-link.example.com/)")
 
-    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck):
+    with patch('salted.__main__.url_check.UrlCheck', FakeUrlCheck):
         checker = salted.Salted()
         checker.file_types = 'supported'
         checker.check(dir_path)

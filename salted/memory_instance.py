@@ -58,11 +58,21 @@ class MemoryInstance:
             url text,
             normalizedUrl text,
             linktext text);''')
-        # Table 'queue_doi': DOIs to be tested
+        # Table 'foundDois': DOIs from BibTeX doi fields. Only their format
+        # is checked (wellFormed = 1 or 0).
         self.cursor.execute('''
-            CREATE TABLE queue_doi (
+            CREATE TABLE foundDois (
             filePath text,
             doi text,
+            description text,
+            wellFormed integer);''')
+        # Table 'outdatedDoiLinks': DOIs written as http://, dx.doi.org or
+        # with a 'doi:' prefix, with the recommended https://doi.org/ form
+        self.cursor.execute('''
+            CREATE TABLE outdatedDoiLinks (
+            filePath text,
+            found text,
+            recommended text,
             description text);''')
         # Table 'errors': invalid hyperlinks
         self.cursor.execute('''
@@ -91,7 +101,9 @@ class MemoryInstance:
             CREATE TABLE IF NOT EXISTS validUrls (
             normalizedUrl text,
             lastValid integer);''')
-        # table 'validDois': cache for DOIs — no expiry, DOIs are permanent identifiers
+        # table 'validDois': DOIs confirmed by a doi.org link that answered as
+        # fine, stored in lower case. Cached without expiry: DOIs are
+        # permanent identifiers.
         self.cursor.execute('''
             CREATE TABLE IF NOT EXISTS validDois (
             doi text);''')
@@ -103,10 +115,6 @@ class MemoryInstance:
             url      text,
             address  text,
             valid    integer);''')
-        # table 'invalidDois': DOIs that returned 404 from the CrossRef API
-        self.cursor.execute('''
-            CREATE TABLE IF NOT EXISTS invalidDois (
-            doi text);''')
         # table 'internalLinkFindings': internal links whose filesystem
         # target is missing (isError = 1) or could not be verified, e.g.
         # because it resolves outside the checked folder (isError = 0)

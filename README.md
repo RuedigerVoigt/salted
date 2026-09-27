@@ -94,7 +94,7 @@ SALTED does support the following file-formats:
   * Mailto links are parsed and listed in the report with basic format validation (no DNS lookup or delivery check).
 * **Markdown** : The pandoc version as well as GitHub flavored markdown are supported.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
-* **BibTeX** : URL and DOI fields are extracted and checked. BibTeX files are included when using `--file_types tex` or `--file_types supported`. **Requires the `bibtex` extra** (`pip install "salted[bibtex]"`) — see [Optional extras](#optional-extras). Without it a `.bib` file is never silently skipped: naming one with `-i` stops the run, and one found while scanning a folder is reported as not checked and fails a `--raise_for_dead_links` run.
+* **BibTeX** : URL fields are checked like any other link. DOI fields are checked for the form of a DOI (no network request); a DOI written as `doi:…` or as an old `http://dx.doi.org/…` link is listed with the recommended `https://doi.org/…` form. A DOI that a working `https://doi.org/…` link in your documents points to counts as confirmed. BibTeX files are included when using `--file_types tex` or `--file_types supported`. **Requires the `bibtex` extra** (`pip install "salted[bibtex]"`) — see [Optional extras](#optional-extras). Without it a `.bib` file is never silently skipped: naming one with `-i` stops the run, and one found while scanning a folder is reported as not checked and fails a `--raise_for_dead_links` run.
 * **Microsoft Word**: is not directly supported, but you can convert Word to markdown which is supported.
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Shared async scaffolding for the URL and DOI checkers.
+Shared async scaffolding for network checkers (currently the URL check).
 ~~~~~~~~~~~~~~~~~~~~~
 Source: https://github.com/RuedigerVoigt/salted
 (c) 2020-2026 Rüdiger Voigt and contributors
@@ -45,7 +45,7 @@ class AsyncCheckerBase:
         """Check a single item from the queue. Must not raise.
 
         Args:
-            item: The queue item (URL or DOI) to check.
+            item: The queue item (a URL) to check.
         """
         raise NotImplementedError
 

@@ -113,8 +113,8 @@ def test_actual_run_markdown(mock_head, tmp_path):
 def test_actual_run_bibtex(mock_head, tmp_path):
     """End-to-end test with BibTeX file.
 
-    'invalidDOI' fails the basic DOI format check (10.NNNN/suffix) so no
-    CrossRef API call is made — the test runs entirely offline.
+    'invalidDOI' fails the DOI format check (10.NNNN/suffix). DOIs are
+    only checked for format, so the test runs entirely offline.
     """
     d = tmp_path / "bibtextest"
     d.mkdir()
@@ -382,6 +382,65 @@ def test_statistics_count_targets_served_from_the_cache(mock_head, tmp_path):
             second['num_cached'], second['num_checked'],
             second['num_fine']) == (3, 2, 2, 0, 0)
     assert mock_head.await_count == 2, "the second run sent requests"
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock)
+def test_dois_format_checked_and_confirmed_by_doi_org_links(mock_head,
+                                                            tmp_path):
+    """DOIs are checked for format; a working doi.org link confirms one.
+
+    doi.org answers 302 for a registered DOI (and http:// links with a 301
+    to https://). Nothing but the links in the documents is requested.
+    """
+    mock_head.side_effect = lambda url: 301 if url.startswith('http:') else 302
+
+    d = tmp_path / "doi_site"
+    d.mkdir()
+    (d / "refs.bib").write_text(
+        "@article{linked, title={A}, doi={10.1038/nature14539}}\n"
+        "@article{unlinked, title={B}, doi={10.1234/unlinked}}\n"
+        "@article{broken, title={C}, doi={11.1234/not-a-doi}}\n"
+        "@article{prefixed, title={D}, doi={doi:10.5555/old}}\n",
+        encoding='utf-8')
+    (d / "page.html").write_text(
+        "<a href='https://doi.org/10.1038/NATURE14539'>paper</a>"
+        "<a href='http://dx.doi.org/10.5555/old'>old form</a>",
+        encoding='utf-8')
+    cache_file = tmp_path / "test-cache.sqlite3"
+
+    runs = []
+
+    def capture(self, statistics, template, write_to,
+                replace_path_by_url=None):
+        runs.append({
+            'statistics': statistics,
+            'malformed': self.generate_malformed_doi_list(),
+            'outdated': self.generate_outdated_doi_list()})
+
+    with patch('salted.report_generator.ReportGenerator.generate_report',
+               capture):
+        for _ in range(2):
+            my_check = salted.Salted()
+            my_check.cache_file = cache_file
+            my_check.domain_delay = 0
+            my_check.raise_for_dead_links = True
+            with pytest.raises(err.DeadLinksException,
+                               match=r'Found 1 malformed DOI\(s\)'):
+                my_check.check(searchpath=d)
+
+    for run in runs:
+        stats = run['statistics']
+        assert (stats['num_dois'], stats['num_malformed_dois'],
+                stats['num_confirmed_dois']) == (4, 1, 1)
+        assert [m['doi'] for m in run['malformed']] == ['11.1234/not-a-doi']
+        assert {(o['found'], o['recommended']) for o in run['outdated']} == {
+            ('doi:10.5555/old', 'https://doi.org/10.5555/old'),
+            ('http://dx.doi.org/10.5555/old', 'https://doi.org/10.5555/old')}
+
+    requested = [call.args[0] for call in mock_head.await_args_list]
+    assert requested.count('https://doi.org/10.1038/NATURE14539') == 1, \
+        "the cached doi.org link was requested again"
+    assert not any('api.crossref.org' in url for url in requested)
 
 
 class TestSettingsFailBeforeChecking:

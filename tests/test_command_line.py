@@ -110,30 +110,12 @@ class TestCommandLineArguments:
                 with pytest.raises(SystemExit):
                     command_line.main()
 
-    def test_main_valid_mailto_is_applied(self):
-        """A valid --mailto reaches the checker."""
-        test_args = ['salted', '--mailto', 'you@example.com']
-        with patch('sys.argv', test_args):
-            with patch('salted.Salted') as mock_salted_class:
-                mock_checker = MagicMock()
-                mock_salted_class.return_value = mock_checker
-
-                command_line.main()
-
-                assert mock_checker.mailto == 'you@example.com'
-
-    @pytest.mark.parametrize('bad', ['nonsense', 'a@b', 'x@y.com,z@y.com'])
-    def test_main_invalid_mailto_is_rejected(self, bad):
-        """A mistyped address is an error, not a silently degraded run.
-
-        Without validation it would be sent to CrossRef, which would not
-        recognise it, so the request would miss the polite pool and get
-        rate limited for no visible reason.
-        """
-        test_args = ['salted', '--mailto', bad]
-        with patch('sys.argv', test_args):
-            with patch('salted.Salted') as mock_salted_class:
-                mock_salted_class.return_value = MagicMock()
+    @pytest.mark.parametrize('option', [
+        ['--mailto', 'you@example.com'], ['--check_dois'], ['--no-check_dois']])
+    def test_removed_doi_options_are_unknown(self, option):
+        """The CrossRef options went with the CrossRef check."""
+        with patch('sys.argv', ['salted', *option]):
+            with patch('salted.Salted'):
                 with pytest.raises(SystemExit):
                     command_line.main()
 

@@ -21,13 +21,6 @@ class StubUrlCheck:
         return None
 
 
-class NoopDoiCheck:
-    def __init__(self, db, quiet=False, mailto=None):
-        self.valid_doi_list = []
-        self.invalid_doi_list = []
-
-    def check_dois(self):
-        return None
 
 
 captured_stats = {}
@@ -45,7 +38,6 @@ def test_percentage_full_request_computed(tmp_path):
     (d / 'index.html').write_text("<a href='https://x.test'>x</a>")
 
     with patch('salted.__main__.url_check.UrlCheck', StubUrlCheck), \
-         patch('salted.__main__.doi_check.DoiCheck', NoopDoiCheck), \
          patch('salted.report_generator.ReportGenerator.generate_report', side_effect=capture_report):
         checker = salted.Salted()
         checker.check(d)

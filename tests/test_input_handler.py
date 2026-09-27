@@ -78,7 +78,7 @@ class TestUppercaseFileExtensions:
             assert queued == {f'https://{c}.example/{i}'
                               for i, c in enumerate('abcdef', start=1)}
             # The .BIB file must also yield its DOI.
-            assert db.get_dois_to_check() == ['10.1234/x']
+            assert db.count_dois() == 1
         finally:
             mem.tear_down_in_memory_db()
 
@@ -469,6 +469,63 @@ class TestHandleFoundDois:
 
         assert result is None
         db_mock.save_found_dois.assert_not_called()
+
+    def test_format_is_checked_while_reading(self):
+        """Each DOI is saved with its format verdict; nothing is requested."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_dois(pathlib.Path('refs.bib'), [
+            ['10.1234/good', 'Key: a, Field: doi'],
+            ['10.123/short', 'Key: b, Field: doi'],
+            ['https://doi.org/10.1234/linked', 'Key: c, Field: doi'],
+        ])
+
+        assert db_mock.save_found_dois.call_args[0][0] == [
+            ('refs.bib', '10.1234/good', 'Key: a, Field: doi', 1),
+            ('refs.bib', '10.123/short', 'Key: b, Field: doi', 0),
+            ('refs.bib', '10.1234/linked', 'Key: c, Field: doi', 1),
+        ]
+        db_mock.log_outdated_doi_links.assert_called_once_with([])
+
+    def test_outdated_forms_are_recorded(self):
+        """A doi: prefix and old link forms get the https://doi.org/ form."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_dois(pathlib.Path('refs.bib'), [
+            ['doi:10.1234/a', 'A'],
+            ['http://dx.doi.org/10.1234/b', 'B'],
+            ['doi:nonsense', 'C'],      # malformed: reported as such only
+        ])
+
+        db_mock.log_outdated_doi_links.assert_called_once_with([
+            ('refs.bib', 'doi:10.1234/a', 'https://doi.org/10.1234/a', 'A'),
+            ('refs.bib', 'http://dx.doi.org/10.1234/b',
+             'https://doi.org/10.1234/b', 'B'),
+        ])
+
+
+class TestOutdatedDoiLinksInDocuments:
+    """Old forms of doi.org links in documents are recorded and checked."""
+
+    def test_outdated_link_is_recorded_and_still_queued(self):
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(pathlib.Path('page.html'), [
+            ['http://dx.doi.org/10.1234/a', 'old'],
+            ['https://doi.org/10.1234/b', 'current'],
+            ['https://example.com/', 'other'],
+        ])
+
+        queued = [row[2] for row in db_mock.save_found_links.call_args[0][0]]
+        assert queued == ['http://dx.doi.org/10.1234/a',
+                          'https://doi.org/10.1234/b',
+                          'https://example.com/']
+        db_mock.log_outdated_doi_links.assert_called_once_with([
+            ('page.html', 'http://dx.doi.org/10.1234/a',
+             'https://doi.org/10.1234/a', 'old')])
 
 
 class TestExtractLinksAndDois:

@@ -443,67 +443,83 @@ class TestGenerateMailtoList:
         mem_inst.tear_down_in_memory_db()
 
 
-class TestGenerateInvalidDoiList:
-    """Test generate_invalid_doi_list."""
+class TestGenerateMalformedDoiList:
+    """Test generate_malformed_doi_list."""
 
-    def test_no_invalid_dois_returns_none(self):
-        """Returns None when no invalid DOIs were recorded."""
+    @staticmethod
+    def _add(cursor, file_path, doi, description, well_formed):
+        cursor.execute(
+            'INSERT INTO foundDois VALUES (?, ?, ?, ?)',
+            (file_path, doi, description, well_formed))
+
+    def test_none_when_every_doi_is_well_formed(self):
         mem_inst = memory_instance.MemoryInstance()
+        self._add(mem_inst.get_cursor(), 'refs.bib', '10.1234/ok', 'A', 1)
         gen = report_generator.ReportGenerator(mem_inst)
-        assert gen.generate_invalid_doi_list() is None
+        assert gen.generate_malformed_doi_list() is None
         mem_inst.tear_down_in_memory_db()
 
-    def test_invalid_doi_joined_with_source_file(self):
-        """Invalid DOI is joined with queue_doi to find its source file."""
+    def test_malformed_doi_listed_with_its_file(self):
         mem_inst = memory_instance.MemoryInstance()
         cursor = mem_inst.get_cursor()
-        cursor.execute(
-            'INSERT INTO queue_doi (filePath, doi, description) VALUES (?, ?, ?)',
-            ('refs.bib', '10.1234/bad', 'Smith2020'))
-        cursor.execute(
-            'INSERT INTO invalidDois (doi) VALUES (?)',
-            ('10.1234/bad',))
+        self._add(cursor, 'refs.bib', '10.1234/ok', 'A', 1)
+        self._add(cursor, 'refs.bib', '11.1234/bad', 'Key: Smith2020', 0)
         gen = report_generator.ReportGenerator(mem_inst)
-        result = gen.generate_invalid_doi_list()
-        assert result is not None
-        assert len(result) == 1
-        assert result[0]['doi'] == '10.1234/bad'
-        assert result[0]['path'] == 'refs.bib'
-        assert result[0]['description'] == 'Smith2020'
+        result = gen.generate_malformed_doi_list()
+        assert result == [{'doi': '11.1234/bad', 'path': 'refs.bib',
+                           'description': 'Key: Smith2020'}]
         mem_inst.tear_down_in_memory_db()
 
-    def test_invalid_doi_appears_in_multiple_files(self):
-        """Same invalid DOI in two files produces one entry per file."""
+    def test_one_entry_per_file(self):
         mem_inst = memory_instance.MemoryInstance()
         cursor = mem_inst.get_cursor()
-        cursor.execute(
-            'INSERT INTO queue_doi VALUES (?, ?, ?)', ('file1.bib', '10.1234/bad', 'A'))
-        cursor.execute(
-            'INSERT INTO queue_doi VALUES (?, ?, ?)', ('file2.bib', '10.1234/bad', 'B'))
-        cursor.execute('INSERT INTO invalidDois (doi) VALUES (?)', ('10.1234/bad',))
+        self._add(cursor, 'file2.bib', 'bad', 'B', 0)
+        self._add(cursor, 'file1.bib', 'bad', 'A', 0)
         gen = report_generator.ReportGenerator(mem_inst)
-        result = gen.generate_invalid_doi_list()
-        assert result is not None
-        assert len(result) == 2
-        paths = {r['path'] for r in result}
-        assert paths == {'file1.bib', 'file2.bib'}
+        result = gen.generate_malformed_doi_list()
+        assert [r['path'] for r in result] == ['file1.bib', 'file2.bib']
         mem_inst.tear_down_in_memory_db()
 
     def test_path_rewriting_applied(self):
-        """File paths are rewritten when replace_path_by_url is set."""
         mem_inst = memory_instance.MemoryInstance()
-        cursor = mem_inst.get_cursor()
-        cursor.execute(
-            'INSERT INTO queue_doi VALUES (?, ?, ?)',
-            ('/local/refs.bib', '10.1234/bad', 'X'))
-        cursor.execute('INSERT INTO invalidDois (doi) VALUES (?)', ('10.1234/bad',))
+        self._add(mem_inst.get_cursor(), '/local/refs.bib', 'bad', 'X', 0)
         gen = report_generator.ReportGenerator(mem_inst)
         gen.replace_path_by_url = {
             'path_to_be_replaced': '/local',
             'replace_with_url': 'https://example.com',
         }
-        result = gen.generate_invalid_doi_list()
+        result = gen.generate_malformed_doi_list()
         assert result[0]['path'] == 'https://example.com/refs.bib'
+        mem_inst.tear_down_in_memory_db()
+
+    def test_control_characters_are_stripped(self):
+        mem_inst = memory_instance.MemoryInstance()
+        self._add(mem_inst.get_cursor(), 'refs.bib', 'bad[31m', 'K', 0)
+        gen = report_generator.ReportGenerator(mem_inst)
+        assert '' not in gen.generate_malformed_doi_list()[0]['doi']
+        mem_inst.tear_down_in_memory_db()
+
+
+class TestGenerateOutdatedDoiList:
+    """Test generate_outdated_doi_list."""
+
+    def test_none_without_outdated_links(self):
+        mem_inst = memory_instance.MemoryInstance()
+        gen = report_generator.ReportGenerator(mem_inst)
+        assert gen.generate_outdated_doi_list() is None
+        mem_inst.tear_down_in_memory_db()
+
+    def test_outdated_link_listed_with_recommendation(self):
+        mem_inst = memory_instance.MemoryInstance()
+        mem_inst.get_cursor().execute(
+            'INSERT INTO outdatedDoiLinks VALUES (?, ?, ?, ?)',
+            ('refs.bib', 'doi:10.1234/x', 'https://doi.org/10.1234/x',
+             'Key: A, Field: doi'))
+        gen = report_generator.ReportGenerator(mem_inst)
+        assert gen.generate_outdated_doi_list() == [{
+            'path': 'refs.bib', 'found': 'doi:10.1234/x',
+            'recommended': 'https://doi.org/10.1234/x',
+            'description': 'Key: A, Field: doi'}]
         mem_inst.tear_down_in_memory_db()
 
 
@@ -604,8 +620,8 @@ class TestReportSanitizing:
                                 'checks_per_second': 1, 'num_fine': 0,
                                 'needed_full_request': 0,
                                 'percentage_full_request': 0,
-                                'check_dois': False, 'num_valid_dois': 0,
-                                'num_invalid_dois': 0,
+                                'num_dois': 0, 'num_malformed_dois': 0,
+                                'num_confirmed_dois': 0,
                                 'check_internal_links': True,
                                 'num_internal_checked': len(findings),
                                 'num_internal_fine': 0},
@@ -802,8 +818,8 @@ class TestTemplateSecurity:
                 statistics={'num_links': 0, 'num_checked': 0, 'timestamp': 'now',
                             'time_to_check': 0, 'checks_per_second': 0,
                             'num_fine': 0, 'needed_full_request': 0,
-                            'percentage_full_request': 0, 'check_dois': False,
-                            'num_valid_dois': 0, 'num_invalid_dois': 0,
+                            'percentage_full_request': 0, 'num_dois': 0,
+                            'num_malformed_dois': 0, 'num_confirmed_dois': 0,
                             'check_internal_links': False,
                             'num_internal_checked': 0, 'num_internal_fine': 0},
                 template={'searchpath': None, 'name': builtin},
@@ -856,9 +872,9 @@ class TestGenerateReport:
                 'num_fine': 5,
                 'needed_full_request': 0,
                 'percentage_full_request': 0,
-                'check_dois': True,
-                'num_valid_dois': 0,
-                'num_invalid_dois': 0,
+                'num_dois': 0,
+                'num_malformed_dois': 0,
+                'num_confirmed_dois': 0,
             },
             template={'name': 'default.cli.jinja'},
             write_to=str(output_file),
@@ -882,9 +898,9 @@ class TestGenerateReport:
             'time_to_check': 1, 'checks_per_second': 0.0,
             'num_fine': 0, 'needed_full_request': 0,
             'percentage_full_request': 0,
-            'check_dois': True,
-            'num_valid_dois': 0,
-            'num_invalid_dois': 0,
+            'num_dois': 0,
+            'num_malformed_dois': 0,
+            'num_confirmed_dois': 0,
         }
 
         with patch('builtins.open', mock_open()) as mocked_open:
@@ -1003,9 +1019,9 @@ class TestOsc8InGeneratedReport:
         'time_to_check': 1, 'checks_per_second': 1.0,
         'num_fine': 0, 'needed_full_request': 0,
         'percentage_full_request': 0,
-        'check_dois': True,
-        'num_valid_dois': 0,
-        'num_invalid_dois': 0,
+        'num_dois': 0,
+        'num_malformed_dois': 0,
+        'num_confirmed_dois': 0,
     }
     URL = 'https://example.com/wiki/Normalisierung_(Datenbank)'
 
@@ -1102,8 +1118,8 @@ _FULL_STATISTICS = {
     'num_links': 1, 'num_distinct': 1, 'num_cached': 0,
     'num_checked': 1, 'timestamp': 'now', 'time_to_check': 1,
     'checks_per_second': 1, 'num_fine': 0, 'needed_full_request': 0,
-    'percentage_full_request': 0, 'check_dois': False, 'num_valid_dois': 0,
-    'num_invalid_dois': 0, 'check_internal_links': False,
+    'percentage_full_request': 0, 'num_dois': 0, 'num_malformed_dois': 0,
+    'num_confirmed_dois': 0, 'check_internal_links': False,
     'num_internal_checked': 0, 'num_internal_fine': 0,
 }
 
@@ -1327,3 +1343,48 @@ class TestStatisticsSummary:
         assert 'cache' not in out
         assert 'Checked 2 targets in' in out
         assert '1 of the 2 checked targets are fine' in out
+
+
+class TestDoiSections:
+    """The DOI part of the packaged templates."""
+
+    @staticmethod
+    def _render(name: str, **stats) -> str:
+        mem_inst = memory_instance.MemoryInstance()
+        cursor = mem_inst.get_cursor()
+        cursor.execute('INSERT INTO foundDois VALUES (?, ?, ?, ?)',
+                       ('refs.bib', '11.1/bad', 'Key: b, Field: doi', 0))
+        cursor.execute('INSERT INTO outdatedDoiLinks VALUES (?, ?, ?, ?)',
+                       ('refs.bib', 'doi:10.1234/x',
+                        'https://doi.org/10.1234/x', 'Key: c, Field: doi'))
+        mem_inst.generate_db_views()
+        gen = report_generator.ReportGenerator(mem_inst)
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                gen.generate_report(
+                    statistics=dict(_FULL_STATISTICS, **stats),
+                    template={'name': name},
+                    write_to='cli',
+                    replace_path_by_url={'replace_with_url': None})
+        finally:
+            mem_inst.tear_down_in_memory_db()
+        return buf.getvalue()
+
+    @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
+    def test_doi_sections(self, name):
+        out = self._render(name, num_dois=3, num_malformed_dois=1,
+                           num_confirmed_dois=1)
+        assert 'Found 3 DOIs in BibTeX files and checked their format.' in out
+        assert '1 is confirmed as registered' in out
+        assert 'MALFORMED DOIs' in out and '11.1/bad' in out
+        assert 'OUTDATED DOI LINKS' in out
+        assert 'doi:10.1234/x -> https://doi.org/10.1234/x' in out
+        assert 'CrossRef' not in out
+
+    @pytest.mark.parametrize('name', ['default.cli.jinja', 'default.md.jinja'])
+    def test_no_confirmation_line_without_confirmed_dois(self, name):
+        out = self._render(name, num_dois=1, num_malformed_dois=1,
+                           num_confirmed_dois=0)
+        assert 'Found 1 DOI in BibTeX files and checked its format.' in out
+        assert 'confirmed' not in out
