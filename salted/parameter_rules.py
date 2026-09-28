@@ -29,7 +29,7 @@ _INT_MINIMUMS: Final[dict] = {
 }
 
 _BOOL_PARAMETERS: Final[frozenset] = frozenset(
-    {'raise_for_dead_links', 'check_internal_links'})
+    {'raise_for_dead_links', 'check_internal_links', 'quiet'})
 
 
 def validate(name: str,

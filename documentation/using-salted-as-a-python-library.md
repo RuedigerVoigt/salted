@@ -62,22 +62,21 @@ Every setting is an attribute of the `Salted` object. The config file section is
 
 The folder or file to check is the argument of `check()`. (The `searchpath` attribute and config key are only used by the command line tool.)
 
-**Use the types given above.** Values from a config file or the command line are validated and converted, but attributes are used as you set them. Some mistakes stop the run before any link is checked: an unusable `cache_file`, `template_name` or `write_to`, or `num_workers` below 1. Others are not reported. For example, `file_types = 'htlm'` checks all supported files, the string `raise_for_dead_links = 'no'` counts as true, and an `ignore_domains` entry written as a URL never matches.
+**Values are checked when `check()` starts**, with the same rules as values from a config file or the command line. An invalid value raises `InvalidSettingError` before any link is checked, naming the attribute: `file_types = 'htlm'`, `timeout = 0` or a string where a set is expected (`ignore_urls = 'https://example.com/'`). Values in config file style are converted: `'HTML'` becomes `'html'`, `'False'` or `'no'` becomes `False`, a list becomes a set, and an `ignore_domains` entry written as a URL is reduced to its host name (an entry without a valid host is dropped with a warning).
 
 ## Exceptions
 
-salted's own exceptions are defined in `salted.err`; the plain `ValueError` in the last row is Python's. Except for `DeadLinksException`, all of them are raised before any link is checked.
+All of them are defined in `salted.err`. Except for `DeadLinksException`, they are raised before any link is checked.
 
 | Exception | Raised by | When |
 |---|---|---|
 | `ConfigFileError` | `Salted()` | The config file cannot be read, is not valid INI, has an unknown section or an invalid value, or a file passed as `config_path` does not exist. |
 | `ConfigFileError` | `check()` | A config file found in the working directory points outside its own folder. |
 | `SearchpathNotFoundError` | `check()` | The file or folder to check does not exist. It is also an `InvalidSettingError` and a `FileNotFoundError`. |
-| `InvalidSettingError` | `check()` | A setting cannot work: a single file in an unsupported format, an unusable `cache_file`, a report template that is missing or not valid Jinja2, a `write_to` path in a folder that does not exist, or a custom template named like a built-in one. It is also a `ValueError`. |
+| `InvalidSettingError` | `check()` | A setting cannot work: an attribute with an invalid value (see [Settings](#settings)), a single file in an unsupported format, an unusable `cache_file`, a report template that is missing or not valid Jinja2, a `write_to` path in a folder that does not exist, or a custom template named like a built-in one. It is also a `ValueError`. |
 | `UnsafeTemplateError` | `check()` | `template_name` does not end in `.jinja`. |
 | `MissingOptionalDependencyError` | `check()` | A single `.bib` file was named, but `pybtex` is missing (`pip install "salted[bibtex]"`). A `.bib` file found in a folder is reported as unreadable instead. |
 | `DeadLinksException` | `check()` | `raise_for_dead_links` is set and the run found dead or malformed links, malformed DOIs, or unreadable files. The report and the cache are written before it is raised; the message names every reason. |
-| `ValueError` | `check()` | `num_workers` is below 1. |
 
 All salted exceptions derive from `salted.err.SaltedException`. A typical CI script:
 

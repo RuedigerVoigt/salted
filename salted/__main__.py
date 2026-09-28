@@ -16,7 +16,7 @@ import time
 from collections import Counter
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
-from typing import Any
+from typing import Any, Final
 
 import compatibility
 from userprovided import err as user_err
@@ -58,6 +58,21 @@ def _normalize_url_set(raw: set[str] | None) -> set[str]:
             # If normalization fails unexpectedly, keep original entry
             normalized.add(u)
     return normalized
+
+
+# Settings checked by the rules in parameter_rules. Values from a config file
+# or the command line are checked when they arrive; attributes set in Python
+# are checked when a check starts (Salted.check_parameters).
+_RULED_ATTRIBUTES: Final = (
+    'file_types', 'num_workers', 'timeout', 'raise_for_dead_links',
+    'domain_delay', 'check_internal_links', 'max_file_size_mb',
+    'dont_check_again_within_hours', 'quiet')
+
+# Settings that hold a collection of entries. A plain string would be taken
+# apart character by character, so it is refused.
+_SET_ATTRIBUTES: Final = ('ignore_urls', 'ignore_domains', 'exclude_paths')
+
+_ATTRIBUTE_SOURCE: Final = 'set as an attribute'
 
 
 class Salted:
@@ -403,7 +418,50 @@ class Salted:
         if parsed_exclusions is not None:
             self.exclude_paths = parsed_exclusions
 
+    def __validate_attributes(self) -> None:
+        """Apply the parameter rules to settings set as attributes.
+
+        Values from a config file or the command line already passed these
+        rules on arrival. Attributes set in Python did not, so a typo such
+        as file_types = 'htlm' checked every file type, the string 'False'
+        counted as true, and timeout = 0 switched the timeout off. Running
+        the rules again is harmless: they return valid values unchanged.
+
+        Raises:
+            err.InvalidSettingError: If a setting violates the rules.
+        """
+        for name in _RULED_ATTRIBUTES:
+            try:
+                setattr(self, name, parameter_rules.validate(
+                    name, getattr(self, name), _ATTRIBUTE_SOURCE))
+            except ValueError as exc:
+                raise err.InvalidSettingError(str(exc)) from exc
+        for name in _SET_ATTRIBUTES:
+            entries = getattr(self, name)
+            # Only exclude_paths holds paths; the others hold strings.
+            allowed: tuple = ((str, pathlib.PurePath)
+                              if name == 'exclude_paths' else (str, ))
+            if (not isinstance(entries, (set, frozenset, list, tuple))
+                    or not all(isinstance(entry, allowed)
+                               for entry in entries)):
+                raise err.InvalidSettingError(
+                    f"Invalid value {entries!r} for {name} "
+                    f"{_ATTRIBUTE_SOURCE} - must be a set of strings, "
+                    "e.g. {'first', 'second'}.")
+            setattr(self, name, set(entries))
+        # As for CLI and config values: a URL is reduced to its host name,
+        # an entry without a valid host is dropped with a warning.
+        self.ignore_domains = self._validate_domains(self.ignore_domains)
+
     def check_parameters(self) -> None:
+        """Check the settings and apply corrections before a check starts.
+
+        Raises:
+            err.InvalidSettingError: If a setting violates the rules.
+            err.ConfigFileError: If an auto-discovered config file points
+                outside its own folder.
+        """
+        self.__validate_attributes()
         # Now the params are fixed => Apply corrections and checks
         # base_url is optional. A config file or CLI may pass the literal
         # string "None" (or an empty value) for it — treat those as unset so

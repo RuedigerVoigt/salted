@@ -34,7 +34,7 @@ So a project can still ship a config that points at its own template folder, whi
 
 All versions of salted use the same parameters. Their categories are only important for config files.
 
-Values are validated at startup with the same rules regardless of whether they are set on the command line or in a config file. An invalid value in a config file raises a `ConfigFileError` naming the file; on the command line salted exits with a message naming the option.
+Values are validated with the same rules regardless of whether they are set on the command line, in a config file, or as attributes when salted is used as a Python library. An invalid value in a config file raises a `ConfigFileError` naming the file; on the command line salted exits with a message naming the option; an attribute raises `InvalidSettingError` when `check()` starts.
 
 * **Category "FILES":**
   * `searchpath`: Path to file or folder to check (default: current working directory)
