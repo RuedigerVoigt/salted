@@ -9,7 +9,7 @@
 | [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/) | Parses HTML files to extract hyperlinks from `<a href>` tags |
 | [Jinja2](https://jinja.palletsprojects.com/) | Template engine for rendering check results (CLI and Markdown output) |
 | [tqdm](https://tqdm.github.io/) | Displays progress bars during link checking |
-| [userprovided](https://github.com/RuedigerVoigt/userprovided) | URL normalization and validation to deduplicate links before checking |
+| [userprovided](https://github.com/RuedigerVoigt/userprovided) | URL normalization and validation to deduplicate links before checking; the SSRF guard that keeps salted from requesting private, loopback and link-local addresses; e-mail address and parameter validation. **Requires 3.0.1 or later:** older versions accepted hosts containing whitespace, a backslash or percent-encoding, so `http://%31%32%37.0.0.1/` passed the SSRF guard and was requested, although browsers read it as 127.0.0.1. |
 | [compatibility](https://github.com/RuedigerVoigt/compatibility) | Checks that the running Python version meets requirements at startup |
 
 SALTED uses Python's built-in `sqlite3` module for the cache — no additional database library is required.

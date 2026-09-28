@@ -588,3 +588,36 @@ def test_internal_links_not_checked_when_disabled(tmp_path):
     statistics, internal_links = runs[0]
     assert statistics['num_internal_checked'] == 0
     assert internal_links is None
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock,
+       return_value=200)
+def test_hosts_browsers_read_differently_are_never_requested(mock_head,
+                                                             tmp_path):
+    """Hosts with whitespace, percent-encoding or a backslash are malformed.
+
+    Browsers read http://%31%32%37.0.0.1/ as 127.0.0.1, and
+    https://127.0.0.1\\@example.com/ connects to 127.0.0.1 too. userprovided
+    3.0.0 let the first pass the SSRF guard and normalized the second to
+    https://example.com/; 3.0.1 (salted's minimum) rejects both.
+    """
+    d = tmp_path / "hosts"
+    d.mkdir()
+    (d / "index.html").write_text(
+        '<a href="http://%31%32%37.0.0.1/">pct</a>'
+        '<a href="https://127.0.0.1\\@example.com/">backslash</a>'
+        '<a href="http://exa mple.com/">space</a>'
+        '<a href="https://example.com/">fine</a>',
+        encoding='utf-8')
+
+    my_check = salted.Salted()
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.domain_delay = 0
+    my_check.raise_for_dead_links = True
+    with patch('salted.report_generator.ReportGenerator.generate_report'):
+        with pytest.raises(err.DeadLinksException,
+                           match=r'Found 3 malformed link\(s\)'):
+            my_check.check(searchpath=d)
+
+    requested = [call.args[0] for call in mock_head.await_args_list]
+    assert requested == ['https://example.com/']

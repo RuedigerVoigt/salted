@@ -29,7 +29,7 @@ flowchart TD
     soupsieve["soupsieve<br/>1.6.1"]
     tqdm["tqdm<br/>4.70.1"]
     typing-extensions["typing_extensions<br/>4.0.0"]
-    userprovided["userprovided<br/>3.0.0"]
+    userprovided["userprovided<br/>3.0.1"]
     yarl["yarl<br/>1.17.0"]
     aiodns -- ">=5.0.0,<6" --> pycares
     aiohttp -- ">=2.5.0" --> aiohappyeyeballs
@@ -55,7 +55,7 @@ flowchart TD
     salted -. ">=6.1.3" .-> lxml
     salted -. ">=0.26.1" .-> pybtex
     salted -- ">=4.70.1" --> tqdm
-    salted -- ">=3.0.0,<4" --> userprovided
+    salted -- ">=3.0.1,<4" --> userprovided
     tqdm -- "any" --> colorama
     yarl -- ">=2.0" --> idna
     yarl -- ">=4.0" --> multidict
