@@ -6,7 +6,7 @@ flowchart TD
     classDef optional fill:#e8e8e8,stroke:#aaaaaa,color:#777777,stroke-dasharray:4
     aiodns["aiodns<br/>4.0.4"]
     aiohappyeyeballs["aiohappyeyeballs<br/>2.5.0"]
-    aiohttp["aiohttp<br/>3.14.3"]
+    aiohttp["aiohttp<br/>3.14.5"]
     aiosignal["aiosignal<br/>1.4.0"]
     attrs["attrs<br/>17.3.0"]
     beautifulsoup4["beautifulsoup4<br/>4.15.0"]
@@ -30,15 +30,15 @@ flowchart TD
     tqdm["tqdm<br/>4.70.1"]
     typing-extensions["typing_extensions<br/>4.0.0"]
     userprovided["userprovided<br/>3.0.1"]
-    yarl["yarl<br/>1.17.0"]
+    yarl["yarl<br/>1.25.1"]
     aiodns -- ">=5.0.0,<6" --> pycares
     aiohttp -- ">=2.5.0" --> aiohappyeyeballs
     aiohttp -- ">=1.4.0" --> aiosignal
     aiohttp -- ">=17.3.0" --> attrs
     aiohttp -- ">=1.1.1" --> frozenlist
-    aiohttp -- ">=4.5,<7.0" --> multidict
+    aiohttp -- ">=4.5,<8.0" --> multidict
     aiohttp -- ">=0.2.0" --> propcache
-    aiohttp -- ">=1.17.0,<2.0" --> yarl
+    aiohttp -- ">=1.25.1,<2.0" --> yarl
     aiosignal -- ">=1.1.0" --> frozenlist
     beautifulsoup4 -- ">=1.6.1" --> soupsieve
     beautifulsoup4 -- ">=4.0.0" --> typing-extensions
@@ -48,7 +48,7 @@ flowchart TD
     pybtex -. ">=3.01" .-> pyyaml
     pycares -- ">=2.0.0b1" --> cffi
     salted -- ">=4.0.4" --> aiodns
-    salted -- ">=3.14.3" --> aiohttp
+    salted -- ">=3.14.5" --> aiohttp
     salted -- ">=4.15.0" --> beautifulsoup4
     salted -- ">=2.3.0,<3" --> compatibility
     salted -- ">=3.1.6" --> jinja2

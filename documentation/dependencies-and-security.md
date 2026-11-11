@@ -4,7 +4,7 @@
 
 | Package | Purpose |
 |---|---|
-| [aiohttp](https://docs.aiohttp.org/) | Async HTTP client used to send HEAD/GET requests when checking links |
+| [aiohttp](https://docs.aiohttp.org/) | Async HTTP client used to send HEAD/GET requests when checking links. **Requires 3.14.5 or later:** salted keeps aiohttp's default cookie jar for the whole run, and only 3.14.4 added limits to the cookies a response can set and to the `Cookie` headers sent back, so a checked server could otherwise make salted store and send unbounded cookie data. |
 | [aiodns](https://github.com/saghul/aiodns) | Async DNS resolver, required by aiohttp for non-blocking hostname lookups |
 | [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/) | Parses HTML files to extract hyperlinks from `<a href>` tags |
 | [Jinja2](https://jinja.palletsprojects.com/) | Template engine for rendering check results (CLI and Markdown output) |
