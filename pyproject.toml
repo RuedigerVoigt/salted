@@ -58,7 +58,7 @@ include = ["salted/py.typed", "salted/templates/*.jinja"]
 
 [tool.poetry.group.test.dependencies]
 pytest = ">=9.2.0"
-pytest-asyncio = ">=1.4.1"
+pytest-asyncio = ">=1.4.1.post1"
 pytest-mock = ">=3.17.0"
 pyfakefs = ">=6.3.2"
 pytest-cov = "*"
@@ -67,7 +67,7 @@ pybtex = ">=0.26.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=9.2.0"
-pytest-asyncio = ">=1.4.1"
+pytest-asyncio = ">=1.4.1.post1"
 pytest-mock = ">=3.17.0"
 pyfakefs = ">=6.3.2"
 pytest-cov = "*"
