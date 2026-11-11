@@ -51,34 +51,34 @@ class CacheReader:
 
         self.cache_file_path = pathlib.Path(cache_file).resolve()
         logger.debug('Absolute path to cache file: %s', self.cache_file_path)
-        self.__check_cache_file_path()
+        self.__check_cache_file_path(self.cache_file_path)
 
-    def __check_cache_file_path(self) -> None:
+    @staticmethod
+    def __check_cache_file_path(cache_file_path: pathlib.Path) -> None:
         """Validate the cache file path before linkcheck runs.
 
         Checks if the given path is valid to fail early if it is not.
 
+        Args:
+            cache_file_path: Absolute path to the cache file.
+
         Raises:
             err.InvalidSettingError: If the path is a directory or if parent
                 folders do not exist.
-            RuntimeError: If called without a path set.
         """
 
-        if not self.cache_file_path:
-            raise RuntimeError('check_cache_file path called without path set')
-
-        if self.cache_file_path.exists() and self.cache_file_path.is_file():
+        if cache_file_path.exists() and cache_file_path.is_file():
             return
 
         # Established that the file does not exist, but check if it can
         # exist before returning False.
-        if not self.cache_file_path.parent.is_dir():
+        if not cache_file_path.parent.is_dir():
             raise err.InvalidSettingError(
-                f'Incorrect path to cache_file ({self.cache_file_path}): '
+                f'Incorrect path to cache_file ({cache_file_path}): '
                 'the folder it is in does not exist.')
-        if self.cache_file_path.is_dir():
+        if cache_file_path.is_dir():
             raise err.InvalidSettingError(
-                f'Parameter cache_file ({self.cache_file_path}) is a '
+                f'Parameter cache_file ({cache_file_path}) is a '
                 'directory, but must include a file name.')
 
     def load_disk_cache(self) -> None:

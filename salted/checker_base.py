@@ -18,8 +18,7 @@ class AsyncCheckerBase:
     """Common queue/worker/session machinery for network checkers.
 
     Subclasses implement `_process_item` to check a single queue item and
-    may override `_fill_queue` to filter or transform items before they
-    are enqueued.
+    `_fill_queue` to decide which items are enqueued, and in what form.
     """
 
     def __init__(self, quiet: bool = False) -> None:
@@ -58,8 +57,7 @@ class AsyncCheckerBase:
             items: List of items to check.
             queue: Async queue the workers consume from.
         """
-        for entry in items:
-            queue.put_nowait(entry)
+        raise NotImplementedError
 
     async def _worker(self,
                       name: str,

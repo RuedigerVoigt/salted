@@ -188,13 +188,9 @@ class InputHandler:
             self.db.log_malformed_url(url)
             self.cnt['malformed_urls'] += 1
 
-        try:
-            hostname = parsed_url.hostname
-        except ValueError:
-            # Malformed authority, e.g. an out-of-range port.
-            hostname = None
-
-        return [str(file_path), hostname, url, normalized_url, linktext]
+        # .hostname never raises: only .port validates the authority.
+        return [str(file_path), parsed_url.hostname, url, normalized_url,
+                linktext]
 
     def handle_found_urls(self,
                           file_path: pathlib.Path,

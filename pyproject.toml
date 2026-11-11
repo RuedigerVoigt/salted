@@ -93,6 +93,14 @@ source = ["salted"]
 [tool.coverage.html]
 title = "Coverage Report for the salted Python Package"
 
+[tool.coverage.report]
+# Lines a test could only reach to prove nothing: methods subclasses must
+# implement, and the block that runs only when a file is started as a script.
+exclude_also = [
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
 

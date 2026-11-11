@@ -44,9 +44,8 @@ class MemoryInstance:
 
         All data not stored elsewhere will be lost.
         """
-        if self.conn:
-            logger.debug("tear down in memory instance")
-            self.conn.close()
+        logger.debug("tear down in memory instance")
+        self.conn.close()
 
     def create_schema(self) -> None:
         """Create the SQLite database schema."""

@@ -132,10 +132,9 @@ class Parser:
         matches = []
         soup = BeautifulSoup(file_content, _BS_PARSER)
         for link in soup.find_all('a'):
-            if hasattr(link, 'get'):
-                href = link.get('href')
-                if href:
-                    matches.append([href, link.text])
+            href = link.get('href')
+            if href:
+                matches.append([href, link.text])
         return matches
 
     def extract_links_from_markdown(self,
