@@ -7,6 +7,8 @@ Uses a real temporary directory (tmp_path) because the checker's security
 containment is about actual filesystem path resolution.
 """
 
+import pathlib
+
 import pytest
 
 import salted
@@ -239,6 +241,47 @@ class TestFragments:
         checker.check_link(site / 'index.html', '#intro')
         checker.check_link(site / 'index.html', '#legacy')
         assert len(checker._anchor_cache) == 1
+
+
+class TestFilesystemErrors:
+    """Errors from the filesystem become findings; none of them raise.
+
+    Simulated, because the conditions behind them (a path the OS cannot
+    resolve, a target denied to the user) depend on the platform and on
+    permissions a test cannot set portably.
+    """
+
+    def test_path_that_cannot_be_resolved_is_broken(self, site, checker,
+                                                    monkeypatch):
+        monkeypatch.setattr(pathlib.Path, 'resolve',
+                            _raise(OSError('simulated')))
+        assert checker.check_link(site / 'index.html', 'page.html') == (
+            'invalid link: path cannot be resolved', 1)
+
+    def test_target_that_cannot_be_inspected_is_broken(self, site, checker,
+                                                       monkeypatch):
+        # Python 3.11 still passes a PermissionError on from is_file().
+        monkeypatch.setattr(pathlib.Path, 'is_file',
+                            _raise(PermissionError('simulated')))
+        assert checker.check_link(site / 'index.html', 'missing.html') == (
+            'invalid link: target path not accessible', 1)
+
+    def test_unreadable_fragment_target_is_unverifiable(self, site, checker,
+                                                        monkeypatch, caplog):
+        monkeypatch.setattr(pathlib.Path, 'read_text',
+                            _raise(PermissionError('simulated')))
+        finding = checker.check_link(site / 'index.html',
+                                     'blog/post.html#section-1')
+        assert finding == ("fragment '#section-1' not verifiable "
+                           '(target could not be parsed)', 0)
+        assert 'Cannot read' in caplog.text
+
+
+def _raise(exc):
+    """A stand-in method that raises exc, whatever it is called with."""
+    def method(*_args, **_kwargs):
+        raise exc
+    return method
 
 
 class TestInputHandlerIntegration:

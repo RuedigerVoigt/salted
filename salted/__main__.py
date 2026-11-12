@@ -14,8 +14,6 @@ import logging
 import pathlib
 import time
 from collections import Counter
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as pkg_version
 from typing import Any, Final
 
 import compatibility
@@ -24,6 +22,7 @@ from userprovided import url as user_url
 from userprovided.parameters import separated_string_to_set
 
 from salted import (
+    __version__,
     cache_reader,
     database_io,
     err,
@@ -85,10 +84,9 @@ class Salted:
     # pylint: disable=too-many-arguments
     # pylint: disable=too-many-instance-attributes
 
-    try:
-        VERSION = pkg_version("salted")
-    except PackageNotFoundError:
-        VERSION = "unknown"
+    # The same value --version prints, including the pyproject.toml
+    # fallback for a source checkout that is not installed.
+    VERSION = __version__
     CONFIG_NAME = 'salted-linkcheck.ini'
     # Release date kept for compatibility dependency, not exposed
     RELEASE_DATE = datetime.date(2026, 4, 7)

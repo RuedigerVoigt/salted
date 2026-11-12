@@ -124,7 +124,9 @@ class CacheReader:
             if disk_cache is not None:
                 try:
                     disk_cache.close()
-                except Exception:
+                # Not covered: only a mock can make close() fail, and the
+                # handler does nothing a test could observe beyond that.
+                except Exception:  # pragma: no cover
                     logger.debug('Failed closing disk cache connection.', exc_info=True)
 
         if valid_urls:

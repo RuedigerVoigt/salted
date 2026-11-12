@@ -1256,6 +1256,15 @@ class TestCustomTemplateNamedLikeBuiltin:
         report_generator.ReportGenerator.check_report_settings(
             {'searchpath': str(tmp_path), 'name': 'my.cli.jinja'}, 'cli')
 
+    def test_folder_that_cannot_be_inspected_counts_as_no_clash(
+            self, tmp_path, monkeypatch):
+        """An OSError while looking for a clash falls back to the built-in."""
+        def is_file(_path):
+            raise PermissionError('simulated')  # Python 3.11 passes it on
+        monkeypatch.setattr(pathlib.Path, 'is_file', is_file)
+        assert report_generator.ReportGenerator._use_builtin_template(
+            {'searchpath': str(tmp_path), 'name': 'default.cli.jinja'}) is True
+
     def test_builtin_still_used_when_the_folder_lacks_that_name(self,
                                                                 tmp_path):
         """Setting a searchpath alone must not break the default report."""

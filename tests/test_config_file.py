@@ -162,6 +162,25 @@ class TestAutodiscoveredConfigPathJail:
         with pytest.raises(ConfigFileError, match='points outside'):
             checker.check_parameters()
 
+    def test_path_that_cannot_be_resolved_is_refused(self, tmp_path,
+                                                     monkeypatch):
+        """A path the jail cannot resolve is refused, not let through."""
+        self._write_config(tmp_path, "[CACHE]\ncache_file = unresolvable\n")
+        monkeypatch.chdir(tmp_path)
+        checker = Salted()
+        real_resolve = pathlib.Path.resolve
+
+        def resolve(path, *args, **kwargs):
+            # Which values make resolve() raise depends on the platform (a
+            # NUL byte does on POSIX, not on Windows), so it is simulated.
+            if path.name == 'unresolvable':
+                raise OSError('simulated')
+            return real_resolve(path, *args, **kwargs)
+
+        monkeypatch.setattr(pathlib.Path, 'resolve', resolve)
+        with pytest.raises(ConfigFileError, match="Cannot resolve 'cache_file'"):
+            checker.check_parameters()
+
     @pytest.mark.parametrize('key, section', [
         ('template_searchpath', 'TEMPLATE'),
         ('write_to', 'TEMPLATE'),

@@ -488,3 +488,25 @@ class TestCachingDisabled:
         reader.overwrite_cache_file()
         assert list(tmp_path.iterdir()) == []
         mem_inst.tear_down_in_memory_db()
+
+
+class TestUnopenableCacheFile:
+    """A cache file that cannot be opened is skipped, not fatal."""
+
+    def test_cache_path_replaced_by_a_folder(self, tmp_path, caplog):
+        # Valid when checked at startup, then a folder takes its place:
+        # sqlite3.connect fails, so there is no connection to close.
+        cache_file = tmp_path / 'cache.sqlite3'
+        mem_inst = memory_instance.MemoryInstance()
+        reader = cache_reader.CacheReader(
+            mem_instance=mem_inst,
+            dont_check_again_within_hours=24,
+            cache_file=cache_file)
+        cache_file.mkdir()
+        with caplog.at_level('DEBUG', logger='salted.cache_reader'):
+            reader.load_disk_cache()
+        assert 'could not read it' in caplog.text
+        assert 'Failed closing' not in caplog.text
+        mem_inst.get_cursor().execute('SELECT COUNT(*) FROM validUrls')
+        assert mem_inst.get_cursor().fetchone() == (0,)
+        mem_inst.tear_down_in_memory_db()
