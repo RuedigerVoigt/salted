@@ -72,6 +72,10 @@ class TestClassification:
     def test_external_or_invalid_forms(self, url):
         assert InternalLinkCheck.is_internal_link(url) is False
 
+    def test_unparseable_link_is_not_internal(self):
+        # urlparse raises ValueError on an unclosed IPv6 bracket.
+        assert InternalLinkCheck.is_internal_link('http://[bad') is False
+
 
 class TestResolution:
     """Existing targets pass; missing targets are broken."""
@@ -156,6 +160,12 @@ class TestSecurityContainment:
     def test_unc_style_link_is_not_internal(self):
         # urlparse puts the host of '//host/share' into netloc.
         assert InternalLinkCheck.is_internal_link('//host/share/file') is False
+
+    def test_unparseable_link_is_broken(self, site, checker):
+        # check_link is public: a link urlparse cannot read is reported,
+        # not raised, and never reaches the filesystem.
+        assert checker.check_link(site / 'index.html', '//[bad') == (
+            'invalid link: cannot be parsed', 1)
 
     def test_control_characters_rejected(self, site, checker):
         _reason, is_error = checker.check_link(

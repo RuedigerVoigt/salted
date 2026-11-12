@@ -241,6 +241,21 @@ class TestEdgeCases:
         assert len(limiter.last_request_time) == 0
 
     @pytest.mark.asyncio
+    async def test_host_of_dots_only_is_not_rate_limited(self):
+        """A host without a registrable domain is skipped, not keyed on ''"""
+        # 'http://.../' survives normalize_url and the SSRF guard, but
+        # extract_domain(drop_subdomain=True) returns '' for it. Keying on
+        # '' would make every such link share one bucket. If the first assert
+        # starts failing, userprovided rejects such hosts and the guard in
+        # wait_if_needed is dead code.
+        limiter = DomainRateLimiter()
+        assert limiter._get_domain_key('http://.../') == ''
+
+        await limiter.wait_if_needed('http://.../')
+
+        assert len(limiter.last_request_time) == 0
+
+    @pytest.mark.asyncio
     async def test_negative_delay_treated_as_disabled(self):
         """Test negative delay is treated as disabled"""
         limiter = DomainRateLimiter(delay_seconds=-1.0)
