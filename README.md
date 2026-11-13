@@ -4,7 +4,7 @@
 ![Last commit](https://img.shields.io/github/last-commit/RuedigerVoigt/salted)
 ![pypi version](https://img.shields.io/pypi/v/salted)
 [![Downloads](https://pepy.tech/badge/salted)](https://pepy.tech/project/salted)
-[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](https://www.ruediger-voigt.eu/coverage/salted/index.html)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://www.ruediger-voigt.eu/coverage/salted/index.html)
 
 <p align="center">
   <img src="documentation/salted-v2-logo.png" alt="Salted v2 logo" width="380">

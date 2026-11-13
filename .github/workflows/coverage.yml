@@ -29,5 +29,6 @@ jobs:
     - name: Install dependencies
       run: poetry install --with test
 
-    - name: Run tests with coverage check (minimum 95%)
-      run: poetry run pytest --cov=salted --cov-fail-under=95 tests/
+    # The threshold is fail_under in pyproject.toml (100%), not a flag here.
+    - name: Run tests with coverage check
+      run: poetry run pytest --cov=salted tests/
