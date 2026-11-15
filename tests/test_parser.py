@@ -207,6 +207,32 @@ class TestMarkdownParsing:
         assert links == [[url, 'Py']]
 
 
+class TestMarkdownAutolinks:
+    """<...> is a link only in the CommonMark autolink forms."""
+
+    @pytest.mark.parametrize('markdown, expected', [
+        ('<https://auto.example/a?b=1>', ['https://auto.example/a?b=1',
+                                          'https://auto.example/a?b=1']),
+        ('<HTTP://AUTO.EXAMPLE/>', ['HTTP://AUTO.EXAMPLE/',
+                                    'HTTP://AUTO.EXAMPLE/']),
+        ('<ftp://files.example/x>', ['ftp://files.example/x',
+                                     'ftp://files.example/x']),
+        ('<user@mail.example>', ['mailto:user@mail.example',
+                                 'user@mail.example']),
+    ])
+    def test_autolink(self, markdown, expected):
+        assert Parser().extract_links_from_markdown(markdown) == [expected]
+
+    @pytest.mark.parametrize('markdown', [
+        '<br/>', '<a name="intro">', '</div>', '<path>', '<path to folder>',
+        '<https://with space.example/>', '<C:\\files\\x>',
+        '<span>\nhttps-ish: across\nlines</span>',
+        '<x:>',                          # scheme of one character
+    ])
+    def test_not_an_autolink(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
+
 class TestMarkdownReferenceLinks:
     """Reference links take their URL from a '[label]: url' definition."""
 

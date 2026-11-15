@@ -208,9 +208,16 @@ class Parser:
         self.pattern_md_link = re.compile(
             r"\[(?P<linktext>[^\[]*)\]\((?P<url>(?:[^\s()]|\([^\s()]*\))*)[\s\)]+",
             flags=re.MULTILINE | re.IGNORECASE)
+        # Autolinks as CommonMark defines them: <scheme:...> with a scheme of
+        # 2-32 characters and no space, control character or angle bracket,
+        # or <user@example.com>, which renders as a mailto: link. Anything
+        # else in angle brackets is HTML (<br/>, <a name="x">) or a
+        # placeholder (<path>), and is not a link.
         self.pattern_md_link_pointy = re.compile(
-            r"<(?P<url>[^>]*?)>",
-            flags=re.MULTILINE | re.IGNORECASE)
+            r"<(?:(?P<url>[A-Za-z][A-Za-z0-9+.\-]{1,31}:[^\x00-\x20<>]*)"
+            r"|(?P<email>[A-Za-z0-9.!#$%&'*+/=?^_`{|}~\-]+@[A-Za-z0-9]"
+            r"(?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
+            r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*))>")
         # Reference links ([text][label], [label][], [label]) take their URL
         # from a definition line '[label]: url "title"', so extracting the
         # definitions finds every reference link, however it is used.
@@ -300,7 +307,8 @@ class Parser:
                     lambda m: [m['url'] if m['url'] is not None
                                else m['pointy'], m['label']])
         take(self.pattern_md_link_pointy, text,
-             lambda m: [m['url'], m['url']])
+             lambda m: [m['url'], m['url']] if m['url'] is not None
+             else [f"mailto:{m['email']}", m['email']])
         return matches
 
     def extract_links_from_tex(self,

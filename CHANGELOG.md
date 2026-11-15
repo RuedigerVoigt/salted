@@ -21,6 +21,7 @@
   * Markdown:
     * Reference links (`[text][label]`, `[label][]`, `[label]`) are now checked: their URL is taken from the definition line `[label]: url`. Previously they were missed entirely. Footnote definitions (`[^1]: ...`) are not links and are left alone.
     * Links inside fenced code blocks (```` ``` ```` or `~~~`) and inline code spans are no longer checked, as they are examples, not links: an example URL such as `https://example.com/api/...` in a tutorial could fail a run. Indented code blocks are not recognized yet.
+    * Text in angle brackets counts as a link only in the CommonMark autolink forms: `<https://...>` (any scheme) and `<user@example.com>`, which is now listed with the mailto links. HTML tags (`<br/>`, `<a name="x">`) and placeholders (`<path>`) were picked up as links before, even across lines.
   * DOIs:
     * Links to doi.org and other registrars in documents are checked as regular links. A DOI confirmed that way is cached permanently, and the same DOI in a `.bib` field counts as confirmed in the report.
     * DOIs in BibTeX files are checked for their form, without any network request and listed under "MALFORMED DOIs" if that test fails. A better check whether a DOI is registered is planned for a later version.
