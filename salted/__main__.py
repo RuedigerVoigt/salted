@@ -296,7 +296,9 @@ class Salted:
                 file (none provided, none in the working directory) is not an
                 error — defaults are used.
         """
-        cfg = configparser.ConfigParser()
+        # No interpolation: values are URLs and paths, in which '%' is a
+        # plain character (https://example.com/a%20b), not a reference.
+        cfg = configparser.ConfigParser(interpolation=None)
 
         if config_path is not None:
             # The user explicitly asked for this file. Any problem using it

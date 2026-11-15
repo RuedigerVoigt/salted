@@ -82,6 +82,29 @@ class TestByteOrderMark:
             Salted()
 
 
+class TestPercentSignsInValues:
+    """A '%' in a value is a plain character: there is no interpolation."""
+
+    def test_percent_encoded_url_is_read_as_written(self, tmp_path,
+                                                    monkeypatch):
+        # With interpolation this raised InterpolationSyntaxError.
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            "[BEHAVIOR]\nignore_urls = https://example.com/a%20b\n",
+            encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().ignore_urls == {'https://example.com/a%20b'}
+
+    @pytest.mark.parametrize('value', ['docs/100%%', 'docs/%(name)s'])
+    def test_interpolation_syntax_stays_literal(self, tmp_path, monkeypatch,
+                                                value):
+        (tmp_path / "salted-linkcheck.ini").write_text(
+            f"[FILES]\nexclude_paths = {value}\n", encoding='utf-8')
+        monkeypatch.chdir(tmp_path)
+
+        assert Salted().exclude_paths == {value}
+
+
 class TestExcludePathsFromConfig:
     """[FILES] exclude_paths accepts a comma-separated list of paths."""
 
