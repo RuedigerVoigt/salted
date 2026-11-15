@@ -161,7 +161,11 @@ class FileFinder:
         path_to_check = pathlib.Path(path_to_base_folder)
         all_files = path_to_check.glob('**/*')
         for candidate in all_files:
-            if candidate.suffix.lower() in wanted:
+            # A folder may carry a supported suffix (archive.html/). It is
+            # not a document - and glob already walks into it. Only folders
+            # are skipped: a broken symlink named x.html stays in, so it is
+            # reported as a file that could not be read.
+            if candidate.suffix.lower() in wanted and not candidate.is_dir():
                 resolved = candidate.resolve()
                 if self.is_excluded(resolved, exclude):
                     num_excluded += 1

@@ -10,6 +10,8 @@ Source: https://github.com/RuedigerVoigt/salted
 
 import pathlib
 
+import pytest
+
 from salted.file_finder import FileFinder, separated_paths_to_set
 
 
@@ -207,6 +209,31 @@ class TestFindFilesWithExclusions:
             tmp_path, exclude={(tmp_path.parent / 'elsewhere').resolve()})
 
         assert len(found) == 5
+
+    def test_folder_with_a_supported_suffix_is_not_a_file(self, tmp_path):
+        # It used to be read as a file and failed as a 'permission error'.
+        build_tree(tmp_path)
+        (tmp_path / 'archive.html').mkdir()
+        (tmp_path / 'archive.html' / 'old.html').write_text(
+            'x', encoding='utf-8')
+
+        found = FileFinder().find_files_by_extensions(tmp_path)
+
+        assert len(found) == 6
+        assert all(p.is_file() for p in found)
+        assert (tmp_path / 'archive.html' / 'old.html').resolve() in found
+
+    def test_broken_symlink_is_still_found(self, tmp_path):
+        """It is reported as unreadable later, not silently skipped."""
+        link = tmp_path / 'gone.html'
+        try:
+            link.symlink_to(tmp_path / 'missing.html')
+        except OSError:
+            pytest.skip('symlinks cannot be created here')
+
+        found = FileFinder().find_files_by_extensions(tmp_path)
+
+        assert [p.name for p in found] == ['missing.html']
 
     def test_excluding_the_searchpath_itself_leaves_nothing(self, tmp_path):
         build_tree(tmp_path)
