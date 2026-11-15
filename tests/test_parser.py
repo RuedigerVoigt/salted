@@ -233,6 +233,48 @@ class TestMarkdownAutolinks:
         assert Parser().extract_links_from_markdown(markdown) == []
 
 
+class TestMarkdownRawHtml:
+    """HTML anchors written into Markdown are links too."""
+
+    def test_anchor_is_extracted(self):
+        markdown = ('# Title\n\n<a href="https://html.example/">'
+                    '<img src="logo.png"> Logo</a> and [md](https://md.example/)')
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://md.example/', 'md'],
+            ['https://html.example/', ' Logo']]
+
+    def test_uppercase_anchor_across_lines(self):
+        markdown = '<A\n  HREF="https://html.example/">x</A>'
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://html.example/', 'x']]
+
+    @pytest.mark.parametrize('markdown', [
+        '<a name="intro"></a>',               # an anchor without href
+        '<abbr title="x">X</abbr>',
+        '`<a href="https://code.example/">x</a>`',
+        '```html\n<a href="https://code.example/">x</a>\n```',
+    ])
+    def test_no_link(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
+    def test_unclosed_anchors_are_not_quadratic(self):
+        parser = Parser()
+
+        def measure(count: int) -> float:
+            payload = '<a ' * count
+            start = time.perf_counter()
+            parser.extract_links_from_markdown(payload)
+            return time.perf_counter() - start
+
+        measure(1000)
+        small = measure(50000)
+        large = measure(100000)
+
+        assert large < 2, f"parsing took {large:.1f}s"
+        assert large < small * 3 + 0.05, (
+            f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
+
+
 class TestMarkdownReferenceLinks:
     """Reference links take their URL from a '[label]: url' definition."""
 

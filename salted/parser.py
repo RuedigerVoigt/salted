@@ -218,6 +218,10 @@ class Parser:
             r"|(?P<email>[A-Za-z0-9.!#$%&'*+/=?^_`{|}~\-]+@[A-Za-z0-9]"
             r"(?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?"
             r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*))>")
+        # Opening tag of an HTML anchor written in Markdown. Bounded, so an
+        # unclosed '<a ' cannot make the scan rescan the rest of the file.
+        self.pattern_html_anchor = re.compile(r"<a\s[^<>]{0,4096}>",
+                                              flags=re.IGNORECASE)
         # Reference links ([text][label], [label][], [label]) take their URL
         # from a definition line '[label]: url "title"', so extracting the
         # definitions finds every reference link, however it is used.
@@ -306,9 +310,13 @@ class Parser:
         text = take(self.pattern_md_reference, text,
                     lambda m: [m['url'] if m['url'] is not None
                                else m['pointy'], m['label']])
-        take(self.pattern_md_link_pointy, text,
-             lambda m: [m['url'], m['url']] if m['url'] is not None
-             else [f"mailto:{m['email']}", m['email']])
+        text = take(self.pattern_md_link_pointy, text,
+                    lambda m: [m['url'], m['url']] if m['url'] is not None
+                    else [f"mailto:{m['email']}", m['email']])
+        # Markdown allows raw HTML, and READMEs use it for links (often
+        # around an image). Parsed only if the text has an <a at all.
+        if self.pattern_html_anchor.search(text):
+            matches.extend(self.extract_links_from_html(text))
         return matches
 
     def extract_links_from_tex(self,
