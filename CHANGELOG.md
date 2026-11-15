@@ -18,6 +18,9 @@
   * **URLs in the terminal report are now clickable** (OSC 8 hyperlinks). This fixes URLs containing characters terminals treat as delimiters, such as `https://de.wikipedia.org/wiki/Normalisierung_(Datenbank)`, which was previously cut short at the parenthesis. Only written when the report goes to an interactive terminal: file output and pipes stay plain text, and `NO_COLOR` / `TERM=dumb` are honoured.
   * Add `--ignore_domains` CLI argument and `ignore_domains` config key (under `[BEHAVIOR]`): comma-separated list of hostnames whose URLs are skipped without checking. Invalid entries are logged as warnings and dropped. Matching is exact (e.g. `example.com` does not match `sub.example.com`).
   * `lxml` is now an optional dependency (`pip install "salted[lxml]"`). If installed, it is used as the BeautifulSoup HTML parser backend (faster, more lenient with malformed HTML). Falls back to Python's built-in `html.parser` if not available. salted logs which parser is active at startup.
+  * Markdown:
+    * Reference links (`[text][label]`, `[label][]`, `[label]`) are now checked: their URL is taken from the definition line `[label]: url`. Previously they were missed entirely. Footnote definitions (`[^1]: ...`) are not links and are left alone.
+    * Links inside fenced code blocks (```` ``` ```` or `~~~`) and inline code spans are no longer checked, as they are examples, not links: an example URL such as `https://example.com/api/...` in a tutorial could fail a run. Indented code blocks are not recognized yet.
   * DOIs:
     * Links to doi.org and other registrars in documents are checked as regular links. A DOI confirmed that way is cached permanently, and the same DOI in a `.bib` field counts as confirmed in the report.
     * DOIs in BibTeX files are checked for their form, without any network request and listed under "MALFORMED DOIs" if that test fails. A better check whether a DOI is registered is planned for a later version.

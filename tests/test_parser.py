@@ -207,6 +207,86 @@ class TestMarkdownParsing:
         assert links == [[url, 'Py']]
 
 
+class TestMarkdownReferenceLinks:
+    """Reference links take their URL from a '[label]: url' definition."""
+
+    @pytest.mark.parametrize('markdown', [
+        '[text][r]\n\n[r]: https://ref.example/',
+        '[r][]\n\n[r]: https://ref.example/ "Title"',
+        '[r]\n\n  [r]: <https://ref.example/>',
+        'Used nowhere\n\n[r]:https://ref.example/',
+    ])
+    def test_definition_is_extracted_once(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://ref.example/', 'r']]
+
+    @pytest.mark.parametrize('markdown', [
+        '[^1]: A footnote, https://not-a-link.example/',   # footnote
+        '    [r]: https://ref.example/',     # 4 spaces: indented code
+        'Text [r]: https://ref.example/',    # not at the start of a line
+        '[r]: <>',                           # empty destination
+    ])
+    def test_not_a_definition(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
+
+class TestMarkdownCode:
+    """Links written inside code are examples, not links."""
+
+    @pytest.mark.parametrize('markdown', [
+        'Use `[x](https://code.example/)` literally.',
+        'Use ``a ` [x](https://code.example/) b`` here.',
+        '```\n[x](https://code.example/)\n```',
+        '```python\n<https://code.example/>\n```\n',
+        '~~~\n[r]: https://code.example/\n~~~',
+        # A longer closing fence closes; a shorter one does not.
+        '````\n```\n[x](https://code.example/)\n```````\n',
+        # An unclosed fence runs to the end of the document.
+        'Text\n```\n[x](https://code.example/)\n',
+    ])
+    def test_code_is_skipped(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
+    @pytest.mark.parametrize('markdown', [
+        # A stray backtick is literal text, and cannot open a span that
+        # swallows the next paragraph.
+        'A ` stray backtick.\n\n[x](https://after.example/)',
+        'Mismatched `` run` then [x](https://after.example/)',
+        '```\ncode\n```\n[x](https://after.example/)',
+        '~~~\ncode\n```\n~~~\n[x](https://after.example/)',
+        '`a` [x](https://after.example/) `b`',
+        '\r\n```\r\ncode\r\n```\r\n[x](https://after.example/)',
+    ])
+    def test_link_outside_code_is_kept(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://after.example/', 'x']]
+
+    @pytest.mark.parametrize('payload', [
+        # Runs of growing length never find a partner: a lazy regex
+        # rescans the paragraph for each of them.
+        lambda n: ' '.join('`' * k for k in range(1, n)),
+        lambda n: '` ' * (n * n // 4),
+        lambda n: '```\n' * (n * n // 8),
+    ])
+    def test_crafted_input_is_not_quadratic(self, payload):
+        parser = Parser()
+
+        def measure(n: int) -> float:
+            text = payload(n)
+            start = time.perf_counter()
+            parser.extract_links_from_markdown(text)
+            return time.perf_counter() - start
+
+        measure(100)
+        small = measure(400)
+        large = measure(800)   # about 4x the input of small
+
+        assert large < 2, f"parsing took {large:.1f}s"
+        # Linear would be ~4x, quadratic ~16x.
+        assert large < small * 8 + 0.05, (
+            f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
+
+
 class TestTexParsing:
     """Test TeX link extraction edge cases"""
 

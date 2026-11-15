@@ -67,6 +67,99 @@ MISSING_PYBTEX_MSG: Final[str] = (
 # a future version of pybtex might get type hints, see:
 # https://bitbucket.org/pybtex-devs/pybtex/issues/141/type-annotations
 
+# Markdown code: a link written inside code is an example, not a link, and
+# is not rendered as one. Fences follow CommonMark: up to three spaces of
+# indentation, at least three backticks or tildes; a backtick fence's info
+# string cannot contain a backtick. The closing fence uses the same
+# character and is at least as long.
+_MD_FENCE_OPEN: Final = re.compile(r' {0,3}(?P<fence>`{3,}(?=[^`]*$)|~{3,})')
+_MD_FENCE_CLOSE: Final = re.compile(r' {0,3}(?P<fence>`{3,}|~{3,})[ \t]*$')
+_MD_BLANK_LINE: Final = re.compile(r'(\n[ \t]*\n)')
+_MD_BACKTICKS: Final = re.compile(r'`+')
+
+
+def _strip_fenced_code(text: str) -> str:
+    """Blank out fenced code blocks, keeping the line structure.
+
+    A line-by-line scan rather than one regex: it is linear for every input,
+    including an unclosed fence (which runs to the end of the document).
+    """
+    out = []
+    fence = ''
+    for line in text.splitlines(keepends=True):
+        bare = line.rstrip('\r\n')
+        if not fence:
+            opening = _MD_FENCE_OPEN.match(bare)
+            if opening is None:
+                out.append(line)
+                continue
+            fence = opening['fence']
+        else:
+            closing = _MD_FENCE_CLOSE.match(bare)
+            if (closing is not None and closing['fence'][0] == fence[0]
+                    and len(closing['fence']) >= len(fence)):
+                fence = ''
+        out.append('\n')
+    return ''.join(out)
+
+
+def _strip_code_spans(paragraph: str) -> str:
+    """Blank out `code spans` within one paragraph.
+
+    A span opens with a run of backticks and closes with the next run of the
+    same length; a run without a partner is literal text. Pairing the runs
+    by length keeps this linear - a lazy regex would rescan the paragraph
+    for every unmatched run, quadratic on a crafted file.
+    """
+    runs = [(m.start(), m.end()) for m in _MD_BACKTICKS.finditer(paragraph)]
+    # Per run length, a stack of run indices with the smallest on top.
+    later: dict[int, list[int]] = {}
+    for index in range(len(runs) - 1, -1, -1):
+        later.setdefault(runs[index][1] - runs[index][0], []).append(index)
+    spans = []
+    covered = 0
+    for index, (start, end) in enumerate(runs):
+        candidates = later[end - start]
+        # Drop this run and any earlier one: each index is popped once.
+        while candidates and candidates[-1] <= index:
+            candidates.pop()
+        if start < covered:
+            continue                  # inside a span that is already closed
+        if candidates:
+            partner = runs[candidates.pop()]
+            spans.append((start, partner[1]))
+            covered = partner[1]
+    if not spans:
+        return paragraph
+    pieces = []
+    position = 0
+    for start, end in spans:
+        pieces.append(paragraph[position:start])
+        pieces.append(' ')
+        position = end
+    pieces.append(paragraph[position:])
+    return ''.join(pieces)
+
+
+def strip_markdown_code(text: str) -> str:
+    """Remove fenced code blocks and inline code spans from Markdown.
+
+    Indented code blocks are left alone: telling them from an indented
+    list continuation needs a full Markdown parser.
+
+    Args:
+        text: Markdown file content.
+
+    Returns:
+        The text with code replaced by blanks.
+    """
+    text = _strip_fenced_code(text)
+    # A code span cannot cross a paragraph, so a stray backtick cannot eat
+    # the links of the following paragraphs.
+    parts = _MD_BLANK_LINE.split(text)
+    return ''.join(part if index % 2 else _strip_code_spans(part)
+                   for index, part in enumerate(parts))
+
 
 class Parser:
     """Methods to extract hyperlinks and mail addresses from different formats."""
@@ -118,6 +211,16 @@ class Parser:
         self.pattern_md_link_pointy = re.compile(
             r"<(?P<url>[^>]*?)>",
             flags=re.MULTILINE | re.IGNORECASE)
+        # Reference links ([text][label], [label][], [label]) take their URL
+        # from a definition line '[label]: url "title"', so extracting the
+        # definitions finds every reference link, however it is used.
+        # '[^1]: ...' defines a footnote (Pandoc, GFM), not a link. A label
+        # has at most 999 characters (CommonMark), which also keeps the
+        # pattern linear.
+        self.pattern_md_reference = re.compile(
+            r"^ {0,3}\[(?!\^)(?P<label>[^\]\n]{1,999})\]:[ \t]*"
+            r"(?:<(?P<pointy>[^>\n]*)>|(?P<url>\S+))",
+            flags=re.MULTILINE)
 
     @staticmethod
     def extract_links_from_html(file_content: str) -> list:
@@ -165,7 +268,9 @@ class Parser:
                                     file_content: str) -> list:
         """Extract all links from a Markdown file.
 
-        Supports both [text](url) and <url> syntax.
+        Supports inline links and images ([text](url)), reference link
+        definitions ([label]: url) and <url> syntax. Links in fenced code
+        blocks and in `code spans` are left out.
 
         Args:
             file_content: Markdown file content as a string.
@@ -173,14 +278,29 @@ class Parser:
         Returns:
             List of [url, linktext] pairs extracted from the markdown.
         """
-        matches = []
-        md_links_in_file = re.findall(self.pattern_md_link, file_content)
-        for match in md_links_in_file:
-            matches.append([match[1], match[0]])
-        pointy_links_in_file = re.findall(self.pattern_md_link_pointy,
-                                          file_content)
-        for url in pointy_links_in_file:
-            matches.append([url, url])
+        matches: list = []
+
+        def take(pattern: re.Pattern, text: str, build) -> str:
+            """Collect pattern's links and blank them out of text.
+
+            Blanking stops a later pattern from finding the same link
+            again, as '[r]: <url>' would match the <url> syntax too.
+            """
+            def collect(match: re.Match) -> str:
+                link = build(match)
+                if link[0]:
+                    matches.append(link)
+                return ' '
+            return pattern.sub(collect, text)
+
+        text = strip_markdown_code(file_content)
+        text = take(self.pattern_md_link, text,
+                    lambda m: [m['url'], m['linktext']])
+        text = take(self.pattern_md_reference, text,
+                    lambda m: [m['url'] if m['url'] is not None
+                               else m['pointy'], m['label']])
+        take(self.pattern_md_link_pointy, text,
+             lambda m: [m['url'], m['url']])
         return matches
 
     def extract_links_from_tex(self,
