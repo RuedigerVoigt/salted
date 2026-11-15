@@ -12,7 +12,7 @@ flowchart TD
     beautifulsoup4["beautifulsoup4<br/>4.15.0"]
     cffi["cffi<br/>2.0.0b1"]
     colorama["colorama<br/>any"]
-    compatibility["compatibility<br/>2.3.0"]
+    compatibility["compatibility<br/>2.4.0"]
     frozenlist["frozenlist<br/>1.1.1"]
     idna["idna<br/>2.0"]
     jinja2["Jinja2<br/>3.1.6"]
@@ -50,7 +50,7 @@ flowchart TD
     salted -- ">=4.0.4" --> aiodns
     salted -- ">=3.14.5" --> aiohttp
     salted -- ">=4.15.0" --> beautifulsoup4
-    salted -- ">=2.3.0,<3" --> compatibility
+    salted -- ">=2.4.0,<3" --> compatibility
     salted -- ">=3.1.6" --> jinja2
     salted -. ">=6.1.3" .-> lxml
     salted -. ">=0.26.1" .-> pybtex
