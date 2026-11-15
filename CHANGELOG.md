@@ -1,6 +1,6 @@
 # Changelog for salted
 
-## Version 2.0.0 (upcoming)
+## Version 2.0.0 (2026-11-16)
 
 * Breaking Changes:
   * Drop support for Python 3.10 (EOL October 2026). Supported versions are now Python 3.11 to 3.15.
