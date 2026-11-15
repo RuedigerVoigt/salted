@@ -141,6 +141,58 @@ def _strip_code_spans(paragraph: str) -> str:
     return ''.join(pieces)
 
 
+# GFM extended autolinks: a bare http(s):// or www. link, at the start of a
+# line or after whitespace, '*', '_', '~' or '('. It ends at whitespace or
+# '<'. Inside an HTML attribute (href="https://...") it follows a quote, so
+# it is not one.
+_GFM_AUTOLINK: Final = re.compile(
+    r"(?<![^\s*_~(])(?P<url>(?:https?://|www\.)[^\s<]*)", flags=re.IGNORECASE)
+# A valid domain: segments of letters, digits, '_' and '-' with at least one
+# period. The last two segments have no underscore.
+_GFM_DOMAIN: Final = re.compile(r"[\w-]+(?:\.[\w-]+)+")
+
+
+def gfm_autolink(candidate: str) -> str | None:
+    """Trim a bare URL as GFM does, or return None if it is not a link.
+
+    Trailing punctuation (?!.,:*_~) is not part of the link, nor is a closing
+    parenthesis without an opening one, nor an entity reference (&hl;) at
+    the end. The link needs a valid domain: 'http://localhost' is no link.
+
+    Args:
+        candidate: Text matched by _GFM_AUTOLINK.
+
+    Returns:
+        The link as written, trimmed, or None.
+    """
+    # Works on an end index with running counts: re-slicing and re-counting
+    # for each character would be quadratic on a crafted 'x/)))))...'.
+    end = len(candidate)
+    unmatched = candidate.count(')') - candidate.count('(')
+    while True:
+        before = end
+        while end and candidate[end - 1] in '?!.,:*_~':
+            end -= 1
+        if end and candidate[end - 1] == ')' and unmatched > 0:
+            end -= 1
+            unmatched -= 1
+        elif end and candidate[end - 1] == ';':
+            start = end - 1
+            while start and candidate[start - 1].isascii() \
+                    and candidate[start - 1].isalnum():
+                start -= 1
+            if start and start < end - 1 and candidate[start - 1] == '&':
+                end = start - 1          # drop an entity such as '&hl;'
+        if end == before:
+            break
+    url = candidate[:end]
+    rest = url.split('://', 1)[1] if '://' in url else url
+    domain = _GFM_DOMAIN.match(rest)
+    if domain is None or '_' in ''.join(domain[0].split('.')[-2:]):
+        return None
+    return url
+
+
 def strip_markdown_code(text: str) -> str:
     """Remove fenced code blocks and inline code spans from Markdown.
 
@@ -317,6 +369,14 @@ class Parser:
         # around an image). Parsed only if the text has an <a at all.
         if self.pattern_html_anchor.search(text):
             matches.extend(self.extract_links_from_html(text))
+        # Last: every link syntax above is blanked out by now, so a bare
+        # URL found here is not one of them found a second time.
+        for match in _GFM_AUTOLINK.finditer(text):
+            url = gfm_autolink(match['url'])
+            if url is not None:
+                target = (f'http://{url}' if url[:4].lower() == 'www.'
+                          else url)
+                matches.append([target, url])
         return matches
 
     def extract_links_from_tex(self,

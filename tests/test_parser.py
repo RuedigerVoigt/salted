@@ -233,6 +233,104 @@ class TestMarkdownAutolinks:
         assert Parser().extract_links_from_markdown(markdown) == []
 
 
+class TestMarkdownBareUrls:
+    """GFM extended autolinks: bare http(s):// and www. links.
+
+    Most cases are the examples of the GFM spec, section 6.9.
+    """
+
+    @pytest.mark.parametrize('markdown, url', [
+        ('www.commonmark.org', 'http://www.commonmark.org'),
+        ('Visit www.commonmark.org/help for more information.',
+         'http://www.commonmark.org/help'),
+        ('Visit www.commonmark.org.', 'http://www.commonmark.org'),
+        ('Visit www.commonmark.org/a.b.', 'http://www.commonmark.org/a.b'),
+        ('www.google.com/search?q=Markup+(business)',
+         'http://www.google.com/search?q=Markup+(business)'),
+        ('www.google.com/search?q=Markup+(business)))',
+         'http://www.google.com/search?q=Markup+(business)'),
+        ('(www.google.com/search?q=Markup+(business))',
+         'http://www.google.com/search?q=Markup+(business)'),
+        ('www.google.com/search?q=(business))+ok',
+         'http://www.google.com/search?q=(business))+ok'),
+        ('www.google.com/search?q=commonmark&hl=en',
+         'http://www.google.com/search?q=commonmark&hl=en'),
+        ('www.google.com/search?q=commonmark&hl;',
+         'http://www.google.com/search?q=commonmark'),
+        ('www.commonmark.org/he<lp', 'http://www.commonmark.org/he'),
+        ('http://commonmark.org', 'http://commonmark.org'),
+        ('(Visit https://encrypted.google.com/search?q=Markup+(business))',
+         'https://encrypted.google.com/search?q=Markup+(business)'),
+        ('*https://emphasis.example/*', 'https://emphasis.example/'),
+        ('Port https://host.example:8080/x, then', 'https://host.example:8080/x'),
+        ('WWW.UPPER.EXAMPLE', 'http://WWW.UPPER.EXAMPLE'),
+        ('www.x_y.commonmark.org', 'http://www.x_y.commonmark.org'),
+    ])
+    def test_bare_url(self, markdown, url):
+        assert [link[0] for link in
+                Parser().extract_links_from_markdown(markdown)] == [url]
+
+    @pytest.mark.parametrize('markdown', [
+        'http://localhost:8080/x',        # no period in the domain
+        'www.commonmark.org_x',           # underscore in the last segments
+        'xhttps://glued.example/',        # not after whitespace or (*_~
+        'https://',
+        'see `https://code.example/`',
+        '<img src="https://attr.example/logo.png">',
+    ])
+    def test_not_a_bare_url(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
+    @pytest.mark.parametrize('markdown', [
+        '[text](https://once.example/)',
+        '<https://once.example/>',
+        '[r]: https://once.example/',
+        '<a href="https://once.example/">https://once.example/</a>',
+        '[https://once.example/](https://once.example/)',
+    ])
+    def test_link_syntax_is_not_found_twice(self, markdown):
+        assert [link[0] for link in
+                Parser().extract_links_from_markdown(markdown)] == [
+                    'https://once.example/']
+
+    @pytest.mark.parametrize('tail', [
+        lambda n: ')' * n,
+        lambda n: '.)' * n,
+        lambda n: '&a;' * n,
+        lambda n: ('x' * 50 + ';)') * (n // 50),
+    ])
+    def test_trimming_is_not_quadratic(self, tail):
+        parser = Parser()
+
+        def measure(n: int) -> float:
+            payload = 'https://trim.example/' + tail(n)
+            start = time.perf_counter()
+            parser.extract_links_from_markdown(payload)
+            return time.perf_counter() - start
+
+        measure(1000)
+        small = measure(50000)
+        large = measure(100000)
+
+        assert large < 2, f"trimming took {large:.1f}s"
+        assert large < small * 3 + 0.05, (
+            f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
+
+    @pytest.mark.parametrize('markdown, url', [
+        ('https://e.example/a&amp;&hl;', 'https://e.example/a'),
+        ('https://e.example/x;', 'https://e.example/x;'),   # no '&'
+        ('https://e.example/&;', 'https://e.example/&;'),   # empty name
+        ('https://e.example/(a)).', 'https://e.example/(a)'),
+    ])
+    def test_trailing_entities_and_parentheses(self, markdown, url):
+        assert [link[0] for link in
+                Parser().extract_links_from_markdown(markdown)] == [url]
+
+    def test_link_text_is_the_url_as_written(self):
+        assert Parser().extract_links_from_markdown('see www.text.example') == [
+            ['http://www.text.example', 'www.text.example']]
+
+
 class TestMarkdownRawHtml:
     """HTML anchors written into Markdown are links too."""
 
@@ -289,13 +387,19 @@ class TestMarkdownReferenceLinks:
             ['https://ref.example/', 'r']]
 
     @pytest.mark.parametrize('markdown', [
-        '[^1]: A footnote, https://not-a-link.example/',   # footnote
-        '    [r]: https://ref.example/',     # 4 spaces: indented code
+        '[^1]: A footnote, https://ref.example/',   # footnote
+        # 4 spaces start an indented code block. Those are not recognized
+        # yet, so the URL is still found - but as a bare URL.
+        '    [r]: https://ref.example/',
         'Text [r]: https://ref.example/',    # not at the start of a line
-        '[r]: <>',                           # empty destination
     ])
     def test_not_a_definition(self, markdown):
-        assert Parser().extract_links_from_markdown(markdown) == []
+        # Found as a bare URL (its own link text), not via the label 'r'.
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://ref.example/', 'https://ref.example/']]
+
+    def test_empty_destination_is_no_link(self):
+        assert Parser().extract_links_from_markdown('[r]: <>') == []
 
 
 class TestMarkdownCode:

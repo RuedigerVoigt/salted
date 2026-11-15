@@ -23,6 +23,7 @@
     * Links inside fenced code blocks (```` ``` ```` or `~~~`) and inline code spans are no longer checked, as they are examples, not links: an example URL such as `https://example.com/api/...` in a tutorial could fail a run. Indented code blocks are not recognized yet.
     * Text in angle brackets counts as a link only in the CommonMark autolink forms: `<https://...>` (any scheme) and `<user@example.com>`, which is now listed with the mailto links. HTML tags (`<br/>`, `<a name="x">`) and placeholders (`<path>`) were picked up as links before, even across lines.
     * HTML anchors written into Markdown (`<a href="https://...">`, common in READMEs around a logo or badge) are now checked.
+    * Bare URLs (`https://...` and `www....` in running text) are now checked, following the rules of GitHub Flavored Markdown's extended autolinks: trailing punctuation and an unmatched closing parenthesis are not part of the link, and a link needs a domain with a period, so `http://localhost` in text is left alone. A `www.` link is checked as `http://www....`.
   * DOIs:
     * Links to doi.org and other registrars in documents are checked as regular links. A DOI confirmed that way is cached permanently, and the same DOI in a `.bib` field counts as confirmed in the report.
     * DOIs in BibTeX files are checked for their form, without any network request and listed under "MALFORMED DOIs" if that test fails. A better check whether a DOI is registered is planned for a later version.
