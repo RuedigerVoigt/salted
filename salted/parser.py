@@ -257,8 +257,13 @@ class Parser:
         # Wikipedia's `..._(programming_language)` are not truncated at the
         # first ')'. It still stops at whitespace (a following "title") or
         # the link's closing ')'.
+        # The link text may hold one level of balanced brackets, which is
+        # what an image inside a link needs: [![badge](img)](target). With
+        # '[^\[]*' the match began at the image's '[' and swallowed it, so
+        # the image's URL was never checked.
         self.pattern_md_link = re.compile(
-            r"\[(?P<linktext>[^\[]*)\]\((?P<url>(?:[^\s()]|\([^\s()]*\))*)[\s\)]+",
+            r"\[(?P<linktext>[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]"
+            r"\((?P<url>(?:[^\s()]|\([^\s()]*\))*)[\s\)]+",
             flags=re.MULTILINE | re.IGNORECASE)
         # Autolinks as CommonMark defines them: <scheme:...> with a scheme of
         # 2-32 characters and no space, control character or angle bracket,
@@ -350,21 +355,26 @@ class Parser:
             again, as '[r]: <url>' would match the <url> syntax too.
             """
             def collect(match: re.Match) -> str:
-                link = build(match)
-                if link[0]:
-                    matches.append(link)
+                for link in build(match):
+                    if link[0]:
+                        matches.append(link)
                 return ' '
             return pattern.sub(collect, text)
 
+        def inline(match: re.Match) -> list:
+            """The link, then any image inside its text: [![x](img)](url)."""
+            nested = [[inner['url'], inner['linktext']] for inner in
+                      self.pattern_md_link.finditer(match['linktext'])]
+            return [[match['url'], match['linktext']], *nested]
+
         text = strip_markdown_code(file_content)
-        text = take(self.pattern_md_link, text,
-                    lambda m: [m['url'], m['linktext']])
+        text = take(self.pattern_md_link, text, inline)
         text = take(self.pattern_md_reference, text,
-                    lambda m: [m['url'] if m['url'] is not None
-                               else m['pointy'], m['label']])
+                    lambda m: [[m['url'] if m['url'] is not None
+                                else m['pointy'], m['label']]])
         text = take(self.pattern_md_link_pointy, text,
-                    lambda m: [m['url'], m['url']] if m['url'] is not None
-                    else [f"mailto:{m['email']}", m['email']])
+                    lambda m: [[m['url'], m['url']] if m['url'] is not None
+                               else [f"mailto:{m['email']}", m['email']]])
         # Markdown allows raw HTML, and READMEs use it for links (often
         # around an image). Parsed only if the text has an <a at all.
         if self.pattern_html_anchor.search(text):

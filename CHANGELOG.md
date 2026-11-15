@@ -19,6 +19,7 @@
   * Add `--ignore_domains` CLI argument and `ignore_domains` config key (under `[BEHAVIOR]`): comma-separated list of hostnames whose URLs are skipped without checking. Invalid entries are logged as warnings and dropped. Matching is exact (e.g. `example.com` does not match `sub.example.com`).
   * `lxml` is now an optional dependency (`pip install "salted[lxml]"`). If installed, it is used as the BeautifulSoup HTML parser backend (faster, more lenient with malformed HTML). Falls back to Python's built-in `html.parser` if not available. salted logs which parser is active at startup.
   * Markdown:
+    * An image inside a link, as in a README badge (`[![badge](image-url)](target-url)`), now has both URLs checked. The image URL was missed.
     * Reference links (`[text][label]`, `[label][]`, `[label]`) are now checked: their URL is taken from the definition line `[label]: url`. Previously they were missed entirely. Footnote definitions (`[^1]: ...`) are not links and are left alone.
     * Links inside fenced code blocks (```` ``` ```` or `~~~`) and inline code spans are no longer checked, as they are examples, not links: an example URL such as `https://example.com/api/...` in a tutorial could fail a run. Indented code blocks are not recognized yet.
     * Text in angle brackets counts as a link only in the CommonMark autolink forms: `<https://...>` (any scheme) and `<user@example.com>`, which is now listed with the mailto links. HTML tags (`<br/>`, `<a name="x">`) and placeholders (`<path>`) were picked up as links before, even across lines.

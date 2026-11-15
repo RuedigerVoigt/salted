@@ -207,6 +207,45 @@ class TestMarkdownParsing:
         assert links == [[url, 'Py']]
 
 
+class TestMarkdownLinkedImages:
+    """A linked image (a README badge) holds two URLs; both are checked."""
+
+    def test_badge(self):
+        markdown = ('[![Downloads](https://img.example/badge)]'
+                    '(https://target.example/project)')
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://target.example/project',
+             '![Downloads](https://img.example/badge)'],
+            ['https://img.example/badge', 'Downloads']]
+
+    def test_brackets_in_link_text(self):
+        assert Parser().extract_links_from_markdown(
+            '[see [1] here](https://t.example/)') == [
+                ['https://t.example/', 'see [1] here']]
+
+    def test_brackets_before_a_link(self):
+        assert Parser().extract_links_from_markdown(
+            '[note] and [link](https://t.example/)') == [
+                ['https://t.example/', 'link']]
+
+    def test_unclosed_brackets_are_not_quadratic(self):
+        parser = Parser()
+
+        def measure(count: int) -> float:
+            payload = ('[a' + '[b]' * 20) * count
+            start = time.perf_counter()
+            parser.extract_links_from_markdown(payload)
+            return time.perf_counter() - start
+
+        measure(100)
+        small = measure(2000)
+        large = measure(4000)
+
+        assert large < 2, f"parsing took {large:.1f}s"
+        assert large < small * 3 + 0.05, (
+            f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
+
+
 class TestMarkdownAutolinks:
     """<...> is a link only in the CommonMark autolink forms."""
 
