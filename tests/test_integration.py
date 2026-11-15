@@ -590,6 +590,44 @@ class TestSettingsFailBeforeChecking:
         assert report.read_text(encoding='utf-8') == 'links: 1'
 
 
+def test_base_href_makes_internal_links_unverifiable(tmp_path):
+    """<base href> is not supported yet: no false failure, no false pass.
+
+    target.html exists in assets/, where the base sends the browser, but
+    salted resolved it against the file's own folder and reported it dead.
+    A document without <base> in the same run is still checked.
+    """
+    d = tmp_path / "base"
+    (d / "assets").mkdir(parents=True)
+    (d / "assets" / "target.html").write_text('<p>x</p>', encoding='utf-8')
+    (d / "index.html").write_text(
+        '<head><base href="/assets/"></head><a href="target.html">t</a>',
+        encoding='utf-8')
+    (d / "plain.html").write_text(
+        '<a href="missing.html">gone</a>', encoding='utf-8')
+
+    runs = []
+
+    def capture(self, statistics, template, write_to,
+                replace_path_by_url=None):
+        runs.append((statistics, self.generate_internal_link_list()))
+
+    with patch('salted.report_generator.ReportGenerator.generate_report',
+               capture):
+        my_check = salted.Salted()
+        my_check.cache_file = tmp_path / "cache.sqlite3"
+        my_check.raise_for_dead_links = True
+        with pytest.raises(err.DeadLinksException) as excinfo:
+            my_check.check(searchpath=d)
+
+    assert 'Found 1 dead link(s)' in str(excinfo.value)   # plain.html only
+    statistics, internal_links = runs[0]
+    assert statistics['num_internal_checked'] == 2
+    reasons = str(internal_links)
+    assert 'not checked: the document sets <base href>' in reasons
+    assert 'target file does not exist' in reasons            # plain.html
+
+
 def test_internal_links_not_checked_when_disabled(tmp_path):
     """check_internal_links = False leaves internal links alone."""
     d = tmp_path / "no_internal"

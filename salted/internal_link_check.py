@@ -78,13 +78,18 @@ class InternalLinkCheck:
 
     def check_link(self,
                    source_file: pathlib.Path,
-                   link: str) -> tuple[str, int] | None:
+                   link: str,
+                   base_href: str | None = None) -> tuple[str, int] | None:
         """Check a single internal link found in source_file.
 
         Args:
             source_file: The file the link was found in. Must be inside
                 the checked folder.
             link: The link exactly as written in the document.
+            base_href: The document's <base href>, if it sets one. Links are
+                then resolved against it, not against the file's location;
+                that is not supported yet, so the link is reported as not
+                verifiable instead of being checked against the wrong place.
 
         Returns:
             None if the link is fine. Otherwise a tuple (reason, is_error):
@@ -92,7 +97,11 @@ class InternalLinkCheck:
             be verified (e.g. it resolves outside the checked folder).
         """
         self.cnt['internal_checked'] += 1
-        finding = self._evaluate(source_file, link)
+        if base_href is not None:
+            finding: tuple[str, int] | None = (
+                'not checked: the document sets <base href>', 0)
+        else:
+            finding = self._evaluate(source_file, link)
         if finding is None:
             self.cnt['internal_fine'] += 1
         elif finding[1] == 1:

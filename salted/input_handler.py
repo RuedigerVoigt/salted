@@ -109,7 +109,8 @@ class InputHandler:
     def _handle_internal_link(self,
                               file_path: pathlib.Path,
                               url: str,
-                              linktext: str) -> bool:
+                              linktext: str,
+                              base_href: str | None = None) -> bool:
         """Check an internal link candidate against the local filesystem.
 
         Internal links are only resolved for HTML sources: Markdown and
@@ -120,6 +121,7 @@ class InputHandler:
             file_path: The file the link was found in.
             url: The link exactly as written in the document.
             linktext: The link's text content.
+            base_href: The document's <base href>, if it sets one.
 
         Returns:
             True if the link was handled as an internal link (whatever
@@ -129,7 +131,7 @@ class InputHandler:
                 or file_path.suffix.lower() not in ('.htm', '.html')
                 or not internal_link_check.InternalLinkCheck.is_internal_link(url)):
             return False
-        finding = self.internal_checker.check_link(file_path, url)
+        finding = self.internal_checker.check_link(file_path, url, base_href)
         if finding is not None:
             self.db.log_internal_link_finding(
                 str(file_path), url, linktext,
@@ -215,7 +217,8 @@ class InputHandler:
 
     def handle_found_urls(self,
                           file_path: pathlib.Path,
-                          url_list: list) -> None:
+                          url_list: list,
+                          base_href: str | None = None) -> None:
         """Extract all hyperlinks from url_list and add them to the test queue.
 
         Normalizes URLs to eliminate duplicates before adding to queue.
@@ -223,6 +226,8 @@ class InputHandler:
         Args:
             file_path: Path to the file where URLs were found.
             url_list: List of [url, linktext] pairs extracted from the file.
+            base_href: The <base href> of a HTML file, if it sets one. Its
+                internal links are then reported as not verifiable.
         """
 
         links_found: list = []
@@ -252,7 +257,8 @@ class InputHandler:
                     for address in addresses:
                         valid = 1 if mail_check.is_email(address) else 0
                         mailto_found.append((str(file_path), url, address, valid))
-            elif self._handle_internal_link(file_path, url, linktext):
+            elif self._handle_internal_link(file_path, url, linktext,
+                                            base_href):
                 pass
             else:
                 # cannot check this kind of link
@@ -404,7 +410,10 @@ class InputHandler:
             url_list, doi_list = self._extract_links_and_dois(file_path, content)
 
             if url_list:
-                self.handle_found_urls(file_path, url_list)
+                base_href = (self.parser.find_base_href(content)
+                             if file_path.suffix.lower() in ('.htm', '.html')
+                             else None)
+                self.handle_found_urls(file_path, url_list, base_href)
             if doi_list:
                 self.handle_found_dois(file_path, doi_list)
 

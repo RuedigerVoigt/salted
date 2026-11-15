@@ -388,6 +388,19 @@ def _raise(exc):
     return method
 
 
+class TestBaseHref:
+    """A <base href> moves what links point to: they are not verified."""
+
+    @pytest.mark.parametrize('link', ['index.html', '#intro', 'gone.html'])
+    def test_link_is_unverifiable_whatever_it_is(self, site, checker, link):
+        # Neither a false pass (#intro exists in the file, but the base
+        # sends the browser elsewhere) nor a false failure.
+        assert checker.check_link(site / 'index.html', link, '/assets/') == (
+            'not checked: the document sets <base href>', 0)
+        assert checker.cnt['internal_checked'] == 1
+        assert checker.cnt['internal_unverifiable'] == 1
+
+
 class TestInputHandlerIntegration:
     """Internal links from HTML files are routed to the checker."""
 

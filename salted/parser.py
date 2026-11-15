@@ -137,6 +137,30 @@ class Parser:
                 matches.append([href, link.text])
         return matches
 
+    @staticmethod
+    def find_base_href(file_content: str) -> str | None:
+        """Return the href of a HTML document's <base> element, if any.
+
+        A <base href> changes what every relative link and every #fragment
+        in the document points to. Only the first <base> with an href counts
+        (HTML spec); one without an href, or with an empty one, changes
+        nothing.
+
+        Args:
+            file_content: HTML file content as a string.
+
+        Returns:
+            The stripped href, or None if the document sets none.
+        """
+        # Cheap pre-check: most documents have no <base>, and parsing every
+        # file a second time would cost noticeable time on large sites.
+        if '<base' not in file_content.lower():
+            return None
+        tag = BeautifulSoup(file_content, _BS_PARSER).find('base', href=True)
+        if tag is None:
+            return None
+        return str(tag['href']).strip() or None
+
     def extract_links_from_markdown(self,
                                     file_content: str) -> list:
         """Extract all links from a Markdown file.

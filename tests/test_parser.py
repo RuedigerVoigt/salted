@@ -10,6 +10,8 @@ Source: https://github.com/RuedigerVoigt/salted
 
 import time
 
+import pytest
+
 from salted.parser import Parser
 
 
@@ -46,6 +48,30 @@ class TestHtmlParsing:
         html = '<A HREF="https://example.com/">link</A>'
         links = parser.extract_links_from_html(html)
         assert links == [['https://example.com/', 'link']]
+
+
+class TestBaseHref:
+    """find_base_href returns what a <base href> sets, if anything."""
+
+    @pytest.mark.parametrize('html', [
+        '<html><head></head><body><a href="x.html">x</a></body></html>',
+        '<head><base target="_blank"></head>',   # no href: changes no URL
+        '<head><base href=""></head>',
+        '<head><base href="   "></head>',
+        '<p>mentions &lt;base href="/x/"&gt; as text</p>',
+    ])
+    def test_no_base_href(self, html):
+        assert Parser.find_base_href(html) is None
+
+    @pytest.mark.parametrize('html, expected', [
+        ('<head><base href="/assets/"></head>', '/assets/'),
+        ('<HEAD><BASE HREF=" sub/ "></HEAD>', 'sub/'),
+        ('<base href="https://example.com/docs/">', 'https://example.com/docs/'),
+        # The first <base> with an href wins (HTML spec).
+        ('<base target="_top"><base href="/a/"><base href="/b/">', '/a/'),
+    ])
+    def test_base_href_found(self, html, expected):
+        assert Parser.find_base_href(html) == expected
 
 
 class TestBibtexParsing:
