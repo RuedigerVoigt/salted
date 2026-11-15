@@ -282,6 +282,71 @@ class TestFragments:
         assert len(checker._anchor_cache) == 1
 
 
+class TestFolderFragments:
+    """A #fragment on a folder link is looked up in the folder's index file.
+
+    It used to count as fine without any check: blog/#missing passed.
+    """
+
+    @pytest.fixture
+    def folders(self, site):
+        (site / 'docs').mkdir()
+        (site / 'docs' / 'index.html').write_text(
+            '<html><body><h2 id="usage">Usage</h2></body></html>',
+            encoding='utf-8')
+        (site / 'old').mkdir()
+        (site / 'old' / 'index.htm').write_text(
+            '<p id="usage">x</p>', encoding='utf-8')
+        return site
+
+    @pytest.mark.parametrize('link', [
+        'docs/#usage', 'docs#usage', '/docs/#usage', 'old/#usage'])
+    def test_existing_anchor_in_the_index_file(self, folders, checker, link):
+        assert checker.check_link(folders / 'index.html', link) is None
+
+    @pytest.mark.parametrize('link', ['docs/#missing', 'docs#missing'])
+    def test_missing_anchor_is_broken(self, folders, checker, link):
+        assert checker.check_link(folders / 'index.html', link) == (
+            "fragment '#missing' not found in target", 1)
+
+    def test_folder_without_index_is_unverifiable(self, folders, checker):
+        # blog/ holds post.html only.
+        assert checker.check_link(folders / 'index.html', 'blog/#intro') == (
+            "fragment '#intro' not verifiable (folder has no index.html)", 0)
+
+    def test_folder_link_without_fragment_is_unchanged(self, folders,
+                                                       checker):
+        assert checker.check_link(folders / 'index.html', 'blog/') is None
+
+    def test_index_file_outside_the_jail_is_not_read(self, folders, checker,
+                                                     monkeypatch, tmp_path):
+        # Stands in for docs/index.html being a symlink out of the tree,
+        # which Windows does not let a test create without extra rights.
+        real_resolve = pathlib.Path.resolve
+
+        def resolve(self, *args, **kwargs):
+            if self.name == 'index.html' and self.parent.name == 'docs':
+                return tmp_path / 'secret.txt'
+            return real_resolve(self, *args, **kwargs)
+        monkeypatch.setattr(pathlib.Path, 'resolve', resolve)
+
+        assert checker.check_link(folders / 'index.html', 'docs/#usage') == (
+            "fragment '#usage' not verifiable (folder has no index.html)", 0)
+
+    def test_index_file_that_cannot_be_resolved(self, folders, checker,
+                                                monkeypatch):
+        real_resolve = pathlib.Path.resolve
+
+        def resolve(self, *args, **kwargs):
+            if self.name in ('index.html', 'index.htm'):
+                raise OSError('simulated')
+            return real_resolve(self, *args, **kwargs)
+        monkeypatch.setattr(pathlib.Path, 'resolve', resolve)
+
+        assert checker.check_link(folders / 'index.html', 'docs/#usage') == (
+            "fragment '#usage' not verifiable (folder has no index.html)", 0)
+
+
 class TestFilesystemErrors:
     """Errors from the filesystem become findings; none of them raise.
 

@@ -177,21 +177,44 @@ class InternalLinkCheck:
                       fragment: str) -> tuple[str, int] | None:
         """Verify the jailed target exists (and its fragment, if any)."""
         try:
-            if path_part.endswith('/'):
-                # Directory reference: the directory itself must exist.
-                if not resolved.is_dir():
-                    return ('target folder does not exist', 1)
-                return None
-            if resolved.is_dir():
-                return None
-            if not resolved.is_file():
+            is_dir = resolved.is_dir()
+            if path_part.endswith('/') and not is_dir:
+                return ('target folder does not exist', 1)
+            if not is_dir and not resolved.is_file():
                 return ('target file does not exist', 1)
         except OSError:
             return ('invalid link: target path not accessible', 1)
 
-        if fragment:
-            return self._check_fragment(resolved, fragment)
-        return None
+        if not fragment:
+            return None
+        if is_dir:
+            return self._check_folder_fragment(resolved, fragment)
+        return self._check_fragment(resolved, fragment)
+
+    def _check_folder_fragment(self,
+                               folder: pathlib.Path,
+                               fragment: str) -> tuple[str, int] | None:
+        """Verify a #fragment on a folder link (blog/#intro) in its index file.
+
+        A web server answers a folder link with its index file, which is
+        where the browser looks for the anchor. Static hosts serve
+        index.html or index.htm; without either, the anchor cannot be
+        verified - it is never counted as fine.
+
+        Args:
+            folder: Resolved path of the linked folder, inside the jail.
+            fragment: The fragment identifier without the leading '#'.
+        """
+        for name in ('index.html', 'index.htm'):
+            try:
+                index = (folder / name).resolve()
+                # The index file may be a symlink: keep it inside the jail.
+                if index.is_relative_to(self.root) and index.is_file():
+                    return self._check_fragment(index, fragment)
+            except (OSError, RuntimeError):
+                continue
+        return (f"fragment '#{fragment}' not verifiable "
+                '(folder has no index.html)', 0)
 
     def _check_fragment(self,
                         target: pathlib.Path,
