@@ -159,6 +159,45 @@ class TestSecurityContainment:
         assert is_error == 1
         assert 'backslash' in reason
 
+    @pytest.fixture
+    def no_resolve(self, monkeypatch):
+        """Fail the test if any path is resolved, i.e. touches the disk."""
+        def boom(self, *args, **kwargs):
+            raise AssertionError(f'filesystem accessed: {self}')
+        monkeypatch.setattr(pathlib.Path, 'resolve', boom)
+
+    @pytest.mark.parametrize('link', [
+        # Decodes to \\example.invalid\share\file.html, a UNC path that
+        # replaces the base folder when joined (SMB request on Windows).
+        '%5C%5Cexample.invalid%5Cshare%5Cfile.html',
+        '/%5C%5Cexample.invalid%5Cshare%5Cfile.html',
+        '%5c%5cexample.invalid%5cshare',
+        '..%5Csecret.txt',
+    ])
+    def test_encoded_backslashes_rejected_before_fs_access(
+            self, site, checker, no_resolve, link):
+        assert checker.check_link(site / 'index.html', link) == (
+            'invalid link: contains an encoded backslash', 1)
+
+    @pytest.mark.parametrize('link', [
+        'C%3A/Windows/win.ini',
+        '/C%3A/Windows/win.ini',
+        'c%3Awin.ini',
+    ])
+    def test_drive_paths_rejected_before_fs_access(
+            self, site, checker, no_resolve, link):
+        # A literal 'C:/...' is read as a URL scheme and never gets here;
+        # percent-encoding the colon hides the drive from urlparse.
+        assert checker.check_link(site / 'index.html', link) == (
+            'invalid link: names a drive or network share', 1)
+
+    def test_colon_inside_a_path_is_still_checked(self, site, checker):
+        # Only a leading drive is refused, not every colon. (What follows
+        # differs by OS: on Windows 'a:b.html' names an NTFS data stream.)
+        reason, _is_error = checker.check_link(
+            site / 'index.html', 'blog/a%3Ab.html')
+        assert 'drive' not in reason
+
     def test_unc_style_link_is_not_internal(self):
         # urlparse puts the host of '//host/share' into netloc.
         assert InternalLinkCheck.is_internal_link('//host/share/file') is False

@@ -117,6 +117,11 @@ class InternalLinkCheck:
         except ValueError:
             return ('invalid link: cannot be parsed', 1)
 
+        # Percent-encoding hides a backslash from the check above:
+        # '%5C%5Chost%5Cshare' decodes to the UNC path \\host\share.
+        if '\\' in path_part:
+            return ('invalid link: contains an encoded backslash', 1)
+
         if '\x00' in path_part or any(ord(c) < 32 for c in path_part):
             return ('invalid link: contains control characters', 1)
 
@@ -145,9 +150,17 @@ class InternalLinkCheck:
             # Root-relative: resolve against the checked folder. A UNC-style
             # '//host/share' never gets here (urlparse puts the host into
             # netloc, so is_internal_link already rejected it).
-            candidate = self.root / path_part.lstrip('/')
+            base, relative = self.root, path_part.lstrip('/')
         else:
-            candidate = source_file.parent / path_part
+            base, relative = source_file.parent, path_part
+
+        # A path with a drive ('C%3A/Windows' decodes to 'C:/Windows')
+        # replaces the base folder when joined, so resolve() below would
+        # touch it before the jail check. Windows rules are applied on every
+        # OS, so a link gets the same verdict wherever salted runs.
+        if pathlib.PureWindowsPath(relative).anchor:
+            return ('invalid link: names a drive or network share', 1)
+        candidate = base / relative
 
         try:
             resolved = candidate.resolve()
