@@ -156,10 +156,32 @@ class InputHandler:
         except ValueError:
             return None
 
+    @staticmethod
+    def _scheme_and_host(url: str) -> tuple[str, str | None]:
+        """Return the lower-cased scheme and the host of a link.
+
+        A URL malformed enough that urlsplit rejects it, such as the bad
+        IPv6 literal in 'http://[broken', has no host. If it starts with
+        http: or https:, that scheme is still returned: the link is then
+        queued as malformed, so the report names it and it fails
+        --raise_for_dead_links instead of vanishing (userprovided rejects
+        it as well). Any other unparseable link gets the scheme ''.
+
+        Args:
+            url: The link exactly as written in the document.
+        """
+        try:
+            parsed_url = urllib.parse.urlparse(url)
+        except ValueError:
+            scheme = url.lstrip().partition(':')[0].lower()
+            return (scheme if scheme in ('http', 'https') else ''), None
+        # .hostname never raises: only .port validates the authority.
+        return parsed_url.scheme.lower(), parsed_url.hostname
+
     def _queue_row(self,
                    file_path: pathlib.Path,
                    url: str,
-                   parsed_url: urllib.parse.ParseResult,
+                   hostname: str | None,
                    linktext: str) -> list:
         """Build the queue entry for a single http(s) link.
 
@@ -176,7 +198,8 @@ class InputHandler:
         Args:
             file_path: The file the link was found in.
             url: The link exactly as written in the document.
-            parsed_url: The already parsed form of that URL.
+            hostname: The link's host, or None if it has none or the link
+                cannot be parsed at all.
             linktext: The link's text content.
 
         Returns:
@@ -188,9 +211,7 @@ class InputHandler:
             self.db.log_malformed_url(url)
             self.cnt['malformed_urls'] += 1
 
-        # .hostname never raises: only .port validates the authority.
-        return [str(file_path), parsed_url.hostname, url, normalized_url,
-                linktext]
+        return [str(file_path), hostname, url, normalized_url, linktext]
 
     def handle_found_urls(self,
                           file_path: pathlib.Path,
@@ -216,18 +237,11 @@ class InputHandler:
             # a startswith('http') test silently dropped as unsupported.
             # Matching the scheme exactly also stops look-alikes such as
             # 'httpfoo://host' from entering the check queue.
-            try:
-                parsed_url = urllib.parse.urlparse(url)
-                scheme = parsed_url.scheme.lower()
-            except ValueError:
-                # A URL malformed enough that urlsplit rejects it (e.g. a
-                # bad IPv6 literal) cannot be checked.
-                self.cnt['unsupported_scheme'] += 1
-                continue
+            scheme, hostname = self._scheme_and_host(url)
 
             if scheme in ('http', 'https'):
                 links_found.append(
-                    self._queue_row(file_path, url, parsed_url, linktext))
+                    self._queue_row(file_path, url, hostname, linktext))
                 self.cnt['links_found'] += 1
 
             elif scheme == 'mailto':

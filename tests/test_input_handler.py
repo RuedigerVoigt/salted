@@ -404,17 +404,39 @@ class TestHandleFoundUrls:
         assert handler.cnt['unsupported_scheme'] == 1
         db_mock.save_found_links.assert_not_called()
 
-    def test_unparsable_url_is_counted_not_raised(self):
-        """A URL urlparse rejects must not abort the whole scan."""
+    @pytest.mark.parametrize('url', [
+        'http://[oops/', 'HTTPS://[::1', ' http://[broken'])
+    def test_unparsable_http_url_is_queued_as_malformed(self, url):
+        """An http(s) link urlparse rejects is reported, not dropped.
+
+        It must neither abort the scan nor vanish: a dropped link lets a
+        broken document pass --raise_for_dead_links.
+        """
         db_mock = Mock(spec=database_io.DatabaseIO)
         handler = InputHandler(db_mock)
 
         handler.handle_found_urls(
             pathlib.Path('test.html'),
-            [['http://[oops/', 'broken'], ['https://ok.example/', 'fine']])
+            [[url, 'broken'], ['https://ok.example/', 'fine']])
 
-        assert handler.cnt['links_found'] == 1
+        assert handler.cnt['links_found'] == 2
+        assert handler.cnt['malformed_urls'] == 1
+        assert handler.cnt['unsupported_scheme'] == 0
+        db_mock.log_malformed_url.assert_called_once_with(url)
+        rows = db_mock.save_found_links.call_args.args[0]
+        assert rows[0] == ['test.html', None, url, url, 'broken']
+
+    def test_unparsable_other_url_is_counted_as_unsupported(self):
+        """Only http(s) links are checked; others stay unsupported."""
+        db_mock = Mock(spec=database_io.DatabaseIO)
+        handler = InputHandler(db_mock)
+
+        handler.handle_found_urls(
+            pathlib.Path('test.html'), [['ftp://[oops/', 'broken']])
+
+        assert handler.cnt['links_found'] == 0
         assert handler.cnt['unsupported_scheme'] == 1
+        db_mock.log_malformed_url.assert_not_called()
 
 
 class TestHandleFoundDois:

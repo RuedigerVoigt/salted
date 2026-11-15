@@ -252,6 +252,33 @@ def test_malformed_links_are_reported_not_fatal(mock_head, tmp_path):
 
 
 @patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
+def test_unparseable_link_is_reported_and_fails_the_run(mock_head, tmp_path):
+    """A link urlparse rejects (bad IPv6 literal) must not vanish.
+
+    It used to be dropped as an unsupported scheme: the report found
+    0 hyperlinks and --raise_for_dead_links passed.
+    """
+    d = tmp_path / "unparseable"
+    d.mkdir()
+    (d / "index.html").write_text(
+        '<a href="http://[broken">broken</a>\n', encoding='utf-8')
+    report = tmp_path / "report.txt"
+
+    my_check = salted.Salted()
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.write_to = report
+    my_check.raise_for_dead_links = True
+    with pytest.raises(err.DeadLinksException) as excinfo:
+        my_check.check(searchpath=d)
+
+    assert 'Found 1 malformed link(s)' in str(excinfo.value)
+    mock_head.assert_not_awaited()
+    text = report.read_text(encoding='utf-8')
+    assert 'http://[broken' in text
+    assert 'Malformed URL - not checked' in text
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock, return_value=200)
 def test_malformed_link_fails_the_run(mock_head, tmp_path):
     """No client can reach a malformed link, so it fails --raise_for_dead_links."""
     d = tmp_path / "malformed_fail"
