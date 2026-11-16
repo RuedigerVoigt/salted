@@ -193,6 +193,31 @@ def gfm_autolink(candidate: str) -> str | None:
     return url
 
 
+def _bare_urls(text: str) -> list:
+    """Return the GFM extended autolinks in text as [url, linktext] pairs.
+
+    A www. link is checked as http://www...., as GFM renders it.
+    """
+    links = []
+    for match in _GFM_AUTOLINK.finditer(text):
+        url = gfm_autolink(match['url'])
+        if url is not None:
+            links.append([f'http://{url}' if url[:4].lower() == 'www.'
+                          else url, url])
+    return links
+
+
+def _inline_target(match: re.Match) -> str:
+    """Return the URL of an inline link, from either form of its target.
+
+    A space in <...> is percent-encoded, as a Markdown renderer does when it
+    writes the href: that is what a browser requests.
+    """
+    if match['pointy'] is None:
+        return match['url']
+    return match['pointy'].strip().replace(' ', '%20')
+
+
 def strip_markdown_code(text: str) -> str:
     """Remove fenced code blocks and inline code spans from Markdown.
 
@@ -261,9 +286,15 @@ class Parser:
         # what an image inside a link needs: [![badge](img)](target). With
         # '[^\[]*' the match began at the image's '[' and swallowed it, so
         # the image's URL was never checked.
+        # The target is either plain or in angle brackets: [t](<url>). The
+        # bracketed form (CommonMark, Pandoc) may hold spaces and unbalanced
+        # parentheses, but no line break and no '<' or '>'. A plain target
+        # cannot start with '<', so a broken bracketed one is no link.
         self.pattern_md_link = re.compile(
             r"\[(?P<linktext>[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]"
-            r"\((?P<url>(?:[^\s()]|\([^\s()]*\))*)[\s\)]+",
+            r"\((?:<(?P<pointy>[^<>\n]*)>"
+            r"|(?!<)(?P<url>(?:[^\s()]|\([^\s()]*\))*))"
+            r"[\s\)]+",
             flags=re.MULTILINE | re.IGNORECASE)
         # Autolinks as CommonMark defines them: <scheme:...> with a scheme of
         # 2-32 characters and no space, control character or angle bracket,
@@ -363,9 +394,9 @@ class Parser:
 
         def inline(match: re.Match) -> list:
             """The link, then any image inside its text: [![x](img)](url)."""
-            nested = [[inner['url'], inner['linktext']] for inner in
+            nested = [[_inline_target(inner), inner['linktext']] for inner in
                       self.pattern_md_link.finditer(match['linktext'])]
-            return [[match['url'], match['linktext']], *nested]
+            return [[_inline_target(match), match['linktext']], *nested]
 
         text = strip_markdown_code(file_content)
         text = take(self.pattern_md_link, text, inline)
@@ -381,12 +412,7 @@ class Parser:
             matches.extend(self.extract_links_from_html(text))
         # Last: every link syntax above is blanked out by now, so a bare
         # URL found here is not one of them found a second time.
-        for match in _GFM_AUTOLINK.finditer(text):
-            url = gfm_autolink(match['url'])
-            if url is not None:
-                target = (f'http://{url}' if url[:4].lower() == 'www.'
-                          else url)
-                matches.append([target, url])
+        matches.extend(_bare_urls(text))
         return matches
 
     def extract_links_from_tex(self,

@@ -93,14 +93,14 @@ SALTED does support the following file-formats:
   * Salted does not yet check `src` attributes of pictures.
   * Mailto links are parsed and listed in the report with basic format validation (no DNS lookup or delivery check).
 * **Markdown** (CommonMark, GitHub Flavored Markdown and Pandoc):
-  * Inline links and images: `[text](url)`, `![alt](url)`.
+  * Inline links and images: `[text](url)`, `![alt](url)`, also with the target in angle brackets (`[text](<url>)`).
   * Reference links: the URL of `[text][label]`, `[label][]` and `[label]` is taken from its definition `[label]: url`.
   * Autolinks: `<https://...>`, and `<user@example.com>`, which is listed with the mailto links.
   * Bare URLs in running text (`https://...`, `www....`), following GitHub's rules for extended autolinks. salted checks them in every Markdown file, although Pandoc only turns them into links with its `autolink_bare_uris` extension.
   * HTML anchors (`<a href="...">`) written into Markdown.
   * Links in fenced code blocks and in `code spans` are skipped, as they are examples rather than links.
   * Relative links to other files are not checked: Markdown is usually converted before it is published, so they do not point to files on disk.
-  * Not recognized yet: indented code blocks (links in them are checked) and link targets in angle brackets (`[text](<url>)`, which are skipped).
+  * Not recognized yet: indented code blocks, so links in them are checked.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
 * **BibTeX** : URL fields are checked like any other link. DOI fields are checked for the form of a DOI (no network request); a DOI written as `doi:…` or as an old `http://dx.doi.org/…` link is listed with the recommended `https://doi.org/…` form. A DOI that a working `https://doi.org/…` link in your documents points to counts as confirmed. BibTeX files are included when using `--file_types tex` or `--file_types supported`. **Requires the `bibtex` extra** (`pip install "salted[bibtex]"`) — see [Optional extras](#optional-extras). Without it a `.bib` file is never silently skipped: naming one with `-i` stops the run, and one found while scanning a folder is reported as not checked and fails a `--raise_for_dead_links` run.
 * **Microsoft Word**: is not directly supported, but you can convert Word to markdown which is supported.

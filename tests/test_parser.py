@@ -246,6 +246,41 @@ class TestMarkdownLinkedImages:
             f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
 
 
+class TestMarkdownAngleBracketTargets:
+    """[text](<url>): the bracketed target of CommonMark and Pandoc.
+
+    It was read with the brackets, so the link counted as unsupported and
+    was never checked.
+    """
+
+    @pytest.mark.parametrize('markdown, url, text', [
+        ('[r](<https://example.com/report.pdf>)',
+         'https://example.com/report.pdf', 'r'),
+        # Spaces are allowed and percent-encoded, as a renderer does.
+        ('[r](<https://example.com/annual report.pdf>)',
+         'https://example.com/annual%20report.pdf', 'r'),
+        ('[r](<https://example.com/a(b.pdf> "Title")',
+         'https://example.com/a(b.pdf', 'r'),
+        ('![img](< https://example.com/my pic.png >)',
+         'https://example.com/my%20pic.png', 'img'),
+    ])
+    def test_target_without_brackets(self, markdown, url, text):
+        assert Parser().extract_links_from_markdown(markdown) == [[url, text]]
+
+    def test_badge_with_bracketed_targets(self):
+        markdown = '[![b](<https://img.example/b a>)](<https://t.example/p q>)'
+        assert [link[0] for link in
+                Parser().extract_links_from_markdown(markdown)] == [
+                    'https://t.example/p%20q', 'https://img.example/b%20a']
+
+    @pytest.mark.parametrize('markdown', [
+        '[r](<>)',                                # empty target
+        '[r](<https://example.com/\nsplit>)',     # no line break inside
+    ])
+    def test_no_link(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
+
 class TestMarkdownAutolinks:
     """<...> is a link only in the CommonMark autolink forms."""
 
