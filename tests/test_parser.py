@@ -320,14 +320,20 @@ class TestMarkdownDestinationDecoding:
                 Parser().extract_links_from_markdown(markdown)] == [url]
 
     @pytest.mark.parametrize('markdown', [
-        # The escaped '>' does not close the target.
+        # The escaped '>' does not close the target, so there is no link
+        # target and no definition. What is left is an autolink, in which
+        # a backslash is literal.
         r'[a](<https://e.example/a\>)',
         r'[r]: <https://e.example/a\>',
     ])
     def test_escaped_angle_bracket_does_not_close(self, markdown):
-        assert not any(link[0].startswith('https://e.example/a')
-                       and link[1] in ('a', 'r')
-                       for link in Parser().extract_links_from_markdown(markdown))
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://e.example/a\\', 'https://e.example/a\\']]
+
+    def test_unclosed_bracket_is_no_definition(self):
+        # A plain target cannot start with '<'; it was read as one.
+        assert Parser().extract_links_from_markdown(
+            '[r]: <https://e.example/a') == []
 
     @pytest.mark.parametrize('payload', [
         lambda n: '[a](https://e.example/' + '\\(' * n,

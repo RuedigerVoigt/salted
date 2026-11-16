@@ -458,7 +458,7 @@ class Parser:
         # pattern linear.
         self.pattern_md_reference = re.compile(
             r"^ {0,3}\[(?!\^)(?P<label>[^\]\n]{1,999})\]:[ \t]*"
-            r"(?:<(?P<pointy>(?:[^>\n\\]|\\[^\n])*)>|(?P<url>\S+))",
+            r"(?:<(?P<pointy>(?:[^>\n\\]|\\[^\n])*)>|(?!<)(?P<url>\S+))",
             flags=re.MULTILINE)
 
     @staticmethod

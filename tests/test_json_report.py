@@ -334,11 +334,15 @@ class TestUrlIsTheTarget:
             '<a href="https://dead.example/?h=1&amp;i=2">h</a>\n',
             encoding='utf-8')
         with patch('salted.url_check.UrlCheck.head_request',
-                   new_callable=AsyncMock, return_value=404), \
+                   new_callable=AsyncMock, return_value=404) as head, \
                 patch('salted.url_check.ip_check.is_potential_ssrf_target',
                       return_value=False):
             report = _run(tmp_path, root)
         assert_valid(report)
+        # The decoded target is what is requested, not the spelling.
+        assert sorted(call.args[0] for call in head.await_args_list) == [
+            'http://www.dead.example/w', 'https://dead.example/?h=1&i=2',
+            'https://dead.example/?x=1&y=2', 'https://dead.example/a%20b']
         assert {(f['url'], f['link_text'])
                 for f in _of_kind(report, 'dead_link')} == {
             ('https://dead.example/?x=1&y=2', 'q'),
