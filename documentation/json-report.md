@@ -20,7 +20,7 @@ The schema is published as JSON Schema: [report-schema-1.json](report-schema-1.j
 * **Always valid JSON.** The report is written by Python's `json` module, never assembled from a template.
 * **Complete or not at all.** A report file is written to a temporary file in the same folder and then moved into place, so a reader never sees a half-written file, and a failed write leaves an earlier report untouched.
 * **Every completed run writes one**, including a run that found no files, and a run that fails `--raise_for_dead_links`: the report is written first, then salted exits with code 1. If salted stops before checking (an invalid setting, a missing path), it writes no report and exits with code 1.
-* **ASCII only.** Every other character is escaped (`ü`), so the report is valid on every console encoding, including a Windows console. Strings are not altered otherwise: control characters are kept but escaped, so printing the report cannot inject terminal sequences — while `url` still holds the link exactly as written.
+* **ASCII only.** Every other character is escaped (`ü`), so the report is valid on every console encoding, including a Windows console. Strings are not altered otherwise: control characters are kept but escaped, so printing the report cannot inject terminal sequences, while the values themselves stay intact.
 * **Fields that do not apply are absent, never `null`.**
 
 
@@ -86,7 +86,14 @@ Every finding has `kind`, `fails_run` (`true` if it fails a `--raise_for_dead_li
 | `outdated_doi_link` | false | `url`, `suggestion`, `reason` | A DOI written as `doi:…` or as an old `http://dx.doi.org/…` link; `suggestion` is the recommended `https://doi.org/…` form. |
 | `mailto` | false | `url`, `address`, `valid` | A mailto link, with a basic format check of its address (no delivery check). |
 
-`url` is the link **exactly as written in the document** — that is the text to search for when fixing it. `normalized_url` is the form salted requested.
+`url` is the **link target as salted read it** from the document: the URL a reader's browser opens. Mostly that is the text in the file, but the document format decides what a link means, so it can differ:
+
+* **Markdown** link targets (`[text](…)` and `[label]: …`): backslash escapes and character references are decoded (`a\(b\)` becomes `a(b)`, `&amp;` becomes `&`), then whitespace and control characters are percent-encoded (`<…/a b>` becomes `…/a%20b`), as a renderer writes the link.
+* **Markdown** bare `www.` links get `http://` in front, as GitHub renders them; their `link_text` is the link as written. An email autolink `<user@example.com>` is listed with the mailto links as `mailto:user@example.com`.
+* **HTML**, also HTML written into Markdown: character references in the attribute are decoded (`&amp;` becomes `&`), as a browser reads it.
+* **TeX** links are taken as written, **BibTeX** `url` fields as pybtex reads them.
+
+A tool that fixes a link should therefore search the file for `url` and, where that finds nothing, for the spellings these rules turn into it. The text as written and its line number are planned as additional fields in a later schema version. `normalized_url` is the form salted requested.
 
 The new location of a permanent redirect is not part of schema 1.0; it is planned as an additional field in 1.1. Line numbers are not reported yet.
 

@@ -8,6 +8,7 @@ Source: https://github.com/RuedigerVoigt/salted
 Released under the Apache License 2.0
 """
 
+import html.entities
 import logging
 import re
 import urllib.parse
@@ -292,15 +293,62 @@ def _bare_urls(text: str) -> list:
     return links
 
 
-def _inline_target(match: re.Match) -> str:
-    """Return the URL of an inline link, from either form of its target.
+# In a link destination, CommonMark turns a backslash before ASCII
+# punctuation into that character and decodes entity and numeric character
+# references. Both in one pass from left to right: in '\&amp;' the
+# backslash escapes the '&', so the result is '&amp;', not '&'.
+_MD_ESCAPE_OR_REFERENCE: Final = re.compile(
+    r'\\(?P<escaped>[!-/:-@\[-`{-~])'
+    r'|(?P<reference>&(?:#[xX][0-9a-fA-F]{1,6}|#[0-9]{1,7}'
+    r'|[A-Za-z][A-Za-z0-9]{1,31});)')
+# Whitespace and control characters, which a decoded reference can produce.
+_MD_UNSAFE_IN_URL: Final = re.compile(r'[\x00-\x20\x7f-\x9f]')
 
-    A space in <...> is percent-encoded, as a Markdown renderer does when it
-    writes the href: that is what a browser requests.
+
+def _decode_reference(reference: str) -> str:
+    """Decode a character reference such as '&amp;' or '&#x41;'.
+
+    CommonMark: a numeric reference that is no valid code point, and
+    U+0000, become U+FFFD. A name that HTML does not define stays as it is.
+    Only names with the closing ';' are looked up: html.unescape would
+    also decode the 'amp' in '&ampx;', which CommonMark leaves alone.
     """
+    if reference[1] != '#':
+        return html.entities.html5.get(reference[1:], reference)
+    digits = reference[2:-1]
+    code = int(digits[1:], 16) if digits[0] in 'xX' else int(digits)
+    if code == 0 or code > 0x10FFFF or 0xD800 <= code <= 0xDFFF:
+        return '\ufffd'
+    return chr(code)
+
+
+def markdown_destination(raw: str) -> str:
+    """Return the URL a Markdown link destination stands for.
+
+    Backslash escapes and character references are decoded, as a renderer
+    does: '[x](https://e.example/a\\(b\\))' points to '/a(b)', and '&amp;'
+    in a query is an '&'. Whitespace and control characters, a space in
+    '<...>' or a decoded '&#32;', are then percent-encoded, as the renderer
+    does when it writes the href: that is what a browser requests.
+
+    Args:
+        raw: The destination as written, without its angle brackets.
+
+    Returns:
+        The URL to check.
+    """
+    decoded = _MD_ESCAPE_OR_REFERENCE.sub(
+        lambda m: m['escaped'] or _decode_reference(m['reference']), raw)
+    return _MD_UNSAFE_IN_URL.sub(
+        lambda m: ''.join(f'%{byte:02X}' for byte in m[0].encode('utf-8')),
+        decoded)
+
+
+def _inline_target(match: re.Match) -> str:
+    """Return the URL of an inline link, from either form of its target."""
     if match['pointy'] is None:
-        return match['url']
-    return match['pointy'].strip().replace(' ', '%20')
+        return markdown_destination(match['url'])
+    return markdown_destination(match['pointy'].strip())
 
 
 def strip_markdown_code_and_comments(text: str) -> str:
@@ -374,12 +422,18 @@ class Parser:
         # the image's URL was never checked.
         # The target is either plain or in angle brackets: [t](<url>). The
         # bracketed form (CommonMark, Pandoc) may hold spaces and unbalanced
-        # parentheses, but no line break and no '<' or '>'. A plain target
-        # cannot start with '<', so a broken bracketed one is no link.
+        # parentheses, but no line break and no unescaped '<' or '>'. A plain
+        # target cannot start with '<', so a broken bracketed one is no link.
+        # A backslash escapes the character after it: '\)' and '\>' do not
+        # end the target, and an escaped parenthesis needs no partner. Each
+        # alternative starts with a different character, which keeps the
+        # match free of backtracking; a backslash before whitespace or the
+        # end is literal.
         self.pattern_md_link = re.compile(
             r"\[(?P<linktext>[^\[\]]*(?:\[[^\[\]]*\][^\[\]]*)*)\]"
-            r"\((?:<(?P<pointy>[^<>\n]*)>"
-            r"|(?!<)(?P<url>(?:[^\s()]|\([^\s()]*\))*))"
+            r"\((?:<(?P<pointy>(?:[^<>\n\\]|\\[^\n])*)>"
+            r"|(?!<)(?P<url>(?:[^\s()\\]|\\\S|\\(?!\S)"
+            r"|\((?:[^\s()\\]|\\\S)*\))*))"
             r"[\s\)]+",
             flags=re.MULTILINE | re.IGNORECASE)
         # Autolinks as CommonMark defines them: <scheme:...> with a scheme of
@@ -404,7 +458,7 @@ class Parser:
         # pattern linear.
         self.pattern_md_reference = re.compile(
             r"^ {0,3}\[(?!\^)(?P<label>[^\]\n]{1,999})\]:[ \t]*"
-            r"(?:<(?P<pointy>[^>\n]*)>|(?P<url>\S+))",
+            r"(?:<(?P<pointy>(?:[^>\n\\]|\\[^\n])*)>|(?P<url>\S+))",
             flags=re.MULTILINE)
 
     @staticmethod
@@ -487,8 +541,9 @@ class Parser:
         text = strip_markdown_code_and_comments(file_content)
         text = take(self.pattern_md_link, text, inline)
         text = take(self.pattern_md_reference, text,
-                    lambda m: [[m['url'] if m['url'] is not None
-                                else m['pointy'], m['label']]])
+                    lambda m: [[markdown_destination(
+                        m['url'] if m['url'] is not None
+                        else m['pointy']), m['label']]])
         text = take(self.pattern_md_link_pointy, text,
                     lambda m: [[m['url'], m['url']] if m['url'] is not None
                                else [f"mailto:{m['email']}", m['email']]])

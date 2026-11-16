@@ -96,7 +96,7 @@
         },
         "fails_run": {"description": "True if this finding fails a --raise_for_dead_links run.", "type": "boolean"},
         "file": {"description": "Relative to the checked folder with forward slashes, or a URL if base_url is set.", "type": "string"},
-        "url": {"description": "The link exactly as written in the document.", "type": "string"},
+        "url": {"description": "The link target as salted read it from the document: Markdown escapes and character references, and HTML character references, are decoded; a bare www. link gets http://. See json-report.md.", "type": "string"},
         "normalized_url": {"description": "The form salted requested.", "type": "string"},
         "link_text": {"type": "string"},
         "http_status": {"type": "integer"},

@@ -231,7 +231,8 @@ def collect_findings(mem: memory_instance.MemoryInstance,
 
     One entry per occurrence: a dead link that stands in three files is
     three findings. Strings are taken from the database unchanged - 'url'
-    is the link exactly as written, which is what a tool searches for.
+    is the link target as the parsers read it, which is not always its
+    spelling in the file (documentation/json-report.md lists the rules).
 
     Args:
         mem: The in-memory database of the run.

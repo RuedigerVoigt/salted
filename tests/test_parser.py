@@ -281,6 +281,77 @@ class TestMarkdownAngleBracketTargets:
         assert Parser().extract_links_from_markdown(markdown) == []
 
 
+class TestMarkdownDestinationDecoding:
+    """A destination means what a renderer makes of it, not its spelling.
+
+    '&amp;' and '\\(' were requested as written, which is another URL.
+    """
+
+    @pytest.mark.parametrize('markdown, url', [
+        ('[a](https://e.example/a?x=1&amp;y=2)', 'https://e.example/a?x=1&y=2'),
+        (r'[a](https://e.example/a\(b\))', 'https://e.example/a(b)'),
+        # An escaped parenthesis needs no partner and ends nothing.
+        (r'[a](https://e.example/a\)b)', 'https://e.example/a)b'),
+        (r'[a](https://e.example/x_(a\)b))', 'https://e.example/x_(a)b)'),
+        # One pass: the backslash escapes the '&', so no entity is left.
+        (r'[a](https://e.example/a\&amp;b)', 'https://e.example/a&amp;b'),
+        # Only ASCII punctuation can be escaped; elsewhere '\' is literal.
+        (r'[a](https://e.example/a\b)', 'https://e.example/a\\b'),
+        (r'[a](https://e.example/a\ ) tail', 'https://e.example/a\\'),
+        (r'[a](https://e.example/a\\)', 'https://e.example/a\\'),
+        ('[a](https://e.example/&copy;&#65;&#x42;)', 'https://e.example/©AB'),
+        # Not a reference: an unknown name, or no closing ';'.
+        ('[a](https://e.example/&ampx;&nosuch;&amp)',
+         'https://e.example/&ampx;&nosuch;&amp'),
+        # No valid code point, and U+0000, become U+FFFD.
+        ('[a](https://e.example/&#0;&#x110000;&#xD800;)',
+         'https://e.example/���'),
+        # Decoded whitespace and control characters are percent-encoded.
+        ('[a](https://e.example/a&#32;b&#x1b;&#x9b;&Tab;)',
+         'https://e.example/a%20b%1B%C2%9B%09'),
+        ('[a](<https://e.example/a b&amp;c\\>d>)',
+         'https://e.example/a%20b&c>d'),
+        ('[r]: https://e.example/a?x=1&amp;y=2', 'https://e.example/a?x=1&y=2'),
+        (r'[r]: https://e.example/a\_b', 'https://e.example/a_b'),
+        ('[r]: <https://e.example/a b>', 'https://e.example/a%20b'),
+    ])
+    def test_destination_is_decoded(self, markdown, url):
+        assert [link[0] for link in
+                Parser().extract_links_from_markdown(markdown)] == [url]
+
+    @pytest.mark.parametrize('markdown', [
+        # The escaped '>' does not close the target.
+        r'[a](<https://e.example/a\>)',
+        r'[r]: <https://e.example/a\>',
+    ])
+    def test_escaped_angle_bracket_does_not_close(self, markdown):
+        assert not any(link[0].startswith('https://e.example/a')
+                       and link[1] in ('a', 'r')
+                       for link in Parser().extract_links_from_markdown(markdown))
+
+    @pytest.mark.parametrize('payload', [
+        lambda n: '[a](https://e.example/' + '\\(' * n,
+        lambda n: '[a](https://e.example/' + '(\\)' * n,
+        lambda n: '[a](<https://e.example/' + '\\>' * n,
+    ])
+    def test_escapes_are_not_quadratic(self, payload):
+        parser = Parser()
+
+        def measure(n: int) -> float:
+            text = payload(n)
+            start = time.perf_counter()
+            parser.extract_links_from_markdown(text)
+            return time.perf_counter() - start
+
+        measure(1000)
+        small = measure(50000)
+        large = measure(100000)
+
+        assert large < 2, f"parsing took {large:.1f}s"
+        assert large < small * 3 + 0.05, (
+            f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
+
+
 class TestMarkdownAutolinks:
     """<...> is a link only in the CommonMark autolink forms."""
 

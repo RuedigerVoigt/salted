@@ -200,7 +200,7 @@ class DatabaseIO:
 
         Args:
             file_path: Path to the file containing the link.
-            url: The link exactly as written in the document.
+            url: The link target as the parser read it from the document.
             linktext: The link's text content.
             reason: Why the link is broken or could not be verified.
             is_error: 1 for a broken link, 0 for an unverifiable one.
@@ -276,7 +276,7 @@ class DatabaseIO:
         occurrence of the link twice.
 
         Args:
-            url: The link exactly as written in the document.
+            url: The link target as the parser read it from the document.
         """
         self.cursor.execute('''INSERT INTO exceptions
                             SELECT ?, ?

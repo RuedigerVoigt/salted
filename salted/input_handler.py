@@ -119,7 +119,7 @@ class InputHandler:
 
         Args:
             file_path: The file the link was found in.
-            url: The link exactly as written in the document.
+            url: The link target as the parser read it from the document.
             linktext: The link's text content.
             base_href: The document's <base href>, if it sets one.
 
@@ -143,7 +143,7 @@ class InputHandler:
         """Return the normalized form of url, or None if it is malformed.
 
         Args:
-            url: The link exactly as written in the document.
+            url: The link target as the parser read it from the document.
 
         Returns:
             The normalized URL, or None if userprovided rejects it, e.g.
@@ -170,7 +170,7 @@ class InputHandler:
         it as well). Any other unparseable link gets the scheme ''.
 
         Args:
-            url: The link exactly as written in the document.
+            url: The link target as the parser read it from the document.
         """
         try:
             parsed_url = urllib.parse.urlparse(url)
@@ -190,7 +190,8 @@ class InputHandler:
         Multiple links may point to the same resource. Normalizing them
         means the target is only tested once. The non-normalized version is
         stored as well: if the link turns out to be broken, that is the
-        spelling shown to the user, as it is what stands in the document.
+        form shown to the user, as it is closest to what stands in the
+        document.
 
         A link that cannot be normalized (no host, invalid port) cannot be
         requested either. It is queued under its own spelling, so the report
@@ -199,7 +200,7 @@ class InputHandler:
 
         Args:
             file_path: The file the link was found in.
-            url: The link exactly as written in the document.
+            url: The link target as the parser read it from the document.
             hostname: The link's host, or None if it has none or the link
                 cannot be parsed at all.
             linktext: The link's text content.

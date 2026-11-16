@@ -29,7 +29,7 @@ Key advantages of this application:
      * Two default templates (for the command line and for Markdown) are available.
      * You can use your own templates. 
 * *Tools and AI agents can read the results.*
-     * `--report_format json` writes a versioned JSON report with a [published schema](documentation/json-report.md): every finding with its file, the link exactly as written, and why it fails — so a CI step or an AI coding agent can fix broken links directly.
+     * `--report_format json` writes a versioned JSON report with a [published schema](documentation/json-report.md): every finding with its file, the link, and why it fails — so a CI step or an AI coding agent can fix broken links directly.
 
 ## Example
 
@@ -95,7 +95,7 @@ SALTED does support the following file-formats:
   * Salted does not yet check `src` attributes of pictures.
   * Mailto links are parsed and listed in the report with basic format validation (no DNS lookup or delivery check).
 * **Markdown** (CommonMark, GitHub Flavored Markdown and Pandoc):
-  * Inline links and images: `[text](url)`, `![alt](url)`, also with the target in angle brackets (`[text](<url>)`).
+  * Inline links and images: `[text](url)`, `![alt](url)`, also with the target in angle brackets (`[text](<url>)`). Targets are read as a renderer reads them: backslash escapes (`\(`) and character references (`&amp;`) are decoded.
   * Reference links: the URL of `[text][label]`, `[label][]` and `[label]` is taken from its definition `[label]: url`.
   * Autolinks: `<https://...>`, and `<user@example.com>`, which is listed with the mailto links.
   * Bare URLs in running text (`https://...`, `www....`), following GitHub's rules for extended autolinks. salted checks them in every Markdown file, although Pandoc only turns them into links with its `autolink_bare_uris` extension.

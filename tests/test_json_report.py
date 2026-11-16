@@ -318,6 +318,35 @@ class TestReportContent:
 
 
 @pytest.mark.usefixtures('network')
+class TestUrlIsTheTarget:
+    """'url' is the target as salted read it, not the source spelling.
+
+    The documentation promised the text 'exactly as written', which a
+    Markdown escape, a 'www.' link or an HTML entity made untrue.
+    """
+
+    def test_url_after_markdown_and_html_rules(self, tmp_path):
+        root = tmp_path / 'docs'
+        root.mkdir()
+        (root / 'readme.md').write_text(
+            '[q](https://dead.example/?x=1&amp;y=2) '
+            '[p](<https://dead.example/a b>) see www.dead.example/w\n'
+            '<a href="https://dead.example/?h=1&amp;i=2">h</a>\n',
+            encoding='utf-8')
+        with patch('salted.url_check.UrlCheck.head_request',
+                   new_callable=AsyncMock, return_value=404), \
+                patch('salted.url_check.ip_check.is_potential_ssrf_target',
+                      return_value=False):
+            report = _run(tmp_path, root)
+        assert_valid(report)
+        assert {(f['url'], f['link_text'])
+                for f in _of_kind(report, 'dead_link')} == {
+            ('https://dead.example/?x=1&y=2', 'q'),
+            ('https://dead.example/a%20b', 'p'),
+            ('http://www.dead.example/w', 'www.dead.example/w'),
+            ('https://dead.example/?h=1&i=2', 'h')}
+
+
 class TestRobustness:
     """Always valid JSON, written completely or not at all."""
 

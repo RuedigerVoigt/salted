@@ -66,7 +66,7 @@ class InternalLinkCheck:
         reads the drive letter as a scheme).
 
         Args:
-            url: The link exactly as written in the document.
+            url: The link target as the parser read it from the document.
         """
         if not url or not url.strip():
             return False
@@ -85,7 +85,7 @@ class InternalLinkCheck:
         Args:
             source_file: The file the link was found in. Must be inside
                 the checked folder.
-            link: The link exactly as written in the document.
+            link: The link target as the parser read it from the document.
             base_href: The document's <base href>, if it sets one. Links are
                 then resolved against it, not against the file's location;
                 that is not supported yet, so the link is reported as not
