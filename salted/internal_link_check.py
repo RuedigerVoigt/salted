@@ -62,7 +62,7 @@ class InternalLinkCheck:
 
         Internal means: no scheme and no host. This excludes http(s),
         mailto, tel, javascript, file, protocol-relative ``//host/...``
-        links, and Windows drive references like ``C:/...`` (urlparse
+        links, and Windows drive references like ``C:/...`` (urlsplit
         reads the drive letter as a scheme).
 
         Args:
@@ -71,7 +71,7 @@ class InternalLinkCheck:
         if not url or not url.strip():
             return False
         try:
-            parsed = urllib.parse.urlparse(url)
+            parsed = urllib.parse.urlsplit(url)
         except ValueError:
             return False
         return parsed.scheme == '' and parsed.netloc == ''
@@ -120,8 +120,10 @@ class InternalLinkCheck:
         if '\\' in link:
             return ('invalid link: contains a backslash', 1)
 
+        # urlsplit, not urlparse: urlparse cuts ';...' off the last path
+        # segment as 'params', so 'doc;v1.html' was looked up as 'doc'.
         try:
-            parsed = urllib.parse.urlparse(link)
+            parsed = urllib.parse.urlsplit(link)
             path_part = urllib.parse.unquote(parsed.path)
         except ValueError:
             return ('invalid link: cannot be parsed', 1)
@@ -157,7 +159,7 @@ class InternalLinkCheck:
         """
         if path_part.startswith('/'):
             # Root-relative: resolve against the checked folder. A UNC-style
-            # '//host/share' never gets here (urlparse puts the host into
+            # '//host/share' never gets here (urlsplit puts the host into
             # netloc, so is_internal_link already rejected it).
             base, relative = self.root, path_part.lstrip('/')
         else:

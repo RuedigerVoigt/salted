@@ -628,6 +628,20 @@ def test_base_href_makes_internal_links_unverifiable(tmp_path):
     assert 'target file does not exist' in reasons            # plain.html
 
 
+def test_internal_link_with_semicolon_passes_strict_mode(tmp_path):
+    """doc;v1.html exists: urlparse looked up 'doc' and failed the run."""
+    d = tmp_path / "semicolon"
+    d.mkdir()
+    (d / "doc;v1.html").write_text('<p>x</p>', encoding='utf-8')
+    (d / "index.html").write_text('<a href="doc;v1.html">v1</a>',
+                                  encoding='utf-8')
+    my_check = salted.Salted()
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.raise_for_dead_links = True
+    with patch('salted.report_generator.ReportGenerator.generate_report'):
+        my_check.check(searchpath=d / "index.html")   # must not raise
+
+
 def test_internal_links_not_checked_when_disabled(tmp_path):
     """check_internal_links = False leaves internal links alone."""
     d = tmp_path / "no_internal"

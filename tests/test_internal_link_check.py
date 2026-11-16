@@ -75,7 +75,7 @@ class TestClassification:
         assert InternalLinkCheck.is_internal_link(url) is False
 
     def test_unparseable_link_is_not_internal(self):
-        # urlparse raises ValueError on an unclosed IPv6 bracket.
+        # urlsplit raises ValueError on an unclosed IPv6 bracket.
         assert InternalLinkCheck.is_internal_link('http://[bad') is False
 
 
@@ -117,6 +117,20 @@ class TestResolution:
 
     def test_query_string_is_ignored(self, site, checker):
         assert checker.check_link(site / 'index.html', 'style.css?v=2') is None
+
+    @pytest.mark.parametrize('link', [
+        'doc;v1.html', 'doc;v1.html#part', 'blog/../doc;v1.html'])
+    def test_semicolon_is_part_of_the_path(self, site, checker, link):
+        # urlparse split ';v1.html' off as 'params' and looked up 'doc'.
+        (site / 'doc;v1.html').write_text('<p id="part">x</p>',
+                                          encoding='utf-8')
+        assert checker.check_link(site / 'index.html', link) is None
+
+    def test_missing_target_with_semicolon_is_error(self, site, checker):
+        (site / 'doc').write_text('x', encoding='utf-8')
+        _reason, is_error = checker.check_link(site / 'index.html',
+                                               'doc;v2.html')
+        assert is_error == 1
 
     def test_counters(self, site, checker):
         checker.check_link(site / 'index.html', 'style.css')
@@ -187,7 +201,7 @@ class TestSecurityContainment:
     def test_drive_paths_rejected_before_fs_access(
             self, site, checker, no_resolve, link):
         # A literal 'C:/...' is read as a URL scheme and never gets here;
-        # percent-encoding the colon hides the drive from urlparse.
+        # percent-encoding the colon hides the drive from urlsplit.
         assert checker.check_link(site / 'index.html', link) == (
             'invalid link: names a drive or network share', 1)
 
@@ -199,11 +213,11 @@ class TestSecurityContainment:
         assert 'drive' not in reason
 
     def test_unc_style_link_is_not_internal(self):
-        # urlparse puts the host of '//host/share' into netloc.
+        # urlsplit puts the host of '//host/share' into netloc.
         assert InternalLinkCheck.is_internal_link('//host/share/file') is False
 
     def test_unparseable_link_is_broken(self, site, checker):
-        # check_link is public: a link urlparse cannot read is reported,
+        # check_link is public: a link urlsplit cannot read is reported,
         # not raised, and never reaches the filesystem.
         assert checker.check_link(site / 'index.html', '//[bad') == (
             'invalid link: cannot be parsed', 1)
