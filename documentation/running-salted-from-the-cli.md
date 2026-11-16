@@ -20,6 +20,7 @@ usage: salted [-h] [--version] [--config <path>] [-i <path>] [--file_types {supp
               [--domain_delay <seconds>] [--max_file_size_mb <MB>]
               [--cache_file <path>] [--dont_check_again_within_hours <hours>]
               [--template_searchpath <path to folder>] [--template_name <filename>]
+              [--report_format {json,text}]
               [--write_to <path>] [--base_url https://www.example.com] [-q]
 
 Salted is an extremely fast link checker. It works with HTML, Markdown, TeX and BibTeX files.
@@ -72,6 +73,10 @@ options:
                         Path to *folder* in which the template file can be found.
   --template_name <filename>
                         Name of the template file.
+  --report_format {json,text}
+                        'text' renders the report template (default); 'json' writes the versioned
+                        JSON report for tools and AI agents. With --write_to cli the JSON is the
+                        only output on stdout.
   --write_to <path>     Either 'cli' to write to standard out or a path (default: cli)
   --base_url https://www.example.com
                         The file system path to the checked folder is replaced with this URL in template outputs.
@@ -81,6 +86,17 @@ options:
 For more information see: https://github.com/RuedigerVoigt/salted
 
 ```
+
+## JSON output for tools and AI agents
+
+`--report_format json` writes the results as versioned JSON instead of the text report — for CI tools, dashboards and AI agents that fix broken links:
+
+```bash
+salted -i ./docs --report_format json > linkcheck.json
+salted -i ./docs --report_format json --write_to linkcheck.json --raise_for_dead_links
+```
+
+Progress messages go to stderr, so stdout carries nothing but the JSON. The schema, its versioning rules and the meaning of every field are described in [JSON report for tools and AI agents](json-report.md).
 
 ## Excluding files and folders
 

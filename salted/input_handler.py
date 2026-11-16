@@ -400,8 +400,9 @@ class InputHandler:
         self.cnt['links_found'] = 0
 
         if not self.quiet:
-            print("Scanning files for links:")
-        for file_path in tqdm(files_to_check, disable=self.quiet or not sys.stdout.isatty()):
+            print("Scanning files for links:", file=sys.stderr)
+        for file_path in tqdm(files_to_check,
+                              disable=self.quiet or not sys.stderr.isatty()):
             content = self.read_file_content(file_path)
             if not content:
                 # If for any reason this file could not be read, try the next.

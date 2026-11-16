@@ -27,7 +27,7 @@ linkcheck.check('path_to_your_files/')
 
 This starts the check. By default the results will be displayed on the command line interface you are using.
 
-`check()` takes a file or a folder and returns nothing: the result is the report, written to `write_to`. If your program needs the results in machine-readable form, write a custom template that renders them, for example as JSON (see [Style the Output and Write to File](style-salted-output.md)). You can call `check()` several times on the same object; each call starts with fresh results.
+`check()` takes a file or a folder and returns nothing: the result is the report, written to `write_to`. If your program needs the results in machine-readable form, set `report_format = 'json'` and read the file `write_to` names: the [JSON report](json-report.md) has a versioned, documented schema. You can call `check()` several times on the same object; each call starts with fresh results.
 
 ## Config file
 
@@ -56,6 +56,7 @@ Every setting is an attribute of the `Salted` object. The config file section is
 | `dont_check_again_within_hours` | `int` | `24` | CACHE | How long a valid URL is not checked again (at least 0). |
 | `template_searchpath` | `str` | built-in templates | TEMPLATE | Folder that holds a custom report template. |
 | `template_name` | `str` | `'default.cli.jinja'` | TEMPLATE | Template file, ending in `.jinja`. Built in: `default.cli.jinja` and `default.md.jinja`. |
+| `report_format` | `str` | `'text'` | TEMPLATE | `'text'` renders the template; `'json'` writes the [JSON report](json-report.md) instead. `'json'` cannot be combined with `template_name` or `template_searchpath`. |
 | `write_to` | path | `'cli'` | TEMPLATE | `'cli'` prints the report; anything else is the path of the report file. |
 | `base_url` | `str` or `None` | `None` | TEMPLATE | Shows file paths in the report as URLs below this address. Unset, paths are shown relative to the checked folder. |
 | `quiet` | `bool` | `False` | — | Suppresses progress messages. The report is still written. |
@@ -73,7 +74,7 @@ All of them are defined in `salted.err`. Except for `DeadLinksException`, they a
 | `ConfigFileError` | `Salted()` | The config file cannot be read, is not valid INI, has an unknown section or an invalid value, or a file passed as `config_path` does not exist. |
 | `ConfigFileError` | `check()` | A config file found in the working directory points outside its own folder. |
 | `SearchpathNotFoundError` | `check()` | The file or folder to check does not exist. It is also an `InvalidSettingError` and a `FileNotFoundError`. |
-| `InvalidSettingError` | `check()` | A setting cannot work: an attribute with an invalid value (see [Settings](#settings)), a single file in an unsupported format, an unusable `cache_file`, a report template that is missing or not valid Jinja2, a `write_to` path in a folder that does not exist, or a custom template named like a built-in one. It is also a `ValueError`. |
+| `InvalidSettingError` | `check()` | A setting cannot work: an attribute with an invalid value (see [Settings](#settings)), a single file in an unsupported format, an unusable `cache_file`, a report template that is missing or not valid Jinja2, a `write_to` path in a folder that does not exist, a custom template named like a built-in one, or `report_format = 'json'` together with template settings. It is also a `ValueError`. |
 | `UnsafeTemplateError` | `check()` | `template_name` does not end in `.jinja`. |
 | `MissingOptionalDependencyError` | `check()` | A single `.bib` file was named, but `pybtex` is missing (`pip install "salted[bibtex]"`). A `.bib` file found in a folder is reported as unreadable instead. |
 | `DeadLinksException` | `check()` | `raise_for_dead_links` is set and the run found dead or malformed links, malformed DOIs, or unreadable files. The report and the cache are written before it is raised; the message names every reason. |

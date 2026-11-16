@@ -28,6 +28,8 @@ Key advantages of this application:
 * *Results can be styled using Jinja2 templates.*
      * Two default templates (for the command line and for Markdown) are available.
      * You can use your own templates. 
+* *Tools and AI agents can read the results.*
+     * `--report_format json` writes a versioned JSON report with a [published schema](documentation/json-report.md): every finding with its file, the link exactly as written, and why it fails — so a CI step or an AI coding agent can fix broken links directly.
 
 ## Example
 
@@ -113,6 +115,7 @@ SALTED does support the following file-formats:
 * [Using salted as a Python library](documentation/using-salted-as-a-python-library.md)
 * [Use a config file](documentation/use-a-config-file.md)
 * [Style the output and write to files](documentation/style-salted-output.md)
+* [JSON report for tools and AI agents](documentation/json-report.md)
 * [Handling problematic servers](documentation/handling-problematic-servers.md)
 * [Dependencies and Security](documentation/dependencies-and-security.md)
 * [Changelog](CHANGELOG.md)

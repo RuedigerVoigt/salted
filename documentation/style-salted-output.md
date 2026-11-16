@@ -8,6 +8,8 @@ There are two builtin templates for salted:
 
 You can choose between those two templates by setting the parameter `template_name` to either of them.
 
+For a program rather than a person to read, do not write a JSON template: set `report_format` to `json` instead. That report is always valid JSON and has a versioned schema (see [JSON report for tools and AI agents](json-report.md)).
+
 The parameter `write_to` defaults to `cli` (command line interface). If you want to write the result to a file, set the value of `write_to` to the path of that file including the filename. Existing files will be overwritten.
 
 The parameter `template_searchpath` defaults to `salted/templates`. This tells salted to use the builtin templates. If you want to use your own template, set this to the path **to the folder** on your file-system that has your template in it. Its name must be given with the `template_name` parameter! Do not name your template like a builtin one (`default.cli.jinja` or `default.md.jinja`): salted refuses a custom template with such a name. If you start from a copy of a builtin template, rename it, for example to `my.cli.jinja`.

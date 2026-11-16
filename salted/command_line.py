@@ -61,6 +61,7 @@ _VALIDATED_OVERRIDES = (
     'raise_for_dead_links',
     'check_internal_links',
     'file_types',
+    'report_format',
 )
 
 
@@ -197,6 +198,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         metavar='<filename>')
 
+    parser.add_argument(
+        "--report_format",
+        choices=sorted(parameter_rules.REPORT_FORMATS),
+        help="'text' renders the report template (default); 'json' writes "
+             "the versioned JSON report for tools and AI agents. With "
+             "--write_to cli the JSON is the only output on stdout.")
     parser.add_argument(
         "--write_to",
         type=str,

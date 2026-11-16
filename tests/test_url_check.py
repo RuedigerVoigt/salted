@@ -592,8 +592,11 @@ class TestQuietRun:
         with patch.object(url_check.UrlCheck, '_distribute_work',
                           new=AsyncMock()):
             checker.check_urls()
-        printed = capsys.readouterr().out
-        assert ('1 URLs to check' in printed) is not quiet
+        captured = capsys.readouterr()
+        # Progress goes to stderr: stdout carries only the report, which
+        # matters when it is the JSON report a tool reads.
+        assert ('1 URLs to check' in captured.err) is not quiet
+        assert captured.out == ''
 
 
 class TestWorkersWithoutProgressBar:

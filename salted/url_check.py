@@ -325,8 +325,10 @@ class UrlCheck(AsyncCheckerBase):
         num_workers = self.__recommend_num_workers(num_checks)
         self.num_workers = num_workers
         if not self.quiet:
-            print(f"{num_checks} URLs to check with {num_workers} workers:")
-        self.pbar = tqdm(total=num_checks, disable=self.quiet or not sys.stdout.isatty())
+            print(f"{num_checks} URLs to check with {num_workers} workers:",
+                  file=sys.stderr)
+        self.pbar = tqdm(total=num_checks,
+                         disable=self.quiet or not sys.stderr.isatty())
         try:
             asyncio.run(self._distribute_work(urls_to_check, num_workers))
         finally:

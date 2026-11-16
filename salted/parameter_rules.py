@@ -18,6 +18,10 @@ from userprovided.parameters import clean_trim, parse_boolean
 FILE_TYPES: Final[frozenset] = frozenset(
     {'supported', 'html', 'tex', 'markdown'})
 
+# Allowed values for report_format: 'text' renders a Jinja2 template (the
+# terminal or the Markdown report), 'json' writes the versioned JSON report.
+REPORT_FORMATS: Final[frozenset] = frozenset({'text', 'json'})
+
 # Minimum allowed value per integer parameter.
 # timeout must not be 0: that would disable the timeout entirely and a
 # never-responding server could occupy a worker forever.
@@ -67,6 +71,8 @@ def validate(name: str,
         return _validate_bool(name, value, source)
     if name == 'file_types':
         return _validate_choice(name, value, source, FILE_TYPES)
+    if name == 'report_format':
+        return _validate_choice(name, value, source, REPORT_FORMATS)
     raise KeyError(f"No validation rule for parameter '{name}'.")
 
 

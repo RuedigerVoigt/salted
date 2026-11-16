@@ -10,6 +10,7 @@ Released under the Apache License 2.0
 
 import logging
 import pathlib
+import sys
 
 from salted import doi_format, memory_instance
 
@@ -366,7 +367,8 @@ class DatabaseIO:
         if num_links_before > num_links_after:
             num_skipped = num_links_before - num_links_after
             if not self.quiet:
-                print(f"Skipped {num_skipped} cached URL{'s' if num_skipped != 1 else ''} (still valid in cache)")
+                print(f"Skipped {num_skipped} cached URL{'s' if num_skipped != 1 else ''} (still valid in cache)",
+                      file=sys.stderr)
         return num_links_after
 
     def count_errors(self) -> int:

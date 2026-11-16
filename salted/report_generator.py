@@ -734,7 +734,21 @@ class ReportGenerator:
             raise err.InvalidSettingError(
                 f"Report template '{name}' is not a valid Jinja2 template: "
                 f"{exc.message} (line {exc.lineno}).") from exc
+        cls.check_write_to(write_to)
 
+    @staticmethod
+    def check_write_to(write_to: str | pathlib.Path) -> None:
+        """Verify the report file can be written, before any link is checked.
+
+        Shared by the text and the JSON report.
+
+        Args:
+            write_to: 'cli' for stdout, otherwise the report file path.
+
+        Raises:
+            err.InvalidSettingError: If write_to is a folder or lies in a
+                folder that does not exist.
+        """
         if write_to == 'cli':
             return
         target = pathlib.Path(write_to).resolve()

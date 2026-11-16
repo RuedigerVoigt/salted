@@ -29,6 +29,7 @@ from salted import (
     file_finder,
     input_handler,
     internal_link_check,
+    json_report,
     memory_instance,
     parameter_rules,
     parser,
@@ -65,13 +66,16 @@ def _normalize_url_set(raw: set[str] | None) -> set[str]:
 _RULED_ATTRIBUTES: Final = (
     'file_types', 'num_workers', 'timeout', 'raise_for_dead_links',
     'domain_delay', 'check_internal_links', 'max_file_size_mb',
-    'dont_check_again_within_hours', 'quiet')
+    'dont_check_again_within_hours', 'quiet', 'report_format')
 
 # Settings that hold a collection of entries. A plain string would be taken
 # apart character by character, so it is refused.
 _SET_ATTRIBUTES: Final = ('ignore_urls', 'ignore_domains', 'exclude_paths')
 
 _ATTRIBUTE_SOURCE: Final = 'set as an attribute'
+
+# The template of the terminal report, used unless another one is chosen.
+DEFAULT_TEMPLATE_NAME: Final = 'default.cli.jinja'
 
 
 class Salted:
@@ -129,7 +133,9 @@ class Salted:
         # Template
         self.template_searchpath: str = (
             report_generator.DEFAULT_TEMPLATE_SEARCHPATH)
-        self.template_name: str = 'default.cli.jinja'
+        self.template_name: str = DEFAULT_TEMPLATE_NAME
+        # 'text' renders the template, 'json' writes the JSON report.
+        self.report_format: str = 'text'
         self.write_to: str | pathlib.Path = 'cli'
         self.base_url: str | None = None
         self.quiet: bool = False
@@ -391,6 +397,8 @@ class Salted:
                 template, 'template_searchpath', autodiscovered)
             self.template_name = template.get(
                 'template_name', self.template_name)
+            self.report_format = self._from_config(
+                template, 'report_format', target)
             self.write_to = self.__adopt_path_setting(
                 template, 'write_to', autodiscovered)
             self.base_url = template.get('base_url', self.base_url)
@@ -470,6 +478,17 @@ class Salted:
             self.base_url = None
         if self.base_url:
             self.base_url = self.base_url.rstrip('/')
+        # The JSON report is not rendered from a template. A template that
+        # was chosen anyway would silently do nothing, so the combination is
+        # refused rather than one of the two ignored.
+        if self.report_format == 'json' and (
+                self.template_name != DEFAULT_TEMPLATE_NAME
+                or str(self.template_searchpath)
+                != report_generator.DEFAULT_TEMPLATE_SEARCHPATH):
+            raise err.InvalidSettingError(
+                "report_format 'json' writes the JSON report, which uses no "
+                'template: remove template_name and template_searchpath, or '
+                "set report_format to 'text'.")
         # Applied once the CLI has had its say, so an explicit option can
         # still override a value an auto-discovered config file supplied.
         self.__enforce_untrusted_path_jail()
@@ -601,8 +620,11 @@ class Salted:
             'name': self.template_name,
             'foldername_to_replace': str(path),
             'base_url': self.base_url}
-        report_generator.ReportGenerator.check_report_settings(
-            report_template, self.write_to)
+        if self.report_format == 'json':
+            report_generator.ReportGenerator.check_write_to(self.write_to)
+        else:
+            report_generator.ReportGenerator.check_report_settings(
+                report_template, self.write_to)
 
         cache_handler.load_disk_cache()
 
@@ -646,6 +668,13 @@ class Salted:
         # Scan and prune for both directory and single-file modes
         if not files_to_check:
             logger.warning("No supported files in this folder or its subfolders.")
+            # A tool reading the JSON report gets one in every run that
+            # completes, even an empty one.
+            if self.report_format == 'json':
+                self._write_json_report(
+                    mem_instance, searchpath, path,
+                    {'check_internal_links': self.check_internal_links},
+                    self._failure_counts(db))
             return
 
         file_io.scan_files(files_to_check)
@@ -689,72 +718,114 @@ class Salted:
         runtime_check = 1 if runtime_check == 0 else runtime_check
         # TO DO: check why this happens on Windows
 
-        display_result = report_generator.ReportGenerator(mem_instance)
+        statistics = {
+            'timestamp': f'{datetime.datetime.now():%Y-%b-%d %H:%Mh}',
+            'num_links': file_io.cnt['links_found'],
+            'num_distinct': num_distinct,
+            'num_cached': num_cached,
+            'num_checked': urls.cnt['checked_urls'],
+            'time_to_check': (round(runtime_check)),
+            'checks_per_second': (
+                round(urls.cnt['checked_urls'] / runtime_check, 2)),
+            'num_fine': urls.cnt['fine'],
+            'needed_full_request': urls.cnt['neededFullRequest'],
+            'percentage_full_request': (
+                round((urls.cnt['neededFullRequest'] / urls.cnt['checked_urls']) * 100, 2)
+                if urls.cnt['checked_urls'] > 0 else 0
+            ),
+            'num_dois': db.count_dois(),
+            'num_malformed_dois': db.count_malformed_dois(),
+            'num_confirmed_dois': db.count_confirmed_dois(),
+            'check_internal_links': self.check_internal_links,
+            'num_internal_checked': (
+                internal_checker.cnt['internal_checked']
+                if internal_checker else 0),
+            'num_internal_fine': (
+                internal_checker.cnt['internal_fine']
+                if internal_checker else 0),
+        }
+        failures = self._failure_counts(db)
 
-        # Base folder used to transform stored (absolute) file paths for the
-        # report: rewritten to base_url when set, otherwise shown relative to
-        # this folder (its parent when a single file was checked).
-        relative_base = path if path.is_dir() else path.parent
-
-        display_result.generate_report(
-            statistics={
-                'timestamp': f'{datetime.datetime.now():%Y-%b-%d %H:%Mh}',
-                'num_links': file_io.cnt['links_found'],
-                'num_distinct': num_distinct,
-                'num_cached': num_cached,
-                'num_checked': urls.cnt['checked_urls'],
-                'time_to_check': (round(runtime_check)),
-                'checks_per_second': (
-                    round(urls.cnt['checked_urls'] / runtime_check, 2)),
-                'num_fine': urls.cnt['fine'],
-                'needed_full_request': urls.cnt['neededFullRequest'],
-                'percentage_full_request': (
-                    round((urls.cnt['neededFullRequest'] / urls.cnt['checked_urls']) * 100, 2)
-                    if urls.cnt['checked_urls'] > 0 else 0
-                ),
-                'num_dois': db.count_dois(),
-                'num_malformed_dois': db.count_malformed_dois(),
-                'num_confirmed_dois': db.count_confirmed_dois(),
-                'check_internal_links': self.check_internal_links,
-                'num_internal_checked': (
-                    internal_checker.cnt['internal_checked']
-                    if internal_checker else 0),
-                'num_internal_fine': (
-                    internal_checker.cnt['internal_fine']
-                    if internal_checker else 0),
-                          },
-            template=report_template,
-            write_to=self.write_to,
-            replace_path_by_url={
-                'path_to_be_replaced': str(relative_base),
-                'replace_with_url': self.base_url
-            })
+        if self.report_format == 'json':
+            self._write_json_report(
+                mem_instance, searchpath, path, statistics, failures)
+        else:
+            # Base folder used to transform stored (absolute) file paths for
+            # the report: rewritten to base_url when set, otherwise shown
+            # relative to this folder (its parent for a single file).
+            relative_base = path if path.is_dir() else path.parent
+            report_generator.ReportGenerator(mem_instance).generate_report(
+                statistics=statistics,
+                template=report_template,
+                write_to=self.write_to,
+                replace_path_by_url={
+                    'path_to_be_replaced': str(relative_base),
+                    'replace_with_url': self.base_url
+                })
         # Persist the cache before potentially raising: URLs validated in
         # this run must survive a DeadLinksException, otherwise a failing
         # CI run would recheck everything on the next attempt.
         cache_handler.overwrite_cache_file()
-        num_dead = db.count_errors() + db.count_internal_link_errors()
-        # A file that could not be read counts as a failure, not as a pass:
-        # its links were never checked, and a run that listed it in the
-        # report while still exiting 0 would hide dead links in exactly the
-        # pipeline meant to catch them. This covers every reason a file was
-        # skipped - missing, no permission, over the size limit, a malformed
-        # .bib, or a .bib without pybtex installed.
-        num_unreadable = db.count_file_access_errors()
-        # A link without a host or with an invalid port cannot be reached
-        # by any client, so it is as broken as one that yields a 404.
-        num_malformed = db.count_malformed_urls()
-        # A malformed DOI cannot resolve, however it is linked.
-        num_malformed_dois = db.count_malformed_dois()
-        if (self.raise_for_dead_links
-                and (num_dead + num_unreadable + num_malformed
-                     + num_malformed_dois) > 0):
+        if self.raise_for_dead_links and sum(failures.values()) > 0:
             raise err.DeadLinksException(
                 self._failure_message(
-                    num_dead, num_unreadable,
+                    failures['dead_links'], failures['unreadable_files'],
                     file_io.cnt['bib_files_skipped'],
-                    num_malformed=num_malformed,
-                    num_malformed_dois=num_malformed_dois))
+                    num_malformed=failures['malformed_links'],
+                    num_malformed_dois=failures['malformed_dois']))
+
+    @staticmethod
+    def _failure_counts(db: database_io.DatabaseIO) -> dict:
+        """Count every reason for which a run fails --raise_for_dead_links.
+
+        Args:
+            db: The database of the run.
+
+        Returns:
+            Count per reason, keyed by json_report.REASON_CODES.
+        """
+        return {
+            'dead_links': db.count_errors() + db.count_internal_link_errors(),
+            # A link without a host or with an invalid port cannot be
+            # reached by any client, so it is as broken as one that yields
+            # a 404.
+            'malformed_links': db.count_malformed_urls(),
+            # A malformed DOI cannot resolve, however it is linked.
+            'malformed_dois': db.count_malformed_dois(),
+            # A file that could not be read counts as a failure, not as a
+            # pass: its links were never checked, and a run that listed it
+            # in the report while still exiting 0 would hide dead links in
+            # exactly the pipeline meant to catch them. This covers every
+            # reason a file was skipped - missing, no permission, over the
+            # size limit, a malformed .bib, or a .bib without pybtex.
+            'unreadable_files': db.count_file_access_errors(),
+        }
+
+    def _write_json_report(self,
+                           mem_instance: memory_instance.MemoryInstance,
+                           searchpath: str | pathlib.Path,
+                           path: pathlib.Path,
+                           statistics: dict,
+                           failures: dict) -> None:
+        """Build the JSON report of the run and write it to write_to.
+
+        Args:
+            mem_instance: The in-memory database of the run.
+            searchpath: The file or folder to check, as given.
+            path: The same, resolved.
+            statistics: The statistics the text report would show.
+            failures: The counts from _failure_counts.
+        """
+        report = json_report.build_report(
+            mem_instance,
+            version=self.VERSION,
+            searchpath=str(searchpath),
+            statistics=json_report.statistics_from(statistics),
+            failure_counts=failures,
+            raise_for_dead_links=self.raise_for_dead_links,
+            display=json_report.PathDisplay(
+                str(path if path.is_dir() else path.parent), self.base_url))
+        json_report.write_report(report, self.write_to)
 
     @staticmethod
     def _failure_message(num_dead: int,
