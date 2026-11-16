@@ -93,7 +93,7 @@ class Salted:
     VERSION = __version__
     CONFIG_NAME = 'salted-linkcheck.ini'
     # Release date kept for compatibility dependency, not exposed
-    RELEASE_DATE = datetime.date(2026, 11, 16)
+    RELEASE_DATE = datetime.date(2026, 11, 17)
 
     def __init__(self, config_path: pathlib.Path | None = None) -> None:
 
