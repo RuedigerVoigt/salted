@@ -507,12 +507,36 @@ class TestMarkdownCode:
         assert Parser().extract_links_from_markdown(markdown) == [
             ['https://after.example/', 'x']]
 
+    @pytest.mark.parametrize('markdown', [
+        # An escaped backtick is literal and opens no span.
+        r'\` [x](https://after.example/) \`',
+        r'\`\` [x](https://after.example/) ``',
+        # Inside a span a backslash is literal: `foo\` is the whole span.
+        r'`foo\` [x](https://after.example/) `',
+        # A backslash inside an earlier span escapes nothing after it.
+        r'`a\` `b` [x](https://after.example/)',
+    ])
+    def test_escaped_backtick_opens_no_span(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://after.example/', 'x']]
+
+    @pytest.mark.parametrize('markdown', [
+        # An escaped backslash leaves the backtick unescaped.
+        r'\\`[x](https://code.example/)`',
+        # The escape takes one backtick off the run: '``' opens.
+        r'\```[x](https://code.example/)``',
+    ])
+    def test_escape_that_still_opens_a_span(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
     @pytest.mark.parametrize('payload', [
         # Runs of growing length never find a partner: a lazy regex
         # rescans the paragraph for each of them.
         lambda n: ' '.join('`' * k for k in range(1, n)),
         lambda n: '` ' * (n * n // 4),
         lambda n: '```\n' * (n * n // 8),
+        lambda n: '\\` ' * (n * n // 4),
+        lambda n: '\\' * (n * n // 4) + '`',
     ])
     def test_crafted_input_is_not_quadratic(self, payload):
         parser = Parser()
@@ -529,6 +553,74 @@ class TestMarkdownCode:
 
         assert large < 2, f"parsing took {large:.1f}s"
         # Linear would be ~4x, quadratic ~16x.
+        assert large < small * 8 + 0.05, (
+            f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
+
+
+class TestMarkdownHtmlComments:
+    """A link inside an HTML comment is not rendered, so it is no link."""
+
+    @pytest.mark.parametrize('markdown', [
+        '<!-- https://comment.example/gone -->',
+        '<!-- [x](https://comment.example/gone) -->',
+        '<!--\n[r]: https://comment.example/gone\n-->',
+        # A comment block runs across blank lines up to the '-->' line,
+        # and that whole line is part of it.
+        '<!--\n<https://comment.example/a>\n\n[x](https://comment.example/b)'
+        '\n--> https://comment.example/c',
+        # Unclosed at the start of a line, it runs to the end, as a fence.
+        'Text\n\n<!--\n[x](https://comment.example/gone)\n',
+        '   <!-- indented --> https://comment.example/gone',
+        'Inline <!-- [x](https://comment.example/gone) --> comment',
+        'Across <!-- a line\n[x](https://comment.example/gone) --> break',
+    ])
+    def test_comment_is_skipped(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == []
+
+    @pytest.mark.parametrize('markdown', [
+        'Inline <!-- note --> [x](https://after.example/)',
+        # '<!-->' and '<!--->' are complete comments.
+        'a <!--> [x](https://after.example/)',
+        'a <!---> [x](https://after.example/)',
+        # Unclosed inside a paragraph, '<!--' is literal text.
+        'a <!-- unclosed [x](https://after.example/)',
+        # An inline comment cannot cross a paragraph.
+        'a <!-- open\n\n[x](https://after.example/) -->',
+        '\\<!-- escaped [x](https://after.example/) -->',
+        # A code span that opens first hides the comment delimiters.
+        '`<!--` [x](https://after.example/) `-->`',
+        'a `x <!--` [x](https://after.example/) --> b',
+        # A comment that opens first hides a backtick.
+        'a <!-- ` --> [x](https://after.example/) `',
+        # Inside a fence, '<!--' is code and opens no comment.
+        '```\n<!--\n```\n[x](https://after.example/)',
+        # A comment block hides the fence that would hide the link.
+        '<!--\n```\n-->\n[x](https://after.example/)',
+        '<!-- one -->\n[x](https://after.example/)',
+    ])
+    def test_link_outside_comment_is_kept(self, markdown):
+        assert Parser().extract_links_from_markdown(markdown) == [
+            ['https://after.example/', 'x']]
+
+    @pytest.mark.parametrize('payload', [
+        lambda n: 'x <!--' * (n * n // 4),
+        lambda n: 'x <!-- -->' * (n * n // 8),
+        lambda n: '<!--\n' * (n * n // 8),
+    ])
+    def test_crafted_input_is_not_quadratic(self, payload):
+        parser = Parser()
+
+        def measure(n: int) -> float:
+            text = payload(n)
+            start = time.perf_counter()
+            parser.extract_links_from_markdown(text)
+            return time.perf_counter() - start
+
+        measure(100)
+        small = measure(400)
+        large = measure(800)   # about 4x the input of small
+
+        assert large < 2, f"parsing took {large:.1f}s"
         assert large < small * 8 + 0.05, (
             f"scaling looks quadratic: {small:.3f}s -> {large:.3f}s")
 

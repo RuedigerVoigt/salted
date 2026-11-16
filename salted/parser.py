@@ -67,68 +67,153 @@ MISSING_PYBTEX_MSG: Final[str] = (
 # a future version of pybtex might get type hints, see:
 # https://bitbucket.org/pybtex-devs/pybtex/issues/141/type-annotations
 
-# Markdown code: a link written inside code is an example, not a link, and
-# is not rendered as one. Fences follow CommonMark: up to three spaces of
-# indentation, at least three backticks or tildes; a backtick fence's info
-# string cannot contain a backtick. The closing fence uses the same
-# character and is at least as long.
+# Markdown code and HTML comments: a link written inside code is an
+# example, not a link, and one inside a comment is not rendered at all.
+# Fences follow CommonMark: up to three spaces of indentation, at least
+# three backticks or tildes; a backtick fence's info string cannot contain
+# a backtick. The closing fence uses the same character and is at least as
+# long.
 _MD_FENCE_OPEN: Final = re.compile(r' {0,3}(?P<fence>`{3,}(?=[^`]*$)|~{3,})')
 _MD_FENCE_CLOSE: Final = re.compile(r' {0,3}(?P<fence>`{3,}|~{3,})[ \t]*$')
+# A line starting with '<!--' opens an HTML block (CommonMark type 2) that
+# ends with the line containing '-->'. Every line of it is raw HTML.
+_MD_COMMENT_BLOCK: Final = re.compile(r' {0,3}<!--')
 _MD_BLANK_LINE: Final = re.compile(r'(\n[ \t]*\n)')
-_MD_BACKTICKS: Final = re.compile(r'`+')
+# Inline: a run of backticks (a code span delimiter) or a comment opener.
+_MD_INLINE_TOKEN: Final = re.compile(r'`+|<!--')
 
 
-def _strip_fenced_code(text: str) -> str:
-    """Blank out fenced code blocks, keeping the line structure.
+def _strip_code_and_comment_blocks(text: str) -> str:
+    """Blank out fenced code blocks and HTML comment blocks.
 
-    A line-by-line scan rather than one regex: it is linear for every input,
-    including an unclosed fence (which runs to the end of the document).
+    The line structure is kept. A line-by-line scan rather than one regex:
+    it is linear for every input, including an unclosed fence or comment,
+    which runs to the end of the document, as it does in a renderer.
+    Whichever block starts first wins: a fence inside a comment is part of
+    the comment, and '<!--' inside a fence is code.
     """
     out = []
     fence = ''
+    comment = False
     for line in text.splitlines(keepends=True):
         bare = line.rstrip('\r\n')
-        if not fence:
-            opening = _MD_FENCE_OPEN.match(bare)
-            if opening is None:
-                out.append(line)
-                continue
-            fence = opening['fence']
-        else:
+        if comment:
+            comment = '-->' not in bare
+        elif fence:
             closing = _MD_FENCE_CLOSE.match(bare)
             if (closing is not None and closing['fence'][0] == fence[0]
                     and len(closing['fence']) >= len(fence)):
                 fence = ''
+        elif (opening := _MD_FENCE_OPEN.match(bare)) is not None:
+            fence = opening['fence']
+        elif _MD_COMMENT_BLOCK.match(bare):
+            # '<!-->' and '<!--->' are complete comments, and contain '-->'.
+            comment = '-->' not in bare
+        else:
+            out.append(line)
+            continue
         out.append('\n')
     return ''.join(out)
 
 
-def _strip_code_spans(paragraph: str) -> str:
-    """Blank out `code spans` within one paragraph.
+def _is_escaped(text: str, position: int, floor: int) -> bool:
+    """Tell whether the character at position follows a backslash escape.
+
+    An odd number of backslashes escapes it, an even number are escaped
+    backslashes. Backslashes before floor belong to a span already closed,
+    in which a backslash is literal, so they do not count.
+    """
+    count = 0
+    while position - count > floor and text[position - count - 1] == '\\':
+        count += 1
+    return count % 2 == 1
+
+
+def _comment_end(paragraph: str, position: int) -> int | None:
+    """Return where an inline HTML comment opened at position ends.
+
+    CommonMark: '<!-->', '<!--->', or '<!--' up to the next '-->'. Without
+    a '-->' the opener is literal text.
+    """
+    after = position + 4
+    if paragraph.startswith('>', after):
+        return after + 1
+    if paragraph.startswith('->', after):
+        return after + 2
+    close = paragraph.find('-->', after)
+    return None if close == -1 else close + 3
+
+
+def _strip_inline_code_and_comments(paragraph: str) -> str:
+    """Blank out `code spans` and <!-- comments --> within one paragraph.
 
     A span opens with a run of backticks and closes with the next run of the
-    same length; a run without a partner is literal text. Pairing the runs
-    by length keeps this linear - a lazy regex would rescan the paragraph
-    for every unmatched run, quadratic on a crafted file.
+    same length; a run without a partner is literal text. A backslash
+    escapes the first backtick of an opening run, as it escapes a '<!--'.
+    Inside a span a backslash is literal, so a closing run is never
+    escaped. Whichever of a span and a comment opens first wins and hides
+    the delimiters of the other.
+
+    Pairing the runs by length keeps this linear - a lazy regex would
+    rescan the paragraph for every unmatched run, quadratic on a crafted
+    file. So does the comment search: once a '-->' is missing, it is missing
+    for every later opener as well.
     """
-    runs = [(m.start(), m.end()) for m in _MD_BACKTICKS.finditer(paragraph)]
-    # Per run length, a stack of run indices with the smallest on top.
-    later: dict[int, list[int]] = {}
-    for index in range(len(runs) - 1, -1, -1):
-        later.setdefault(runs[index][1] - runs[index][0], []).append(index)
+    tokens = [(m.start(), m.end())
+              for m in _MD_INLINE_TOKEN.finditer(paragraph)]
+    closers = _closing_runs(paragraph, tokens)
     spans = []
     covered = 0
-    for index, (start, end) in enumerate(runs):
-        candidates = later[end - start]
-        # Drop this run and any earlier one: each index is popped once.
-        while candidates and candidates[-1] <= index:
-            candidates.pop()
+    comments_can_close = True
+    for index, (start, end) in enumerate(tokens):
         if start < covered:
-            continue                  # inside a span that is already closed
-        if candidates:
-            partner = runs[candidates.pop()]
-            spans.append((start, partner[1]))
-            covered = partner[1]
+            continue                  # inside a span or comment
+        escaped = _is_escaped(paragraph, start, covered)
+        if paragraph[start] == '<':
+            if escaped or not comments_can_close:
+                continue
+            close = _comment_end(paragraph, start)
+            comments_can_close = close is not None
+        else:
+            start += escaped          # an escaped backtick is literal
+            close = _code_span_end(tokens, closers, index, end - start)
+        if close is not None:
+            spans.append((start, close))
+            covered = close
+    return _blank_spans(paragraph, spans)
+
+
+def _closing_runs(paragraph: str, tokens: list) -> dict[int, list[int]]:
+    """Map each length to a stack of the backtick runs that could close.
+
+    The stacks hold indices into tokens, with the smallest on top.
+    """
+    closers: dict[int, list[int]] = {}
+    for index in range(len(tokens) - 1, -1, -1):
+        start, end = tokens[index]
+        if paragraph[start] == '`':
+            closers.setdefault(end - start, []).append(index)
+    return closers
+
+
+def _code_span_end(tokens: list,
+                   closers: dict[int, list[int]],
+                   index: int,
+                   length: int) -> int | None:
+    """Return where the span opened by the run at index ends, if it closes.
+
+    The span closes with the next run of the same length. An escaped run
+    one backtick long has the length 0 and opens nothing.
+    """
+    candidates = closers.get(length, [])
+    # Drop this run and any earlier one: each index is popped once.
+    while candidates and candidates[-1] <= index:
+        candidates.pop()
+    return tokens[candidates.pop()][1] if candidates else None
+
+
+def _blank_spans(paragraph: str, spans: list) -> str:
+    """Replace each (start, end) span of the paragraph with a blank."""
     if not spans:
         return paragraph
     pieces = []
@@ -218,23 +303,24 @@ def _inline_target(match: re.Match) -> str:
     return match['pointy'].strip().replace(' ', '%20')
 
 
-def strip_markdown_code(text: str) -> str:
-    """Remove fenced code blocks and inline code spans from Markdown.
+def strip_markdown_code_and_comments(text: str) -> str:
+    """Remove code and HTML comments from Markdown.
 
-    Indented code blocks are left alone: telling them from an indented
-    list continuation needs a full Markdown parser.
+    Removes fenced code blocks, inline code spans and HTML comments: none
+    of them renders as a link. Indented code blocks are left alone: telling
+    them from an indented list continuation needs a full Markdown parser.
 
     Args:
         text: Markdown file content.
 
     Returns:
-        The text with code replaced by blanks.
+        The text with code and comments replaced by blanks.
     """
-    text = _strip_fenced_code(text)
-    # A code span cannot cross a paragraph, so a stray backtick cannot eat
-    # the links of the following paragraphs.
+    text = _strip_code_and_comment_blocks(text)
+    # A code span or inline comment cannot cross a paragraph, so a stray
+    # backtick cannot eat the links of the following paragraphs.
     parts = _MD_BLANK_LINE.split(text)
-    return ''.join(part if index % 2 else _strip_code_spans(part)
+    return ''.join(part if index % 2 else _strip_inline_code_and_comments(part)
                    for index, part in enumerate(parts))
 
 
@@ -369,7 +455,7 @@ class Parser:
 
         Supports inline links and images ([text](url)), reference link
         definitions ([label]: url) and <url> syntax. Links in fenced code
-        blocks and in `code spans` are left out.
+        blocks, in `code spans` and in HTML comments are left out.
 
         Args:
             file_content: Markdown file content as a string.
@@ -398,7 +484,7 @@ class Parser:
                       self.pattern_md_link.finditer(match['linktext'])]
             return [[_inline_target(match), match['linktext']], *nested]
 
-        text = strip_markdown_code(file_content)
+        text = strip_markdown_code_and_comments(file_content)
         text = take(self.pattern_md_link, text, inline)
         text = take(self.pattern_md_reference, text,
                     lambda m: [[m['url'] if m['url'] is not None

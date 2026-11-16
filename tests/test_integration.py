@@ -628,6 +628,48 @@ def test_base_href_makes_internal_links_unverifiable(tmp_path):
     assert 'target file does not exist' in reasons            # plain.html
 
 
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock,
+       return_value=404)
+def test_link_between_escaped_backticks_fails_strict_mode(mock_head,
+                                                          tmp_path):
+    """\\` is a literal backtick: the link between two of them is real.
+
+    They were read as a code span, so the dead link was never requested
+    and the run passed.
+    """
+    d = tmp_path / "escaped"
+    d.mkdir()
+    (d / "readme.md").write_text(
+        '\\` [real](https://example.com/gone) \\`', encoding='utf-8')
+    my_check = salted.Salted()
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.raise_for_dead_links = True
+    with patch('salted.report_generator.ReportGenerator.generate_report'):
+        with pytest.raises(err.DeadLinksException,
+                           match=r'Found 1 dead link\(s\)'):
+            my_check.check(searchpath=d / "readme.md")
+    assert [call.args[0] for call in mock_head.await_args_list] == [
+        'https://example.com/gone']
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock,
+       return_value=404)
+def test_link_in_html_comment_is_not_requested(mock_head, tmp_path):
+    """A commented-out link is not rendered and cannot fail the run."""
+    d = tmp_path / "comment"
+    d.mkdir()
+    (d / "readme.md").write_text(
+        '# Title\n\n<!-- https://example.com/gone -->\n\n'
+        'Text <!-- [old](https://example.com/old) --> more\n',
+        encoding='utf-8')
+    my_check = salted.Salted()
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.raise_for_dead_links = True
+    with patch('salted.report_generator.ReportGenerator.generate_report'):
+        my_check.check(searchpath=d / "readme.md")   # must not raise
+    mock_head.assert_not_awaited()
+
+
 def test_internal_link_with_semicolon_passes_strict_mode(tmp_path):
     """doc;v1.html exists: urlparse looked up 'doc' and failed the run."""
     d = tmp_path / "semicolon"

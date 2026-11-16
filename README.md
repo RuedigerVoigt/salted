@@ -100,7 +100,7 @@ SALTED does support the following file-formats:
   * Autolinks: `<https://...>`, and `<user@example.com>`, which is listed with the mailto links.
   * Bare URLs in running text (`https://...`, `www....`), following GitHub's rules for extended autolinks. salted checks them in every Markdown file, although Pandoc only turns them into links with its `autolink_bare_uris` extension.
   * HTML anchors (`<a href="...">`) written into Markdown.
-  * Links in fenced code blocks and in `code spans` are skipped, as they are examples rather than links.
+  * Links in fenced code blocks and in `code spans` are skipped, as they are examples rather than links. So are links in HTML comments (`<!-- ... -->`), which are not rendered.
   * Relative links to other files are not checked: Markdown is usually converted before it is published, so they do not point to files on disk.
   * Not recognized yet: indented code blocks, so links in them are checked.
 * **TeX** : salted recognizes `\url{url}` as well as `\href{url}{text}`, but the hyperref option `baseurl` is ignored.
