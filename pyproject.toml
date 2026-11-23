@@ -72,7 +72,7 @@ pytest-mock = ">=3.17.0"
 pyfakefs = ">=6.3.2"
 pytest-cov = "*"
 pybtex = ">=0.26.1"
-ruff = ">=0.17.5"
+ruff = ">=0.17.6"
 mypy = ">=2.4.1"
 bandit = ">=1.9.4"
 
