@@ -720,7 +720,7 @@ def test_hosts_browsers_read_differently_are_never_requested(mock_head,
     Browsers read http://%31%32%37.0.0.1/ as 127.0.0.1, and
     https://127.0.0.1\\@example.com/ connects to 127.0.0.1 too. userprovided
     3.0.0 let the first pass the SSRF guard and normalized the second to
-    https://example.com/; 3.0.1 (salted's minimum) rejects both.
+    https://example.com/; 3.0.1 and later reject both.
     """
     d = tmp_path / "hosts"
     d.mkdir()
@@ -738,6 +738,40 @@ def test_hosts_browsers_read_differently_are_never_requested(mock_head,
     with patch('salted.report_generator.ReportGenerator.generate_report'):
         with pytest.raises(err.DeadLinksException,
                            match=r'Found 3 malformed link\(s\)'):
+            my_check.check(searchpath=d)
+
+    requested = [call.args[0] for call in mock_head.await_args_list]
+    assert requested == ['https://example.com/']
+
+
+@patch('salted.url_check.UrlCheck.head_request', new_callable=AsyncMock,
+       return_value=200)
+def test_internal_host_spellings_of_userprovided_3_1_are_never_requested(
+        mock_head, tmp_path):
+    """Hosts that userprovided 3.1.0 (salted's minimum) newly catches.
+
+    Fullwidth digits (http://１２７.0.0.1/) and http://0x/ (0.0.0.0) are
+    blocked by the SSRF guard. A host ending in a number that is no IPv4
+    address and a bracketed host that is no IPv6 address are malformed:
+    urlparse turned http://[v1.x]/ into the host v1.x.
+    """
+    d = tmp_path / "hosts"
+    d.mkdir()
+    (d / "index.html").write_text(
+        '<a href="http://１２７.0.0.1/">fullwidth</a>'
+        '<a href="http://0x/">hex zero</a>'
+        '<a href="http://1.2.3.999/">no ipv4</a>'
+        '<a href="http://[v1.x]/">no ipv6</a>'
+        '<a href="https://example.com/">fine</a>',
+        encoding='utf-8')
+
+    my_check = salted.Salted()
+    my_check.cache_file = tmp_path / "cache.sqlite3"
+    my_check.domain_delay = 0
+    my_check.raise_for_dead_links = True
+    with patch('salted.report_generator.ReportGenerator.generate_report'):
+        with pytest.raises(err.DeadLinksException,
+                           match=r'Found 2 malformed link\(s\)'):
             my_check.check(searchpath=d)
 
     requested = [call.args[0] for call in mock_head.await_args_list]
